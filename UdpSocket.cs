@@ -33,10 +33,10 @@ namespace Neutron.Core
 
         internal Socket globalSocket;
         internal CancellationTokenSource cancellationTokenSource = new();
-        internal ConcurrentDictionary<uint, ByteStream> reliableMessages = new();
         internal HashSet<uint> reliableMessagesAck = new();
+        internal ConcurrentDictionary<uint, ByteStream> reliableMessages = new();
 
-        private object sequence_lock = new();
+        private object syncLock = new();
         private uint sequence = 0;
 
         internal void Bind(UdpEndPoint localEndPoint)
@@ -87,7 +87,7 @@ namespace Neutron.Core
 
             ByteStream poolStream = ByteStream.Get();
             poolStream.Write((byte)((byte)channel | (byte)target << 2));
-            lock (sequence_lock) poolStream.Write(_sequence_ = ++sequence);
+            lock (syncLock) poolStream.Write(_sequence_ = ++sequence);
             poolStream.Write(byteStream);
             ByteStream relayStream = new ByteStream(poolStream.BytesWritten);
             relayStream.Write(poolStream);
@@ -100,26 +100,24 @@ namespace Neutron.Core
         {
             try
             {
-                if (byteStream.recvStream)
+                if (byteStream.isRawBytes)
                 {
+                    uint _sequence_ = 0;
                     byteStream.Position = 0;
                     Channel channel = (Channel)(byteStream.ReadByte() & 0x3);
                     if (channel == Channel.Reliable)
                     {
                         byte[] buffer = byteStream.Buffer;
-                        lock (sequence_lock)
-                        {
-                            uint _sequence_ = ++sequence;
-                            buffer[++offset] = (byte)_sequence_;
-                            buffer[++offset] = (byte)(_sequence_ >> 8);
-                            buffer[++offset] = (byte)(_sequence_ >> 16);
-                            buffer[++offset] = (byte)(_sequence_ >> 24);
-                            offset = 0;
+                        lock (syncLock) _sequence_ = ++sequence;
+                        buffer[++offset] = (byte)_sequence_;
+                        buffer[++offset] = (byte)(_sequence_ >> 8);
+                        buffer[++offset] = (byte)(_sequence_ >> 16);
+                        buffer[++offset] = (byte)(_sequence_ >> 24);
+                        offset = 0;
 
-                            ByteStream relayStream = new ByteStream(byteStream.BytesWritten);
-                            relayStream.Write(byteStream);
-                            reliableMessages.TryAdd(_sequence_, relayStream);
-                        }
+                        ByteStream relayStream = new ByteStream(byteStream.BytesWritten);
+                        relayStream.Write(byteStream);
+                        reliableMessages.TryAdd(_sequence_, relayStream);
                     }
                 }
 
@@ -148,7 +146,7 @@ namespace Neutron.Core
                             ByteStream recvStream = ByteStream.Get();
                             recvStream.Write(buffer, 0, length);
                             recvStream.Position = 0;
-                            recvStream.recvStream = true;
+                            recvStream.isRawBytes = true;
                             #region Bit Mask
                             byte bit = recvStream.ReadByte();
                             Channel channel = (Channel)(bit & 0x3);
@@ -165,17 +163,9 @@ namespace Neutron.Core
                                         {
                                             case MessageType.Acknowledgement:
                                                 {
-                                                    //continue;
                                                     uint sequence = recvStream.ReadUInt();
-                                                    if (!IsServer) reliableMessages.TryRemove(sequence, out _);
-                                                    else if (IsServer)
-                                                    {
-                                                        UdpClient client = GetClient(remoteEndPoint);
-                                                        if (client != null)
-                                                            client.reliableMessages.TryRemove(sequence, out _);
-                                                        else
-                                                            Logger.PrintError($"The client {remoteEndPoint} is not connected to the server!");
-                                                    }
+                                                    UdpClient client = GetClient(remoteEndPoint);
+                                                    if (client != null) client.reliableMessages.TryRemove(sequence, out _);
                                                 }
                                                 break;
                                             default:
@@ -196,13 +186,13 @@ namespace Neutron.Core
                                         ackStream.Release();
                                         #endregion
 
-                                        #region Check Sequence
-                                        Logger.PrintError($"Acknowledgement {ack}");
-                                        // if (!reliableMessagesAck.Add(ack))
-                                        //     Logger.PrintError($"Duplicate acknowledgement {ack}");
-                                        #endregion
+                                        UdpClient client = GetClient(remoteEndPoint);
+                                        if (client != null)
+                                        {
+                                            if (!client.reliableMessagesAck.Add(ack))
+                                                Logger.PrintError($"Duplicate acknowledgement {ack}");
+                                        }
 
-                                        #region Process reliable message
                                         MessageType msgType = recvStream.ReadPacket();
                                         switch (msgType)
                                         {
@@ -210,7 +200,6 @@ namespace Neutron.Core
                                                 OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                 break;
                                         }
-                                        #endregion
                                     }
                                     break;
                                 default:

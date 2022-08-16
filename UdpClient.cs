@@ -79,6 +79,6 @@ namespace Neutron.Core
             }
         }
 
-        internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => throw new System.NotImplementedException();
+        internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => this;
     }
 }

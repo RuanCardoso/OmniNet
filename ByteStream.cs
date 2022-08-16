@@ -17,7 +17,7 @@ namespace Neutron.Core
 {
     public sealed class ByteStream
     {
-        internal bool recvStream;
+        internal bool isRawBytes;
         private readonly byte[] buffer;
         private int position;
         private int bytesWritten;
@@ -96,7 +96,7 @@ namespace Neutron.Core
 
         public void EndWrite()
         {
-            recvStream = false;
+            isRawBytes = false;
             position = 0;
             bytesWritten = 0;
         }
