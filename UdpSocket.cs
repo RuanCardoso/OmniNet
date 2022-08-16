@@ -24,18 +24,18 @@ using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace Neutron.Core
 {
-    internal class ChannelObject
-    {
-        internal uint sequence = 0;
-        internal uint expectedSequence = 1;
-        internal readonly object sync_root = new();
-        internal readonly HashSet<uint> acknowledgmentsReceived = new();
-        internal readonly SortedDictionary<uint, ByteStream> dataBySequence = new();
-        internal readonly ConcurrentDictionary<uint, ByteStream> relayMessages = new();
-    }
-
     internal abstract class UdpSocket
     {
+        internal class ChannelObject
+        {
+            internal uint sequence = 0;
+            internal uint expectedSequence = 1;
+            internal readonly object sync_root = new();
+            internal readonly HashSet<uint> acknowledgmentsReceived = new();
+            internal readonly SortedDictionary<uint, ByteStream> dataBySequence = new();
+            internal readonly ConcurrentDictionary<uint, ByteStream> relayMessages = new();
+        }
+
         protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
 
@@ -213,6 +213,8 @@ namespace Neutron.Core
                                         ackStream.Release();
                                         #endregion
 
+                                        Logger.PrintError("Ack received: " + ack);
+
                                         MessageType msgType = recvStream.ReadPacket();
                                         switch (msgType)
                                         {
@@ -222,16 +224,14 @@ namespace Neutron.Core
                                                     if (client != null)
                                                     {
                                                         ChannelObject channelObject = client.GetChannelObject(channel);
-                                                        if (!channelObject.acknowledgmentsReceived.Add(ack))
-                                                            continue;
+                                                        if (!channelObject.acknowledgmentsReceived.Add(ack)) continue;
                                                         OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                     }
                                                     else
                                                     {
                                                         OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                         UdpClient _client_ = GetClient(remoteEndPoint);
-                                                        if (_client_ != null)
-                                                            _client_.GetChannelObject(channel).acknowledgmentsReceived.Add(ack);
+                                                        if (_client_ != null) _client_.GetChannelObject(channel).acknowledgmentsReceived.Add(ack);
                                                     }
                                                 }
                                                 break;
@@ -241,21 +241,16 @@ namespace Neutron.Core
                                                     if (client != null)
                                                     {
                                                         ChannelObject channelObject = client.GetChannelObject(channel);
+                                                        if (!channelObject.acknowledgmentsReceived.Add(ack))
+                                                            continue;
+
                                                         switch (channel)
                                                         {
                                                             case Channel.Reliable:
-                                                                {
-                                                                    if (!channelObject.acknowledgmentsReceived.Add(ack))
-                                                                        continue;
-
-                                                                    OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
-                                                                }
+                                                                OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                                 break;
                                                             case Channel.ReliableAndOrderly:
                                                                 {
-                                                                    if (!channelObject.acknowledgmentsReceived.Add(ack))
-                                                                        continue;
-
                                                                     uint min = channelObject.acknowledgmentsReceived.Min();
                                                                     uint max = channelObject.acknowledgmentsReceived.Max();
 
@@ -273,6 +268,7 @@ namespace Neutron.Core
                                                                             foreach (var (_, seqStream) in channelObject.dataBySequence)
                                                                                 OnMessage(seqStream, channel, target, msgType, remoteEndPoint);
 
+                                                                            channelObject.expectedSequence = max + 1;
                                                                             channelObject.acknowledgmentsReceived.Clear();
                                                                             channelObject.dataBySequence.Clear();
                                                                         }
