@@ -123,11 +123,13 @@ namespace Neutron.Core
                             recvStream.Write(buffer, 0, length);
                             recvStream.Position = 0;
                             recvStream.recvStream = true;
+                            #region Bit Mask
                             byte bit = recvStream.ReadByte();
                             Channel channel = (Channel)(bit & 0x3);
                             Target target = (Target)((bit >> 2) & 0x3);
                             if ((byte)target > 0x3)
                                 throw new Exception($"{Name} - StartReadingData - Invalid target {target}");
+                            #endregion
                             switch (channel)
                             {
                                 case Channel.Unreliable:
@@ -158,13 +160,16 @@ namespace Neutron.Core
                                 case Channel.Reliable:
                                 case Channel.ReliableAndOrderly:
                                     {
+                                        #region Send Acknowledgement
                                         uint ack = recvStream.ReadUInt();
                                         ByteStream ackStream = ByteStream.Get();
                                         ackStream.WritePacket(MessageType.Acknowledgement);
                                         ackStream.Write(ack);
                                         SendUnreliable(ackStream, remoteEndPoint, Target.Me);
                                         ackStream.Release();
-                                        /*----------------------------------------------*/
+                                        #endregion
+
+                                        #region Process reliable message
                                         MessageType msgType = recvStream.ReadPacket();
                                         switch (msgType)
                                         {
@@ -172,6 +177,7 @@ namespace Neutron.Core
                                                 OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                 break;
                                         }
+                                        #endregion
                                     }
                                     break;
                                 default:

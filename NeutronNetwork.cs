@@ -90,12 +90,7 @@ namespace Neutron.Core
                     Logger.Print("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
-
-                    ByteStream testStream = ByteStream.Get();
-                    testStream.WritePacket(MessageType.Test);
-                    testStream.Write(10);
-                    Server.SendToTarget(testStream, channel, target, remoteEndPoint);
-                    testStream.Release();
+                    Server.SendToTarget(recvStream, channel, target, remoteEndPoint);
                     break;
             }
         }
