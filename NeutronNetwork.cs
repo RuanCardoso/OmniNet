@@ -65,7 +65,7 @@ namespace Neutron.Core
                 ByteStream byteStream = ByteStream.Get();
                 byteStream.WritePacket(MessageType.Test);
                 byteStream.Write(++value);
-                udpClient.Send(byteStream, Channel.Unreliable, Target.Me);
+                udpClient.Send(byteStream, Channel.Unreliable, Target.All);
                 byteStream.Release();
             }
 
@@ -74,7 +74,7 @@ namespace Neutron.Core
                 ByteStream byteStream = ByteStream.Get();
                 byteStream.WritePacket(MessageType.Test);
                 byteStream.Write(++value);
-                udpClient.Send(byteStream, Channel.Reliable, Target.Me);
+                udpClient.Send(byteStream, Channel.Reliable, Target.All);
                 byteStream.Release();
             }
         }
@@ -90,6 +90,13 @@ namespace Neutron.Core
                     Logger.Print("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
+
+                    // ByteStream testStream = ByteStream.Get();
+                    // testStream.WritePacket(MessageType.Test);
+                    // testStream.Write(10);
+                    // Server.SendToTarget(testStream, channel, target, remoteEndPoint);
+                    // testStream.Release();
+
                     Server.SendToTarget(recvStream, channel, target, remoteEndPoint);
                     break;
             }

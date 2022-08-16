@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -33,6 +34,7 @@ namespace Neutron.Core
         internal Socket globalSocket;
         internal CancellationTokenSource cancellationTokenSource = new();
         internal ConcurrentDictionary<uint, ByteStream> reliableMessages = new();
+        internal HashSet<uint> reliableMessagesAck = new();
 
         private object sequence_lock = new();
         private uint sequence = 0;
@@ -79,16 +81,17 @@ namespace Neutron.Core
 
         protected void SendReliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
         {
+            uint _sequence_ = 0;
             if (IsServer)
                 throw new Exception("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
 
             ByteStream poolStream = ByteStream.Get();
             poolStream.Write((byte)((byte)channel | (byte)target << 2));
-            lock (sequence_lock) poolStream.Write(++sequence);
+            lock (sequence_lock) poolStream.Write(_sequence_ = ++sequence);
             poolStream.Write(byteStream);
             ByteStream relayStream = new ByteStream(poolStream.BytesWritten);
             relayStream.Write(poolStream);
-            reliableMessages.TryAdd(sequence, relayStream);
+            reliableMessages.TryAdd(_sequence_, relayStream);
             Send(poolStream, remoteEndPoint);
             poolStream.Release();
         }
@@ -97,6 +100,29 @@ namespace Neutron.Core
         {
             try
             {
+                if (byteStream.recvStream)
+                {
+                    byteStream.Position = 0;
+                    Channel channel = (Channel)(byteStream.ReadByte() & 0x3);
+                    if (channel == Channel.Reliable)
+                    {
+                        byte[] buffer = byteStream.Buffer;
+                        lock (sequence_lock)
+                        {
+                            uint _sequence_ = ++sequence;
+                            buffer[++offset] = (byte)_sequence_;
+                            buffer[++offset] = (byte)(_sequence_ >> 8);
+                            buffer[++offset] = (byte)(_sequence_ >> 16);
+                            buffer[++offset] = (byte)(_sequence_ >> 24);
+                            offset = 0;
+
+                            ByteStream relayStream = new ByteStream(byteStream.BytesWritten);
+                            relayStream.Write(byteStream);
+                            reliableMessages.TryAdd(_sequence_, relayStream);
+                        }
+                    }
+                }
+
                 int bytesWritten = byteStream.BytesWritten;
                 int length = globalSocket.SendTo(byteStream.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
                 if (length != bytesWritten) throw new Exception($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
@@ -139,6 +165,7 @@ namespace Neutron.Core
                                         {
                                             case MessageType.Acknowledgement:
                                                 {
+                                                    //continue;
                                                     uint sequence = recvStream.ReadUInt();
                                                     if (!IsServer) reliableMessages.TryRemove(sequence, out _);
                                                     else if (IsServer)
@@ -167,6 +194,12 @@ namespace Neutron.Core
                                         ackStream.Write(ack);
                                         SendUnreliable(ackStream, remoteEndPoint, Target.Me);
                                         ackStream.Release();
+                                        #endregion
+
+                                        #region Check Sequence
+                                        Logger.PrintError($"Acknowledgement {ack}");
+                                        // if (!reliableMessagesAck.Add(ack))
+                                        //     Logger.PrintError($"Duplicate acknowledgement {ack}");
                                         #endregion
 
                                         #region Process reliable message
