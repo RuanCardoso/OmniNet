@@ -77,7 +77,6 @@ namespace Neutron.Core
             poolStream.Release();
         }
 
-        protected void SendReliableAndOrderly(ByteStream byteStream, UdpEndPoint remoteEndPoint) => SendReliable(byteStream, remoteEndPoint, Channel.ReliableAndOrderly);
         protected void SendReliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
         {
             if (IsServer)

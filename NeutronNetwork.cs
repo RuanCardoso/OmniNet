@@ -63,7 +63,7 @@ namespace Neutron.Core
             {
                 ByteStream byteStream = ByteStream.Get();
                 byteStream.WritePacket(MessageType.Test);
-                udpClient.Send(byteStream, Channel.Unreliable);
+                udpClient.Send(byteStream, Channel.Unreliable, Target.Server);
                 byteStream.Release();
             }
 
