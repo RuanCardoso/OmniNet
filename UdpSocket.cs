@@ -122,6 +122,7 @@ namespace Neutron.Core
                             ByteStream recvStream = ByteStream.Get();
                             recvStream.Write(buffer, 0, length);
                             recvStream.Position = 0;
+                            recvStream.recvStream = true;
                             byte bit = recvStream.ReadByte();
                             Channel channel = (Channel)(bit & 0x3);
                             Target target = (Target)((bit >> 2) & 0x3);
@@ -182,6 +183,7 @@ namespace Neutron.Core
                         else
                             throw new System.Exception($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
                     }
+                    catch (ThreadAbortException) { }
                     catch (ObjectDisposedException) { }
                     catch (SocketException ex)
                     {

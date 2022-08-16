@@ -56,7 +56,7 @@ namespace Neutron.Core
             return null;
         }
 
-        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint, bool sendRawBytes = false)
+        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint)
         {
             switch (target)
             {
@@ -65,7 +65,7 @@ namespace Neutron.Core
                         UdpClient udpClient = GetClient(remoteEndPoint);
                         if (udpClient != null)
                         {
-                            if (!sendRawBytes) udpClient.Send(byteStream, channel, target);
+                            if (!byteStream.recvStream) udpClient.Send(byteStream, channel, target);
                             else udpClient.Send(byteStream);
                         }
                         else throw new System.Exception("Target is not connected!");
@@ -75,7 +75,7 @@ namespace Neutron.Core
                     {
                         foreach (var (id, udpClient) in udpClients)
                         {
-                            if (!sendRawBytes) udpClient.Send(byteStream, channel, target);
+                            if (!byteStream.recvStream) udpClient.Send(byteStream, channel, target);
                             else udpClient.Send(byteStream);
                         }
                     }
@@ -86,7 +86,7 @@ namespace Neutron.Core
                         {
                             if (id != remoteEndPoint.GetPort())
                             {
-                                if (!sendRawBytes) udpClient.Send(byteStream, channel, target);
+                                if (!byteStream.recvStream) udpClient.Send(byteStream, channel, target);
                                 else udpClient.Send(byteStream);
                             }
                         }

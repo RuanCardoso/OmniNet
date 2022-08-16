@@ -87,7 +87,7 @@ namespace Neutron.Core
                     OnConnected?.Invoke(isServer);
                     break;
                 case MessageType.Test:
-                    Logger.Log("Test: " + recvStream.ReadInt());
+                    Logger.Print("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
 
