@@ -12,12 +12,15 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System;
 using System.Net.Sockets;
 
 namespace Neutron.Core
 {
     internal sealed class UdpClient : UdpSocket
     {
+        internal int Id { get; private set; }
+        internal bool IsConnected { get; private set; }
         protected override string Name => "Neutron_Client";
         protected override bool IsServer => false;
         internal UdpEndPoint remoteEndPoint;
@@ -25,6 +28,7 @@ namespace Neutron.Core
         internal UdpClient() { }
         internal UdpClient(UdpEndPoint remoteEndPoint, Socket socket)
         {
+            IsConnected = true;
             this.globalSocket = socket;
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), remoteEndPoint.GetPort()); // copy endpoint to avoid reference problems!
             SendReliableMessages(this.remoteEndPoint);
@@ -34,16 +38,17 @@ namespace Neutron.Core
         {
             SendReliableMessages(remoteEndPoint);
             this.remoteEndPoint = remoteEndPoint;
-            ByteStream connStream = NeutronNetwork.ByteStreams.Get();
+            ByteStream connStream = ByteStream.Get();
             connStream.WritePacket(MessageType.Connect);
             Send(connStream, Channel.Reliable);
-            NeutronNetwork.ByteStreams.Release(connStream);
+            connStream.Release();
         }
 
-        internal void Send(ByteStream byteStream, Channel channel)
+        internal void Send(ByteStream byteStream, Channel channel = Channel.Unreliable)
         {
             if (remoteEndPoint == null)
                 throw new System.Exception("You must call Connect() before Send()");
+
             switch (channel)
             {
                 case Channel.Unreliable:
@@ -58,17 +63,21 @@ namespace Neutron.Core
             }
         }
 
-        protected override void OnMessage(ByteStream byteStream, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             switch (messageType)
             {
                 case MessageType.Connect:
-                    ushort uniqueId = byteStream.ReadUShort();
-                    Logger.Log($"Connected to {remoteEndPoint.GetIPAddress()}:{remoteEndPoint.GetPort()} with uniqueId {uniqueId}");
+                    Id = recvStream.ReadUShort();
+                    IsConnected = true;
+                    NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                    break;
+                default:
+                    NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
                     break;
             }
         }
 
-        protected override UdpClient GetClient(int port) => throw new System.NotImplementedException();
+        internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => throw new System.NotImplementedException();
     }
 }

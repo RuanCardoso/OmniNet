@@ -38,9 +38,9 @@ namespace Neutron.Core
 
         public void Release(ByteStream stream)
         {
+            stream.EndWrite();
             lock (_lock)
             {
-                stream.EndWrite();
                 pool.Push(stream);
             }
         }

@@ -26,11 +26,7 @@ namespace Neutron.Core
         public int BytesAvailable => bytesWritten - position;
         public int Position { get => position; set => position = value; }
 
-        public ByteStream(int size)
-        {
-            buffer = new byte[size];
-        }
-
+        public ByteStream(int size) => buffer = new byte[size];
         public void Write(byte value)
         {
             ThrowIfNotEnoughSpace(sizeof(byte));
@@ -177,5 +173,8 @@ namespace Neutron.Core
             if (position + size > bytesWritten)
                 throw new System.Exception($"Byte Stream: Not enough data to read!");
         }
+
+        public static ByteStream Get() => NeutronNetwork.ByteStreams.Get();
+        public void Release() => NeutronNetwork.ByteStreams.Release(this);
     }
 }

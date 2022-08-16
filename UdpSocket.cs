@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
@@ -23,8 +24,8 @@ namespace Neutron.Core
 {
     internal abstract class UdpSocket
     {
-        protected abstract void OnMessage(ByteStream byteStream, MessageType messageType, UdpEndPoint remoteEndPoint);
-        protected abstract UdpClient GetClient(int port);
+        protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
+        internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
 
         protected abstract bool IsServer { get; }
         protected abstract string Name { get; }
@@ -67,37 +68,42 @@ namespace Neutron.Core
             }, cancellationTokenSource.Token);
         }
 
-        protected void SendUnreliable(ByteStream byteStream, UdpEndPoint remoteEndPoint)
+        protected void SendUnreliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Target target = Target.Me)
         {
-            ByteStream poolStream = NeutronNetwork.ByteStreams.Get();
-            poolStream.Write((byte)Channel.Unreliable);
+            ByteStream poolStream = ByteStream.Get();
+            poolStream.Write((byte)((byte)Channel.Unreliable | (byte)target << 2));
             poolStream.Write(byteStream);
             Send(poolStream, remoteEndPoint);
-            NeutronNetwork.ByteStreams.Release(poolStream);
+            poolStream.Release();
         }
 
         protected void SendReliableAndOrderly(ByteStream byteStream, UdpEndPoint remoteEndPoint) => SendReliable(byteStream, remoteEndPoint, Channel.ReliableAndOrderly);
-        protected void SendReliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable)
+        protected void SendReliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
         {
-            ByteStream poolStream = NeutronNetwork.ByteStreams.Get();
-            poolStream.Write((byte)channel);
-            lock (sequence_lock)
-                poolStream.Write(++sequence);
+            if (IsServer)
+                throw new Exception("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
+
+            ByteStream poolStream = ByteStream.Get();
+            poolStream.Write((byte)((byte)channel | (byte)target << 2));
+            lock (sequence_lock) poolStream.Write(++sequence);
             poolStream.Write(byteStream);
             ByteStream reliableStream = new ByteStream(poolStream.BytesWritten);
             reliableStream.Write(poolStream);
             reliableMessages.TryAdd(sequence, reliableStream);
             Send(poolStream, remoteEndPoint);
-            NeutronNetwork.ByteStreams.Release(poolStream);
+            poolStream.Release();
         }
 
         private int Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, int offset = 0)
         {
-            int bytesWritten = byteStream.BytesWritten;
-            int length = globalSocket.SendTo(byteStream.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
-            if (length != bytesWritten)
-                throw new System.Exception($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
-            return length;
+            try
+            {
+                int bytesWritten = byteStream.BytesWritten;
+                int length = globalSocket.SendTo(byteStream.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
+                if (length != bytesWritten) throw new Exception($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
+                return length;
+            }
+            catch (ObjectDisposedException) { return 0; }
         }
 
         private void StartReadingData()
@@ -113,11 +119,15 @@ namespace Neutron.Core
                         int length = globalSocket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
                         if (length > 0)
                         {
-                            var remoteEndPoint = (UdpEndPoint)endPoint;
-                            ByteStream poolStream = NeutronNetwork.ByteStreams.Get();
+                            UdpEndPoint remoteEndPoint = (UdpEndPoint)endPoint;
+                            ByteStream poolStream = ByteStream.Get();
                             poolStream.Write(buffer, 0, length);
                             poolStream.Position = 0;
-                            Channel channel = (Channel)poolStream.ReadByte();
+                            byte bit = poolStream.ReadByte();
+                            Channel channel = (Channel)(bit & 0x3);
+                            Target target = (Target)((bit >> 2) & 0x3);
+                            if ((byte)target > 0x3)
+                                throw new Exception($"{Name} - StartReadingData - Invalid target {target}");
                             switch (channel)
                             {
                                 case Channel.Unreliable:
@@ -131,7 +141,7 @@ namespace Neutron.Core
                                                     if (!IsServer) reliableMessages.TryRemove(sequence, out _);
                                                     else if (IsServer)
                                                     {
-                                                        UdpClient client = GetClient(remoteEndPoint.GetPort());
+                                                        UdpClient client = GetClient(remoteEndPoint);
                                                         if (client != null)
                                                             client.reliableMessages.TryRemove(sequence, out _);
                                                         else
@@ -140,7 +150,7 @@ namespace Neutron.Core
                                                 }
                                                 break;
                                             default:
-                                                OnMessage(poolStream, msgType, remoteEndPoint);
+                                                OnMessage(poolStream, channel, target, msgType, remoteEndPoint);
                                                 break;
                                         }
                                     }
@@ -149,28 +159,40 @@ namespace Neutron.Core
                                 case Channel.ReliableAndOrderly:
                                     {
                                         uint ack = poolStream.ReadUInt();
-                                        ByteStream ackStream = NeutronNetwork.ByteStreams.Get();
+                                        ByteStream ackStream = ByteStream.Get();
                                         ackStream.WritePacket(MessageType.Acknowledgement);
                                         ackStream.Write(ack);
                                         SendUnreliable(ackStream, remoteEndPoint);
-                                        NeutronNetwork.ByteStreams.Release(ackStream);
+                                        ackStream.Release();
+                                        /*----------------------------------------------*/
                                         MessageType msgType = poolStream.ReadPacket();
-                                        OnMessage(poolStream, msgType, remoteEndPoint);
-
-                                        if (!IsServer)
-                                            Logger.PrintError($"Acknowledgement {ack} received from {remoteEndPoint}");
+                                        switch (msgType)
+                                        {
+                                            default:
+                                                OnMessage(poolStream, channel, target, msgType, remoteEndPoint);
+                                                break;
+                                        }
+                                        Logger.PrintError($"Acknowledgement {ack} received from {remoteEndPoint}");
                                     }
                                     break;
+                                default:
+                                    Logger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
+                                    break;
                             }
-                            NeutronNetwork.ByteStreams.Release(poolStream);
+                            poolStream.Release();
                         }
                         else
                             throw new System.Exception($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
                     }
+                    catch (ObjectDisposedException) { }
                     catch (SocketException ex)
                     {
                         if (ex.ErrorCode == 10004)
                             break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogStacktrace(ex);
                     }
                 }
             })

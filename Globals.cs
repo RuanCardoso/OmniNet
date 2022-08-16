@@ -34,7 +34,7 @@ namespace Neutron.Core
 
     internal enum Target : byte
     {
-        None = 0,
+        Server = 0,
         All = 1,
         Others = 2,
         Me = 3,
@@ -50,5 +50,10 @@ namespace Neutron.Core
             udpClient.Close();
             return port;
         }
+    }
+
+    public static class Extensions
+    {
+
     }
 }

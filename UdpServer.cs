@@ -23,34 +23,71 @@ namespace Neutron.Core
         protected override bool IsServer => true;
         private ConcurrentDictionary<int, UdpClient> udpClients = new();
 
-        protected override void OnMessage(ByteStream byteStream, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             int uniqueId = remoteEndPoint.GetPort();
             switch (messageType)
             {
                 case MessageType.Connect:
                     {
-                        UdpClient udpClient = new(remoteEndPoint, globalSocket);
-                        if (udpClients.TryAdd(uniqueId, udpClient))
+                        UdpClient newClient = new(remoteEndPoint, globalSocket);
+                        if (udpClients.TryAdd(uniqueId, newClient))
                         {
-                            ByteStream connStream = NeutronNetwork.ByteStreams.Get();
+                            ByteStream connStream = ByteStream.Get();
                             connStream.WritePacket(MessageType.Connect);
                             connStream.Write((ushort)uniqueId);
-                            udpClient.Send(connStream, Channel.Reliable);
-                            NeutronNetwork.ByteStreams.Release(connStream);
+                            newClient.Send(connStream, Channel.Reliable);
+                            connStream.Release();
+                            NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
                         }
-                        else
-                            udpClient.Close(true);
+                        else newClient.Close(true);
                     }
+                    break;
+                default:
+                    NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
                     break;
             }
         }
 
-        protected override UdpClient GetClient(int port)
+        internal override UdpClient GetClient(UdpEndPoint remoteEndPoint)
         {
-            if (udpClients.TryGetValue(port, out UdpClient udpClient))
+            if (udpClients.TryGetValue(remoteEndPoint.GetPort(), out UdpClient udpClient))
                 return udpClient;
             return null;
+        }
+
+        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint)
+        {
+            switch (target)
+            {
+                case Target.Me:
+                    {
+                        UdpClient udpClient = GetClient(remoteEndPoint);
+                        if (udpClient != null)
+                            udpClient.Send(byteStream, channel);
+                        else throw new System.Exception("Target is not connected!");
+                    }
+                    break;
+                case Target.All:
+                    {
+                        foreach (var (id, udpClient) in udpClients)
+                            udpClient.Send(byteStream, channel);
+                    }
+                    break;
+                case Target.Others:
+                    {
+                        foreach (var (id, udpClient) in udpClients)
+                        {
+                            if (id != remoteEndPoint.GetPort())
+                                udpClient.Send(byteStream, channel);
+                        }
+                    }
+                    break;
+                case Target.Server:
+                    break;
+                default:
+                    throw new System.Exception("Invalid target!");
+            }
         }
 
         internal override void Close(bool fromServer = false)

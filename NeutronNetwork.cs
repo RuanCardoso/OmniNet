@@ -20,16 +20,22 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x64)]
     internal class NeutronNetwork : MonoBehaviour
     {
-        public static ByteStreamPool ByteStreams = new();
+        internal static NeutronNetwork Instance { get; private set; }
+        internal static ByteStreamPool ByteStreams = new();
+        private static UdpServer Server { get; set; }
         private UdpServer udpServer = new UdpServer();
         private UdpClient udpClient = new UdpClient();
+        public static event Action<bool> OnConnected;
 
+        [SerializeField] private int targetFrameRate = 60;
         private void Awake()
         {
+            Instance = this;
 #if UNITY_SERVER
             Console.Clear();
             Console.WriteLine("Neutron Network is being initialized...");
 #endif
+            Application.targetFrameRate = targetFrameRate;
         }
 
         private void Start()
@@ -46,24 +52,47 @@ namespace Neutron.Core
 #if UNITY_SERVER
             Console.WriteLine("Neutron Network is ready!");
 #endif
+#if UNITY_SERVER || UNITY_EDITOR
+            Server = udpServer;
+#endif
         }
 
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                ByteStream byteStream = ByteStreams.Get();
+                ByteStream byteStream = ByteStream.Get();
                 byteStream.WritePacket(MessageType.Test);
                 udpClient.Send(byteStream, Channel.Unreliable);
-                ByteStreams.Release(byteStream);
+                byteStream.Release();
             }
 
             if (Input.GetKeyDown(KeyCode.R))
             {
-                ByteStream byteStream = ByteStreams.Get();
+                ByteStream byteStream = ByteStream.Get();
                 byteStream.WritePacket(MessageType.Test);
                 udpClient.Send(byteStream, Channel.Reliable);
-                ByteStreams.Release(byteStream);
+                byteStream.Release();
+            }
+        }
+
+        internal static void OnMessage(ByteStream recvStream, MessageType messageType, Channel channel, Target target, UdpEndPoint remoteEndPoint, bool isServer)
+        {
+            switch (messageType)
+            {
+                case MessageType.Connect:
+                    OnConnected?.Invoke(isServer);
+                    break;
+                case MessageType.Test:
+                    Logger.Log("Test");
+                    if (!isServer)
+                        return;
+
+                    ByteStream testStream = ByteStream.Get();
+                    testStream.WritePacket(MessageType.Test);
+                    Server.SendToTarget(testStream, channel, target, remoteEndPoint);
+                    testStream.Release();
+                    break;
             }
         }
 
