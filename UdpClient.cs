@@ -40,10 +40,11 @@ namespace Neutron.Core
             this.remoteEndPoint = remoteEndPoint;
             ByteStream connStream = ByteStream.Get();
             connStream.WritePacket(MessageType.Connect);
-            Send(connStream, Channel.Reliable);
+            Send(connStream, Channel.Reliable, Target.Me);
             connStream.Release();
         }
 
+        internal int Send(ByteStream byteStream) => Send(byteStream, remoteEndPoint, 0);
         internal void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
         {
             if (remoteEndPoint == null)

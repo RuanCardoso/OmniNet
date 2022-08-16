@@ -57,13 +57,15 @@ namespace Neutron.Core
 #endif
         }
 
+        int value;
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 ByteStream byteStream = ByteStream.Get();
                 byteStream.WritePacket(MessageType.Test);
-                udpClient.Send(byteStream, Channel.Unreliable, Target.Server);
+                byteStream.Write(++value);
+                udpClient.Send(byteStream, Channel.Unreliable, Target.Me);
                 byteStream.Release();
             }
 
@@ -71,7 +73,8 @@ namespace Neutron.Core
             {
                 ByteStream byteStream = ByteStream.Get();
                 byteStream.WritePacket(MessageType.Test);
-                udpClient.Send(byteStream, Channel.Reliable);
+                byteStream.Write(++value);
+                udpClient.Send(byteStream, Channel.Reliable, Target.Me);
                 byteStream.Release();
             }
         }
@@ -84,12 +87,13 @@ namespace Neutron.Core
                     OnConnected?.Invoke(isServer);
                     break;
                 case MessageType.Test:
-                    Logger.Log("Test");
+                    Logger.Log("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
 
                     ByteStream testStream = ByteStream.Get();
                     testStream.WritePacket(MessageType.Test);
+                    testStream.Write(10);
                     Server.SendToTarget(testStream, channel, target, remoteEndPoint);
                     testStream.Release();
                     break;

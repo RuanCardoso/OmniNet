@@ -36,7 +36,7 @@ namespace Neutron.Core
                             ByteStream connStream = ByteStream.Get();
                             connStream.WritePacket(MessageType.Connect);
                             connStream.Write((ushort)uniqueId);
-                            newClient.Send(connStream, Channel.Reliable);
+                            newClient.Send(connStream, Channel.Reliable, target);
                             connStream.Release();
                             NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
                         }
@@ -56,7 +56,7 @@ namespace Neutron.Core
             return null;
         }
 
-        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint)
+        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint, bool sendRawBytes = false)
         {
             switch (target)
             {
@@ -64,14 +64,20 @@ namespace Neutron.Core
                     {
                         UdpClient udpClient = GetClient(remoteEndPoint);
                         if (udpClient != null)
-                            udpClient.Send(byteStream, channel);
+                        {
+                            if (!sendRawBytes) udpClient.Send(byteStream, channel, target);
+                            else udpClient.Send(byteStream);
+                        }
                         else throw new System.Exception("Target is not connected!");
                     }
                     break;
                 case Target.All:
                     {
                         foreach (var (id, udpClient) in udpClients)
-                            udpClient.Send(byteStream, channel);
+                        {
+                            if (!sendRawBytes) udpClient.Send(byteStream, channel, target);
+                            else udpClient.Send(byteStream);
+                        }
                     }
                     break;
                 case Target.Others:
@@ -79,7 +85,10 @@ namespace Neutron.Core
                         foreach (var (id, udpClient) in udpClients)
                         {
                             if (id != remoteEndPoint.GetPort())
-                                udpClient.Send(byteStream, channel);
+                            {
+                                if (!sendRawBytes) udpClient.Send(byteStream, channel, target);
+                                else udpClient.Send(byteStream);
+                            }
                         }
                     }
                     break;

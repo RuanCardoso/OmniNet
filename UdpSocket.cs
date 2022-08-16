@@ -59,10 +59,10 @@ namespace Neutron.Core
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
                     await Task.Delay(30);
-                    foreach (var (sequence, stream) in reliableMessages)
+                    foreach (var (sequence, relayStream) in reliableMessages)
                     {
-                        stream.Position = 0;
-                        Send(stream, remoteEndPoint);
+                        relayStream.Position = 0;
+                        Send(relayStream, remoteEndPoint);
                     }
                 }
             }, cancellationTokenSource.Token);
@@ -86,14 +86,14 @@ namespace Neutron.Core
             poolStream.Write((byte)((byte)channel | (byte)target << 2));
             lock (sequence_lock) poolStream.Write(++sequence);
             poolStream.Write(byteStream);
-            ByteStream reliableStream = new ByteStream(poolStream.BytesWritten);
-            reliableStream.Write(poolStream);
-            reliableMessages.TryAdd(sequence, reliableStream);
+            ByteStream relayStream = new ByteStream(poolStream.BytesWritten);
+            relayStream.Write(poolStream);
+            reliableMessages.TryAdd(sequence, relayStream);
             Send(poolStream, remoteEndPoint);
             poolStream.Release();
         }
 
-        private int Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, int offset = 0)
+        protected int Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, int offset = 0)
         {
             try
             {
@@ -119,10 +119,10 @@ namespace Neutron.Core
                         if (length > 0)
                         {
                             UdpEndPoint remoteEndPoint = (UdpEndPoint)endPoint;
-                            ByteStream poolStream = ByteStream.Get();
-                            poolStream.Write(buffer, 0, length);
-                            poolStream.Position = 0;
-                            byte bit = poolStream.ReadByte();
+                            ByteStream recvStream = ByteStream.Get();
+                            recvStream.Write(buffer, 0, length);
+                            recvStream.Position = 0;
+                            byte bit = recvStream.ReadByte();
                             Channel channel = (Channel)(bit & 0x3);
                             Target target = (Target)((bit >> 2) & 0x3);
                             if ((byte)target > 0x3)
@@ -131,12 +131,12 @@ namespace Neutron.Core
                             {
                                 case Channel.Unreliable:
                                     {
-                                        MessageType msgType = poolStream.ReadPacket();
+                                        MessageType msgType = recvStream.ReadPacket();
                                         switch (msgType)
                                         {
                                             case MessageType.Acknowledgement:
                                                 {
-                                                    uint sequence = poolStream.ReadUInt();
+                                                    uint sequence = recvStream.ReadUInt();
                                                     if (!IsServer) reliableMessages.TryRemove(sequence, out _);
                                                     else if (IsServer)
                                                     {
@@ -149,7 +149,7 @@ namespace Neutron.Core
                                                 }
                                                 break;
                                             default:
-                                                OnMessage(poolStream, channel, target, msgType, remoteEndPoint);
+                                                OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                 break;
                                         }
                                     }
@@ -157,28 +157,27 @@ namespace Neutron.Core
                                 case Channel.Reliable:
                                 case Channel.ReliableAndOrderly:
                                     {
-                                        uint ack = poolStream.ReadUInt();
+                                        uint ack = recvStream.ReadUInt();
                                         ByteStream ackStream = ByteStream.Get();
                                         ackStream.WritePacket(MessageType.Acknowledgement);
                                         ackStream.Write(ack);
-                                        SendUnreliable(ackStream, remoteEndPoint);
+                                        SendUnreliable(ackStream, remoteEndPoint, Target.Me);
                                         ackStream.Release();
                                         /*----------------------------------------------*/
-                                        MessageType msgType = poolStream.ReadPacket();
+                                        MessageType msgType = recvStream.ReadPacket();
                                         switch (msgType)
                                         {
                                             default:
-                                                OnMessage(poolStream, channel, target, msgType, remoteEndPoint);
+                                                OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                 break;
                                         }
-                                        Logger.PrintError($"Acknowledgement {ack} received from {remoteEndPoint}");
                                     }
                                     break;
                                 default:
                                     Logger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
                                     break;
                             }
-                            poolStream.Release();
+                            recvStream.Release();
                         }
                         else
                             throw new System.Exception($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
