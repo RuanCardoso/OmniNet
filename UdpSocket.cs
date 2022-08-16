@@ -15,6 +15,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -23,6 +24,16 @@ using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace Neutron.Core
 {
+    internal class ChannelObject
+    {
+        internal uint sequence = 0;
+        internal uint expectedSequence = 1;
+        internal readonly object sync_root = new();
+        internal readonly HashSet<uint> acknowledgmentsReceived = new();
+        internal readonly SortedDictionary<uint, ByteStream> dataBySequence = new();
+        internal readonly ConcurrentDictionary<uint, ByteStream> relayMessages = new();
+    }
+
     internal abstract class UdpSocket
     {
         protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
@@ -32,12 +43,10 @@ namespace Neutron.Core
         protected abstract string Name { get; }
 
         internal Socket globalSocket;
-        internal CancellationTokenSource cancellationTokenSource = new();
-        internal HashSet<uint> reliableMessagesAck = new();
-        internal ConcurrentDictionary<uint, ByteStream> reliableMessages = new();
+        internal readonly CancellationTokenSource cancellationTokenSource = new();
 
-        private object syncLock = new();
-        private uint sequence = 0;
+        internal readonly ChannelObject reliableChannel = new();
+        internal readonly ChannelObject reliableAndOrderlyChannel = new();
 
         internal void Bind(UdpEndPoint localEndPoint)
         {
@@ -56,15 +65,20 @@ namespace Neutron.Core
 
         protected async void SendReliableMessages(UdpEndPoint remoteEndPoint)
         {
+            Channel[] channels = { Channel.Reliable, Channel.ReliableAndOrderly };
             await Task.Run(async () =>
             {
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
                     await Task.Delay(30);
-                    foreach (var (sequence, relayStream) in reliableMessages)
+                    for (int i = 0; i < channels.Length; i++)
                     {
-                        relayStream.Position = 0;
-                        Send(relayStream, remoteEndPoint);
+                        ChannelObject channelObject = GetChannelObject(channels[i]);
+                        foreach (var (sequence, relayStream) in channelObject.relayMessages)
+                        {
+                            relayStream.Position = 0;
+                            Send(relayStream, remoteEndPoint);
+                        }
                     }
                 }
             }, cancellationTokenSource.Token);
@@ -85,13 +99,14 @@ namespace Neutron.Core
             if (IsServer)
                 throw new Exception("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
 
+            ChannelObject channelObject = GetChannelObject(channel);
             ByteStream poolStream = ByteStream.Get();
             poolStream.Write((byte)((byte)channel | (byte)target << 2));
-            lock (syncLock) poolStream.Write(_sequence_ = ++sequence);
+            lock (channelObject.sync_root) poolStream.Write(_sequence_ = ++channelObject.sequence);
             poolStream.Write(byteStream);
             ByteStream relayStream = new ByteStream(poolStream.BytesWritten);
             relayStream.Write(poolStream);
-            reliableMessages.TryAdd(_sequence_, relayStream);
+            channelObject.relayMessages.TryAdd(_sequence_, relayStream);
             Send(poolStream, remoteEndPoint);
             poolStream.Release();
         }
@@ -105,19 +120,25 @@ namespace Neutron.Core
                     uint _sequence_ = 0;
                     byteStream.Position = 0;
                     Channel channel = (Channel)(byteStream.ReadByte() & 0x3);
-                    if (channel == Channel.Reliable)
+                    switch (channel)
                     {
-                        byte[] buffer = byteStream.Buffer;
-                        lock (syncLock) _sequence_ = ++sequence;
-                        buffer[++offset] = (byte)_sequence_;
-                        buffer[++offset] = (byte)(_sequence_ >> 8);
-                        buffer[++offset] = (byte)(_sequence_ >> 16);
-                        buffer[++offset] = (byte)(_sequence_ >> 24);
-                        offset = 0;
+                        case Channel.Reliable:
+                        case Channel.ReliableAndOrderly:
+                            {
+                                ChannelObject channelObject = GetChannelObject(channel);
+                                byte[] buffer = byteStream.Buffer;
+                                lock (channelObject.sync_root) _sequence_ = ++channelObject.sequence;
+                                buffer[++offset] = (byte)_sequence_;
+                                buffer[++offset] = (byte)(_sequence_ >> 8);
+                                buffer[++offset] = (byte)(_sequence_ >> 16);
+                                buffer[++offset] = (byte)(_sequence_ >> 24);
+                                offset = 0;
 
-                        ByteStream relayStream = new ByteStream(byteStream.BytesWritten);
-                        relayStream.Write(byteStream);
-                        reliableMessages.TryAdd(_sequence_, relayStream);
+                                ByteStream relayStream = new ByteStream(byteStream.BytesWritten);
+                                relayStream.Write(byteStream);
+                                channelObject.relayMessages.TryAdd(_sequence_, relayStream);
+                                break;
+                            }
                     }
                 }
 
@@ -163,9 +184,14 @@ namespace Neutron.Core
                                         {
                                             case MessageType.Acknowledgement:
                                                 {
-                                                    uint sequence = recvStream.ReadUInt();
                                                     UdpClient client = GetClient(remoteEndPoint);
-                                                    if (client != null) client.reliableMessages.TryRemove(sequence, out _);
+                                                    if (client != null)
+                                                    {
+                                                        Channel _channel_ = (Channel)recvStream.ReadByte();
+                                                        ChannelObject channelObject = client.GetChannelObject(_channel_);
+                                                        uint sequence = recvStream.ReadUInt();
+                                                        channelObject.relayMessages.TryRemove(sequence, out _);
+                                                    }
                                                 }
                                                 break;
                                             default:
@@ -181,23 +207,83 @@ namespace Neutron.Core
                                         uint ack = recvStream.ReadUInt();
                                         ByteStream ackStream = ByteStream.Get();
                                         ackStream.WritePacket(MessageType.Acknowledgement);
+                                        ackStream.Write((byte)channel);
                                         ackStream.Write(ack);
                                         SendUnreliable(ackStream, remoteEndPoint, Target.Me);
                                         ackStream.Release();
                                         #endregion
 
-                                        UdpClient client = GetClient(remoteEndPoint);
-                                        if (client != null)
-                                        {
-                                            if (!client.reliableMessagesAck.Add(ack))
-                                                Logger.PrintError($"Duplicate acknowledgement {ack}");
-                                        }
-
                                         MessageType msgType = recvStream.ReadPacket();
                                         switch (msgType)
                                         {
+                                            case MessageType.Connect:
+                                                {
+                                                    UdpClient client = GetClient(remoteEndPoint);
+                                                    if (client != null)
+                                                    {
+                                                        ChannelObject channelObject = client.GetChannelObject(channel);
+                                                        if (!channelObject.acknowledgmentsReceived.Add(ack))
+                                                            continue;
+                                                        OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                    }
+                                                    else
+                                                    {
+                                                        OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                        UdpClient _client_ = GetClient(remoteEndPoint);
+                                                        if (_client_ != null)
+                                                            _client_.GetChannelObject(channel).acknowledgmentsReceived.Add(ack);
+                                                    }
+                                                }
+                                                break;
                                             default:
-                                                OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                {
+                                                    UdpClient client = GetClient(remoteEndPoint);
+                                                    if (client != null)
+                                                    {
+                                                        ChannelObject channelObject = client.GetChannelObject(channel);
+                                                        switch (channel)
+                                                        {
+                                                            case Channel.Reliable:
+                                                                {
+                                                                    if (!channelObject.acknowledgmentsReceived.Add(ack))
+                                                                        continue;
+
+                                                                    OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                                }
+                                                                break;
+                                                            case Channel.ReliableAndOrderly:
+                                                                {
+                                                                    if (!channelObject.acknowledgmentsReceived.Add(ack))
+                                                                        continue;
+
+                                                                    uint min = channelObject.acknowledgmentsReceived.Min();
+                                                                    uint max = channelObject.acknowledgmentsReceived.Max();
+
+                                                                    ByteStream data = new(256);
+                                                                    data.Write(recvStream.Buffer, 0, recvStream.BytesWritten);
+                                                                    data.Position = recvStream.Position;
+                                                                    data.isRawBytes = true;
+                                                                    channelObject.dataBySequence.Add(ack, data);
+
+                                                                    if (min == channelObject.expectedSequence)
+                                                                    {
+                                                                        uint range = max - (min - 1);
+                                                                        if (channelObject.acknowledgmentsReceived.Count == range)
+                                                                        {
+                                                                            foreach (var (_, seqStream) in channelObject.dataBySequence)
+                                                                                OnMessage(seqStream, channel, target, msgType, remoteEndPoint);
+
+                                                                            channelObject.acknowledgmentsReceived.Clear();
+                                                                            channelObject.dataBySequence.Clear();
+                                                                        }
+                                                                        else { /* Get missing messages  */}
+                                                                    }
+                                                                    else { /* Get missing messages  */}
+                                                                }
+                                                                break;
+                                                        }
+                                                    }
+                                                }
                                                 break;
                                         }
                                     }
@@ -229,6 +315,19 @@ namespace Neutron.Core
                 IsBackground = true,
                 Priority = ThreadPriority.Highest
             }.Start();
+        }
+
+        private ChannelObject GetChannelObject(Channel channel)
+        {
+            switch (channel)
+            {
+                case Channel.Reliable:
+                    return reliableChannel;
+                case Channel.ReliableAndOrderly:
+                    return reliableAndOrderlyChannel;
+                default:
+                    throw new Exception($"{Name} - GetChannel - Invalid channel {channel}");
+            }
         }
 
         internal virtual void Close(bool fromServer = false)

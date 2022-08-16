@@ -77,6 +77,15 @@ namespace Neutron.Core
                 udpClient.Send(byteStream, Channel.Reliable, Target.All);
                 byteStream.Release();
             }
+
+            if (Input.GetKeyDown(KeyCode.O))
+            {
+                ByteStream byteStream = ByteStream.Get();
+                byteStream.WritePacket(MessageType.Test);
+                byteStream.Write(++value);
+                udpClient.Send(byteStream, Channel.ReliableAndOrderly, Target.All);
+                byteStream.Release();
+            }
         }
 
         internal static void OnMessage(ByteStream recvStream, MessageType messageType, Channel channel, Target target, UdpEndPoint remoteEndPoint, bool isServer)
@@ -87,7 +96,7 @@ namespace Neutron.Core
                     OnConnected?.Invoke(isServer);
                     break;
                 case MessageType.Test:
-                    Logger.Print("Test: " + recvStream.ReadInt());
+                    Logger.PrintError("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
 

@@ -56,10 +56,8 @@ namespace Neutron.Core
                     SendUnreliable(byteStream, remoteEndPoint, target);
                     break;
                 case Channel.Reliable:
-                    SendReliable(byteStream, remoteEndPoint, Channel.Reliable, target);
-                    break;
                 case Channel.ReliableAndOrderly:
-                    SendReliable(byteStream, remoteEndPoint, Channel.ReliableAndOrderly, target);
+                    SendReliable(byteStream, remoteEndPoint, channel, target);
                     break;
             }
         }
