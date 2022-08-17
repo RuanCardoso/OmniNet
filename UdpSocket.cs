@@ -70,14 +70,19 @@ namespace Neutron.Core
             {
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
-                    await Task.Delay(30);
+                    await Task.Delay(15);
                     for (int i = 0; i < channels.Length; i++)
                     {
                         ChannelObject channelObject = GetChannelObject(channels[i]);
-                        foreach (var (sequence, relayStream) in channelObject.relayMessages)
+                        foreach (var (_, relayStream) in channelObject.relayMessages)
                         {
-                            relayStream.Position = 0;
-                            Send(relayStream, remoteEndPoint);
+                            if (DateTime.UtcNow.Subtract(relayStream.LastWriteTime).TotalSeconds > 0.100d)
+                            {
+                                relayStream.Position = 0;
+                                relayStream.SetLastWriteTime();
+                                Send(relayStream, remoteEndPoint);
+                                Logger.Print("Hmmm tá aí o bug!");
+                            }
                         }
                     }
                 }
@@ -106,6 +111,7 @@ namespace Neutron.Core
             poolStream.Write(byteStream);
             ByteStream relayStream = new ByteStream(poolStream.BytesWritten);
             relayStream.Write(poolStream);
+            relayStream.SetLastWriteTime();
             channelObject.relayMessages.TryAdd(_sequence_, relayStream);
             Send(poolStream, remoteEndPoint);
             poolStream.Release();
@@ -136,6 +142,7 @@ namespace Neutron.Core
 
                                 ByteStream relayStream = new ByteStream(byteStream.BytesWritten);
                                 relayStream.Write(byteStream);
+                                relayStream.SetLastWriteTime();
                                 channelObject.relayMessages.TryAdd(_sequence_, relayStream);
                                 break;
                             }
@@ -213,8 +220,6 @@ namespace Neutron.Core
                                         ackStream.Release();
                                         #endregion
 
-                                        Logger.PrintError("Ack received: " + ack);
-
                                         MessageType msgType = recvStream.ReadPacket();
                                         switch (msgType)
                                         {
@@ -241,32 +246,37 @@ namespace Neutron.Core
                                                     if (client != null)
                                                     {
                                                         ChannelObject channelObject = client.GetChannelObject(channel);
-                                                        if (!channelObject.acknowledgmentsReceived.Add(ack))
-                                                            continue;
-
                                                         switch (channel)
                                                         {
                                                             case Channel.Reliable:
-                                                                OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                                if (!channelObject.acknowledgmentsReceived.Add(ack))
+                                                                    continue;
+                                                                else OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                                 break;
                                                             case Channel.ReliableAndOrderly:
                                                                 {
+                                                                    if (ack < channelObject.expectedSequence || !channelObject.acknowledgmentsReceived.Add(ack))
+                                                                        continue;
+
                                                                     uint min = channelObject.acknowledgmentsReceived.Min();
                                                                     uint max = channelObject.acknowledgmentsReceived.Max();
 
+                                                                    #region Write Sequenced Messages
                                                                     ByteStream data = new(256);
                                                                     data.Write(recvStream.Buffer, 0, recvStream.BytesWritten);
                                                                     data.Position = recvStream.Position;
                                                                     data.isRawBytes = true;
                                                                     channelObject.dataBySequence.Add(ack, data);
+                                                                    #endregion
 
+                                                                    #region Put Data By Sequence
                                                                     if (min == channelObject.expectedSequence)
                                                                     {
                                                                         uint range = max - (min - 1);
                                                                         if (channelObject.acknowledgmentsReceived.Count == range)
                                                                         {
-                                                                            foreach (var (_, seqStream) in channelObject.dataBySequence)
-                                                                                OnMessage(seqStream, channel, target, msgType, remoteEndPoint);
+                                                                            foreach (var (_, dataBySequence) in channelObject.dataBySequence)
+                                                                                OnMessage(dataBySequence, channel, target, msgType, remoteEndPoint);
 
                                                                             channelObject.expectedSequence = max + 1;
                                                                             channelObject.acknowledgmentsReceived.Clear();
@@ -276,6 +286,7 @@ namespace Neutron.Core
                                                                     }
                                                                     else { /* Get missing messages  */}
                                                                 }
+                                                                #endregion
                                                                 break;
                                                         }
                                                     }

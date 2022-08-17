@@ -60,31 +60,40 @@ namespace Neutron.Core
         int value;
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            for (int i = 0; i < 100; i++)
             {
-                ByteStream byteStream = ByteStream.Get();
-                byteStream.WritePacket(MessageType.Test);
-                byteStream.Write(++value);
-                udpClient.Send(byteStream, Channel.Unreliable, Target.All);
-                byteStream.Release();
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    ByteStream byteStream = ByteStream.Get();
+                    byteStream.WritePacket(MessageType.Test);
+                    byteStream.Write(++value);
+                    udpClient.Send(byteStream, Channel.Unreliable, Target.All);
+                    byteStream.Release();
+                }
             }
 
-            if (Input.GetKeyDown(KeyCode.R))
+            for (int i = 0; i < 100; i++)
             {
-                ByteStream byteStream = ByteStream.Get();
-                byteStream.WritePacket(MessageType.Test);
-                byteStream.Write(++value);
-                udpClient.Send(byteStream, Channel.Reliable, Target.All);
-                byteStream.Release();
+                if (Input.GetKeyDown(KeyCode.R))
+                {
+                    ByteStream byteStream = ByteStream.Get();
+                    byteStream.WritePacket(MessageType.Test);
+                    byteStream.Write(++value);
+                    udpClient.Send(byteStream, Channel.Reliable, Target.All);
+                    byteStream.Release();
+                }
             }
 
-            if (Input.GetKeyDown(KeyCode.O))
+            for (int i = 0; i < 100; i++)
             {
-                ByteStream byteStream = ByteStream.Get();
-                byteStream.WritePacket(MessageType.Test);
-                byteStream.Write(++value);
-                udpClient.Send(byteStream, Channel.ReliableAndOrderly, Target.All);
-                byteStream.Release();
+                if (Input.GetKeyDown(KeyCode.O))
+                {
+                    ByteStream byteStream = ByteStream.Get();
+                    byteStream.WritePacket(MessageType.Test);
+                    byteStream.Write(++value);
+                    udpClient.Send(byteStream, Channel.ReliableAndOrderly, Target.All);
+                    byteStream.Release();
+                }
             }
         }
 
