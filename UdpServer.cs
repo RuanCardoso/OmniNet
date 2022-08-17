@@ -13,7 +13,6 @@
     ===========================================================*/
 
 using System.Collections.Concurrent;
-using System.Net;
 
 namespace Neutron.Core
 {

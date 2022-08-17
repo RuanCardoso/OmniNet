@@ -12,22 +12,25 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Neutron.Core
 {
-    public class NeutronIdentity : MonoBehaviour
+    [AddComponentMenu("Neutron/NeutronIdentity")]
+    public class NeutronObject : MonoBehaviour
     {
-        private bool isInRoot = false;
-        private readonly Dictionary<byte, Action> iRPCMethods = new();
+        private bool hasIdentity = false;
+        protected virtual void Awake()
+        {
+
+        }
 
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            if (!(isInRoot = transform == transform.root))
-                Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
+            NeutronIdentity neutronIdentity = transform.root.GetComponent<NeutronIdentity>();
+            if (!(hasIdentity = neutronIdentity != null))
+                Logger.PrintError($"The root object of {gameObject.name} must have a NeutronIdentity component.");
         }
 #endif
     }

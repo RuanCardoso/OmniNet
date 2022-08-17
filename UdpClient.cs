@@ -12,7 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
 using System.Net.Sockets;
 
 namespace Neutron.Core
