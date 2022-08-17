@@ -14,18 +14,23 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Neutron.Core
 {
+    [DisallowMultipleComponent]
     public class NeutronIdentity : MonoBehaviour
     {
+        [SerializeField] private ushort id;
+        [SerializeField] private ushort playerId;
+        [SerializeField] private NeutronObjectType objectType = NeutronObjectType.Player;
         private bool isInRoot = false;
-        private readonly Dictionary<(byte, byte), Action> iRPCMethods = new();
+        private readonly Dictionary<(ushort, ushort, byte, byte, NeutronObjectType), Action> iRPCMethods = new(); // playerid, identityid, instance id, rpcId, type
 
-        private void AddRpc(byte instanceId, byte rpcId)
+        internal void AddRpc(byte instanceId, byte rpcId, Action method)
         {
-            if (!iRPCMethods.TryAdd((instanceId, rpcId), null))
+            if (!iRPCMethods.TryAdd((playerId, id, instanceId, rpcId, objectType), method))
                 Logger.PrintError($"The RPC {instanceId}:{rpcId} is already registered.");
         }
 
@@ -34,8 +39,22 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
-                if (!(isInRoot = transform == transform.root))
-                    Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
+                if (objectType == NeutronObjectType.Static)
+                {
+                    if (!(isInRoot = transform == transform.root))
+                        Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
+                    if (isInRoot)
+                    {
+                        NeutronIdentity[] identities = FindObjectsOfType<NeutronIdentity>(true);
+                        if (id == 0) id = (ushort)Helper.GetAvailableId(identities, x => x.id, short.MaxValue);
+                        else
+                        {
+                            int count = identities.Count(x => x.id == id);
+                            if (count > 1) id = 0;
+                        }
+                    }
+                }
+                else id = 0;
             }
         }
 #endif

@@ -25,7 +25,7 @@ namespace Neutron.Core
         Acknowledgement = 2,
         Zone = 3,
         Connect = 254,
-        Disconnect = 255
+        Disconnect = 255,
     }
 
     internal enum Channel : byte
@@ -41,6 +41,13 @@ namespace Neutron.Core
         All = 1,
         Others = 2,
         Me = 3,
+    }
+
+    internal enum NeutronObjectType : byte
+    {
+        DynamicallyInstantiated = 0,
+        Static = 1,
+        Player = 2,
     }
 
     public static class Helper

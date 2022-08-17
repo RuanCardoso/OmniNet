@@ -17,6 +17,7 @@ using UnityEngine;
 
 namespace Neutron.Core
 {
+    [DisallowMultipleComponent]
     [DefaultExecutionOrder(-0x64)]
     internal class NeutronNetwork : MonoBehaviour
     {
@@ -46,7 +47,6 @@ namespace Neutron.Core
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, Helper.GetFreePort()));
-            /*-------------------------------------------------------------------------------*/
             udpClient.Connect(new UdpEndPoint(IPAddress.Loopback, remoteEndPoint.GetPort()));
 #endif
 #if UNITY_SERVER
