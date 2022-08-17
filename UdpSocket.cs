@@ -74,14 +74,13 @@ namespace Neutron.Core
                     for (int i = 0; i < channels.Length; i++)
                     {
                         ChannelObject channelObject = GetChannelObject(channels[i]);
-                        foreach (var (_, relayStream) in channelObject.relayMessages)
+                        foreach (var (_, _stream_) in channelObject.relayMessages)
                         {
-                            if (DateTime.UtcNow.Subtract(relayStream.LastWriteTime).TotalSeconds > 0.100d)
+                            if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
                             {
-                                relayStream.Position = 0;
-                                relayStream.SetLastWriteTime();
-                                Send(relayStream, remoteEndPoint);
-                                Logger.Print("Hmmm tá aí o bug!");
+                                _stream_.Position = 0;
+                                _stream_.SetLastWriteTime();
+                                Send(_stream_, remoteEndPoint);
                             }
                         }
                     }
