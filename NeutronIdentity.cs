@@ -21,13 +21,22 @@ namespace Neutron.Core
     public class NeutronIdentity : MonoBehaviour
     {
         private bool isInRoot = false;
-        private readonly Dictionary<byte, Action> iRPCMethods = new();
+        private readonly Dictionary<(byte, byte), Action> iRPCMethods = new();
+
+        private void AddRpc(byte instanceId, byte rpcId)
+        {
+            if (!iRPCMethods.TryAdd((instanceId, rpcId), null))
+                Logger.PrintError($"The RPC {instanceId}:{rpcId} is already registered.");
+        }
 
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            if (!(isInRoot = transform == transform.root))
-                Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
+            if (!Application.isPlaying)
+            {
+                if (!(isInRoot = transform == transform.root))
+                    Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
+            }
         }
 #endif
     }

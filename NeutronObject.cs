@@ -12,14 +12,18 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System.Linq;
 using UnityEngine;
 
 namespace Neutron.Core
 {
-    [AddComponentMenu("Neutron/NeutronIdentity")]
+    [AddComponentMenu("")]
     public class NeutronObject : MonoBehaviour
     {
-        private bool hasIdentity = false;
+        [SerializeField] private ushort id;
+        private bool hasIdentity;
+        internal ushort Id => id;
+
         protected virtual void Awake()
         {
 
@@ -28,9 +32,34 @@ namespace Neutron.Core
 #if UNITY_EDITOR
         private void OnValidate()
         {
-            NeutronIdentity neutronIdentity = transform.root.GetComponent<NeutronIdentity>();
-            if (!(hasIdentity = neutronIdentity != null))
-                Logger.PrintError($"The root object of {gameObject.name} must have a NeutronIdentity component.");
+            if (!Application.isPlaying)
+            {
+                NeutronIdentity neutronIdentity = transform.root.GetComponent<NeutronIdentity>();
+                if (!(hasIdentity = neutronIdentity != null))
+                    Logger.PrintError($"The root object of {gameObject.name} must have a NeutronIdentity component.");
+                if (hasIdentity)
+                {
+                    var behaviours = transform.root.GetComponentsInChildren<NeutronObject>();
+                    if (behaviours.Length <= byte.MaxValue)
+                    {
+                        if (id == 0)
+                            id = (byte)Helper.GetAvailableId(behaviours, x => x.Id, byte.MaxValue);
+                        else
+                        {
+                            if (!(id >= byte.MaxValue))
+                            {
+                                int count = behaviours.Count(x => x.Id == id);
+                                if (count > 1)
+                                    id = 0;
+                            }
+                            else
+                                Logger.PrintError($"The id of {gameObject.name} is greater than the {byte.MaxValue}.");
+                        }
+                    }
+                    else
+                        Logger.PrintError($"Only {byte.MaxValue} Neutron Behaviours are allowed in a Neutron View!");
+                }
+            }
         }
 #endif
     }

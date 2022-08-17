@@ -12,6 +12,8 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System;
+using System.Linq;
 using System.Net;
 
 namespace Neutron.Core
@@ -50,6 +52,14 @@ namespace Neutron.Core
             int port = endPoint.Port;
             udpClient.Close();
             return port;
+        }
+
+        public static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange)
+        {
+            var Ids = array.Select(predicate);
+            if (maxRange == Ids.Count())
+                return maxRange;
+            return Enumerable.Range(0, maxRange).Except(Ids).ToArray()[0];
         }
     }
 
