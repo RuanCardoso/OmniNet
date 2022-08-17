@@ -20,9 +20,9 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class NeutronObject : MonoBehaviour
     {
-        [SerializeField] private ushort id;
+        [SerializeField] private byte id;
         private bool hasIdentity;
-        internal ushort Id => id;
+        internal byte Id => id;
 
         protected virtual void Awake()
         {
@@ -39,21 +39,15 @@ namespace Neutron.Core
                     Logger.PrintError($"The root object of {gameObject.name} must have a NeutronIdentity component.");
                 if (hasIdentity)
                 {
-                    var behaviours = transform.root.GetComponentsInChildren<NeutronObject>();
+                    var behaviours = transform.root.GetComponentsInChildren<NeutronObject>(true);
                     if (behaviours.Length <= byte.MaxValue)
                     {
                         if (id == 0)
                             id = (byte)Helper.GetAvailableId(behaviours, x => x.Id, byte.MaxValue);
                         else
                         {
-                            if (!(id >= byte.MaxValue))
-                            {
-                                int count = behaviours.Count(x => x.Id == id);
-                                if (count > 1)
-                                    id = 0;
-                            }
-                            else
-                                Logger.PrintError($"The id of {gameObject.name} is greater than the {byte.MaxValue}.");
+                            int countIds = behaviours.Count(x => x.Id == id);
+                            if (countIds > 1) id = 0;
                         }
                     }
                     else

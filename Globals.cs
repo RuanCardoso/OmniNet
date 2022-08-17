@@ -56,10 +56,10 @@ namespace Neutron.Core
 
         public static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange)
         {
-            var Ids = array.Select(predicate);
-            if (maxRange == Ids.Count())
+            var ids = array.Select(predicate);
+            if (maxRange == ids.Count())
                 return maxRange;
-            return Enumerable.Range(0, maxRange).Except(Ids).ToArray()[0];
+            return Enumerable.Range(0, maxRange).Except(ids).ToArray()[0];
         }
     }
 
