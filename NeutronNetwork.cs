@@ -60,9 +60,9 @@ namespace Neutron.Core
         int value;
         private void Update()
         {
-            for (int i = 0; i < 100; i++)
+            //for (int i = 0; i < 100; i++)
             {
-                if (Input.GetKeyDown(KeyCode.Space))
+                //if (Input.GetKeyDown(KeyCode.Space))
                 {
                     ByteStream byteStream = ByteStream.Get();
                     byteStream.WritePacket(MessageType.Test);
@@ -105,19 +105,17 @@ namespace Neutron.Core
                     OnConnected?.Invoke(isServer);
                     break;
                 case MessageType.Test:
-                    Logger.PrintError("Test: " + recvStream.ReadInt());
+                    //Logger.PrintError("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
-
-                    // ByteStream testStream = ByteStream.Get();
-                    // testStream.WritePacket(MessageType.Test);
-                    // testStream.Write(10);
-                    // Server.SendToTarget(testStream, channel, target, remoteEndPoint);
-                    // testStream.Release();
-
                     Server.SendToTarget(recvStream, channel, target, remoteEndPoint);
                     break;
             }
+        }
+
+        public static void RPC(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
+        {
+
         }
 
         private void OnApplicationQuit()

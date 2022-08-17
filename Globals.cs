@@ -21,6 +21,7 @@ namespace Neutron.Core
         None = 0,
         Test = 1,
         Acknowledgement = 2,
+        Zone = 3,
         Connect = 254,
         Disconnect = 255
     }
