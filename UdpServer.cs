@@ -55,6 +55,14 @@ namespace Neutron.Core
             else return null;
         }
 
+        internal UdpClient GetClient(int playerId)
+        {
+            if (udpClients.TryGetValue(playerId, out UdpClient udpClient))
+                return udpClient;
+            else return null;
+        }
+
+        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, int playerId) => SendToTarget(byteStream, channel, target, GetClient(playerId).remoteEndPoint);
         internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint)
         {
             switch (target)
@@ -88,14 +96,15 @@ namespace Neutron.Core
                                 if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
                                 else udpClient.Send(byteStream);
                             }
+                            else continue;
                         }
                     }
                     break;
                 case Target.Server:
-                    break;
                 default:
                     throw new System.Exception("Invalid target!");
             }
+
         }
 
         internal override void Close(bool fromServer = false)

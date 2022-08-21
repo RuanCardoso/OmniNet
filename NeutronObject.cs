@@ -26,6 +26,7 @@ namespace Neutron.Core
         [SerializeField] private byte id;
         private bool hasIdentity;
         internal byte Id => id;
+        protected bool IsItFromTheServer { get; private set; }
 
         protected virtual void Awake()
         {
@@ -37,6 +38,7 @@ namespace Neutron.Core
                 else
                 {
                     hasIdentity = true;
+                    IsItFromTheServer = identity.isItFromTheServer;
                     GetAttributes();
                 }
             }

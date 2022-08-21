@@ -15,9 +15,15 @@
 using System;
 using System.Linq;
 using System.Net;
+using MessagePack;
 
 namespace Neutron.Core
 {
+    public interface ISerializable
+    {
+        int Id { get; }
+    }
+
     internal enum MessageType : byte
     {
         None = 0,
@@ -70,8 +76,15 @@ namespace Neutron.Core
         }
     }
 
-    internal static class Extensions
+    public static class Extensions
     {
-
+        public static ByteStream Serialize(this ISerializable obj, MessagePackSerializerOptions options = null)
+        {
+            byte[] data = MessagePackSerializer.Serialize<ISerializable>(obj, null);
+            ByteStream byteStream = ByteStream.Get();
+            byteStream.Write(obj.Id);
+            byteStream.Write(data, 0, data.Length);
+            return byteStream;
+        }
     }
 }

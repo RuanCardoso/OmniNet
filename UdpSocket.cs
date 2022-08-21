@@ -88,16 +88,17 @@ namespace Neutron.Core
             }, cancellationTokenSource.Token);
         }
 
-        protected void SendUnreliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Target target = Target.Me)
+        protected int SendUnreliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Target target = Target.Me)
         {
             ByteStream poolStream = ByteStream.Get();
             poolStream.Write((byte)((byte)Channel.Unreliable | (byte)target << 2));
             poolStream.Write(byteStream);
-            Send(poolStream, remoteEndPoint);
+            int length = Send(poolStream, remoteEndPoint);
             poolStream.Release();
+            return length;
         }
 
-        protected void SendReliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
+        protected int SendReliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
         {
             uint _sequence_ = 0;
             if (IsServer)
@@ -112,8 +113,9 @@ namespace Neutron.Core
             relayStream.Write(poolStream);
             relayStream.SetLastWriteTime();
             channelObject.relayMessages.TryAdd(_sequence_, relayStream);
-            Send(poolStream, remoteEndPoint);
+            int length = Send(poolStream, remoteEndPoint);
             poolStream.Release();
+            return length;
         }
 
         protected int Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, int offset = 0)

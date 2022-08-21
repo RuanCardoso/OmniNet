@@ -44,7 +44,7 @@ namespace Neutron.Core
         }
 
         internal int Send(ByteStream byteStream) => Send(byteStream, remoteEndPoint, 0);
-        internal void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
+        internal int Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
         {
             if (remoteEndPoint == null)
                 throw new System.Exception("You must call Connect() before Send()");
@@ -52,12 +52,12 @@ namespace Neutron.Core
             switch (channel)
             {
                 case Channel.Unreliable:
-                    SendUnreliable(byteStream, remoteEndPoint, target);
-                    break;
+                    return SendUnreliable(byteStream, remoteEndPoint, target);
                 case Channel.Reliable:
                 case Channel.ReliableAndOrderly:
-                    SendReliable(byteStream, remoteEndPoint, channel, target);
-                    break;
+                    return SendReliable(byteStream, remoteEndPoint, channel, target);
+                default:
+                    return 0;
             }
         }
 

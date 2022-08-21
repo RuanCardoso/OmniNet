@@ -115,6 +115,12 @@ namespace Neutron.Core
 
         }
 
+        public static void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        {
+            if (playerId != 0) udpServer.SendToTarget(byteStream, channel, target, playerId);
+            else udpClient.Send(byteStream, channel, target);
+        }
+
         private void OnApplicationQuit()
         {
             udpClient.Close();
