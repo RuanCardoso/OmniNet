@@ -106,10 +106,9 @@ namespace MessagePack.Unity.Editor
                                     UseMapMode = mapMode,
                                 };
 
-                                if (Directory.Exists(Path.GetFullPath("." + argument.Output)))
-                                    Directory.Delete(argument.Output, true);
-                                else UnityEngine.Debug.LogError($"output directory not found: {Path.GetFullPath("." + argument.Output)}");
 
+                                string pathToDel = outputPath + "/code-gen";
+                                if (Directory.Exists(pathToDel)) Directory.Delete(pathToDel, true);
                                 if (window == null) window = CreateInstance<MessagePackWindow>();
                                 window.mpcArgument = argument;
                                 await window.InitCodeGen();
