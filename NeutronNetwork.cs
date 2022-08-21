@@ -35,16 +35,16 @@ namespace Neutron.Core
         public static event Action<bool> OnConnected;
         #endregion
 
-        static IFormatterResolver FormatterResolver;
+        public static IFormatterResolver Formatter { get; private set; }
         public static void AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
         {
             if (_ != "Awake")
                 Logger.PrintError($"AddResolver must be called from Awake");
             else
             {
-                FormatterResolver = resolver == null
+                Formatter = resolver == null
                     ? (resolver = CompositeResolver.Create(NeutronResolver.Instance, MessagePack.Unity.Extension.UnityBlitResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
-                    : (resolver = CompositeResolver.Create(resolver, FormatterResolver));
+                    : (resolver = CompositeResolver.Create(resolver, Formatter));
                 MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
             }
         }
