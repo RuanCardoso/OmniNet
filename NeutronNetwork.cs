@@ -14,6 +14,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Runtime.CompilerServices;
 using MessagePack;
 using MessagePack.Resolvers;
 using Neutron.Resolvers;
@@ -35,12 +36,17 @@ namespace Neutron.Core
         #endregion
 
         static IFormatterResolver FormatterResolver;
-        public static void AddResolver(IFormatterResolver resolver = null)
+        public static void AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
         {
-            FormatterResolver = resolver == null
-                ? (resolver = CompositeResolver.Create(NeutronResolver.Instance, MessagePack.Unity.Extension.UnityBlitResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
-                : (resolver = CompositeResolver.Create(resolver, FormatterResolver));
-            MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
+            if (_ != "Awake")
+                Logger.PrintError($"AddResolver must be called from Awake");
+            else
+            {
+                FormatterResolver = resolver == null
+                    ? (resolver = CompositeResolver.Create(NeutronResolver.Instance, MessagePack.Unity.Extension.UnityBlitResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
+                    : (resolver = CompositeResolver.Create(resolver, FormatterResolver));
+                MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
+            }
         }
 
         [SerializeField] private int targetFrameRate = 60;
@@ -92,7 +98,10 @@ namespace Neutron.Core
                 case MessageType.GlobalMessage:
                     {
                         int id = recvStream.ReadInt();
-                        if (handlers.TryGetValue(id, out Action<ByteStream> action)) action(recvStream);
+                        ByteStream messageStream = ByteStream.Get();
+                        messageStream.Write(recvStream, recvStream.Position, recvStream.BytesWritten);
+                        if (handlers.TryGetValue(id, out Action<ByteStream> handler))
+                            handler(messageStream);
                         else Logger.PrintError($"Handler for {id} not found!");
                     }
                     break;

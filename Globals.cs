@@ -13,6 +13,7 @@
     ===========================================================*/
 
 using System;
+using System.Buffers;
 using System.Linq;
 using System.Net;
 using MessagePack;
@@ -87,6 +88,11 @@ namespace Neutron.Core
             byteStream.Write(value.Id);
             byteStream.Write(data, 0, data.Length);
             return byteStream;
+        }
+        public static T Unpack<T>(this ByteStream value, MessagePackSerializerOptions options = null)
+        {
+            ReadOnlyMemory<byte> data = value.Buffer;
+            return MessagePackSerializer.Deserialize<T>(data[..value.BytesWritten], options);
         }
     }
 }

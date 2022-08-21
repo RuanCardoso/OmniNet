@@ -96,6 +96,11 @@ namespace Neutron.Core
             Write(value.buffer, 0, value.bytesWritten);
         }
 
+        public void Write(ByteStream value, int offset, int size)
+        {
+            Write(value.buffer, offset, size);
+        }
+
         internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
         public void EndWrite()
         {
