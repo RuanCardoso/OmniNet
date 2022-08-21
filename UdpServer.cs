@@ -62,49 +62,48 @@ namespace Neutron.Core
             else return null;
         }
 
-        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, int playerId) => SendToTarget(byteStream, channel, target, GetClient(playerId));
-        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => SendToTarget(byteStream, channel, target, GetClient(remoteEndPoint.GetPort()));
-        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
+        internal void Send(ByteStream byteStream, Channel channel, Target target, int playerId) => Send(byteStream, channel, target, GetClient(playerId));
+        internal void Send(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, GetClient(remoteEndPoint.GetPort()));
+        internal void Send(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
-            switch (target)
+            if (sender == null) Logger.LogError("No client found with id " + sender.remoteEndPoint.GetPort());
+            else
             {
-                case Target.Me:
-                    {
-                        if (sender != null)
+                switch (target)
+                {
+                    case Target.Me:
                         {
                             if (!byteStream.isRawBytes) sender.Send(byteStream, channel, target);
                             else sender.Send(byteStream);
                         }
-                        else throw new System.Exception("Target is not connected!");
-                    }
-                    break;
-                case Target.All:
-                    {
-                        foreach (var (id, udpClient) in udpClients)
+                        break;
+                    case Target.All:
                         {
-                            if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
-                            else udpClient.Send(byteStream);
-                        }
-                    }
-                    break;
-                case Target.Others:
-                    {
-                        foreach (var (id, udpClient) in udpClients)
-                        {
-                            if (id != sender.remoteEndPoint.GetPort())
+                            foreach (var (id, udpClient) in udpClients)
                             {
                                 if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
                                 else udpClient.Send(byteStream);
                             }
-                            else continue;
                         }
-                    }
-                    break;
-                case Target.Server:
-                default:
-                    throw new System.Exception("Invalid target!");
+                        break;
+                    case Target.Others:
+                        {
+                            foreach (var (id, udpClient) in udpClients)
+                            {
+                                if (id != sender.remoteEndPoint.GetPort())
+                                {
+                                    if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
+                                    else udpClient.Send(byteStream);
+                                }
+                                else continue;
+                            }
+                        }
+                        break;
+                    case Target.Server:
+                    default:
+                        throw new System.Exception("Invalid target!");
+                }
             }
-
         }
 
         internal override void Close(bool fromServer = false)
