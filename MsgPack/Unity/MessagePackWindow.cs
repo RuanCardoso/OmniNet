@@ -56,17 +56,26 @@ namespace MessagePack.Unity.Editor
                 UnityEngine.Debug.Log($"dotnet version: {dotnet.version}");
                 if (!await ProcessHelper.IsInstalledMpc())
                 {
-                    if (EditorUtility.DisplayDialog("MPC", "Do you want to install MPC?", "Yes", "No"))
+                    if (EditorUtility.DisplayDialog("Message Pack Generator", "Do you want to install Message Pack Generator?", "Yes", "No"))
                     {
-                        UnityEngine.Debug.Log("installing MPC...");
+                        UnityEngine.Debug.Log("Installing MessagePack.Generator... this may take a few minutes, don't worry and don't close the Unity!");
+                        UnityEngine.Debug.Log("It can take up to 15 minutes to install MessagePack.Generator, please wait patiently, you will be notified when it is done!");
                         string log = await ProcessHelper.InstallMpc();
-                        if (!string.IsNullOrEmpty(log)) UnityEngine.Debug.Log(log);
-                        if (log != null && log.Contains("error")) return;
-                        else goto begin;
+                        if (log != null && log.Contains("error"))
+                        {
+                            UnityEngine.Debug.LogError("Failed to install MessagePack.Generator! please check the log for more details.");
+                            UnityEngine.Debug.LogError(log);
+                            return;
+                        }
+                        else
+                        {
+                            UnityEngine.Debug.Log("MessagePack.Generator is installed successfully! generating code...");
+                            goto begin;
+                        }
                     }
                     else
                     {
-                        UnityEngine.Debug.LogError($"mpc not found! please install with command: dotnet tool install --global messagepack.generator");
+                        UnityEngine.Debug.LogError($"MessagePack.Generator not found! please install with command: dotnet tool install --global messagepack.generator");
                         return;
                     }
                 }
