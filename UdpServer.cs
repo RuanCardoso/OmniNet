@@ -62,18 +62,18 @@ namespace Neutron.Core
             else return null;
         }
 
-        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, int playerId) => SendToTarget(byteStream, channel, target, GetClient(playerId).remoteEndPoint);
-        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint)
+        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, int playerId) => SendToTarget(byteStream, channel, target, GetClient(playerId));
+        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => SendToTarget(byteStream, channel, target, GetClient(remoteEndPoint.GetPort()));
+        internal void SendToTarget(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
             switch (target)
             {
                 case Target.Me:
                     {
-                        UdpClient udpClient = GetClient(remoteEndPoint);
-                        if (udpClient != null)
+                        if (sender != null)
                         {
-                            if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
-                            else udpClient.Send(byteStream);
+                            if (!byteStream.isRawBytes) sender.Send(byteStream, channel, target);
+                            else sender.Send(byteStream);
                         }
                         else throw new System.Exception("Target is not connected!");
                     }
@@ -91,7 +91,7 @@ namespace Neutron.Core
                     {
                         foreach (var (id, udpClient) in udpClients)
                         {
-                            if (id != remoteEndPoint.GetPort())
+                            if (id != sender.remoteEndPoint.GetPort())
                             {
                                 if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
                                 else udpClient.Send(byteStream);
