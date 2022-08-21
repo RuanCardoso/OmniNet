@@ -196,7 +196,7 @@ namespace Neutron.Core
             ByteStream _get_ = byteStreams.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0)
-                throw new Exception($"The ByteStream is not empty. Position: {_get_.position}, BytesWritten: {_get_.bytesWritten}");
+                throw new Exception($"The ByteStream is not empty. Position: {_get_.position}, BytesWritten: {_get_.bytesWritten}, Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             return _get_;
         }
 
