@@ -20,9 +20,9 @@ using UnityEngine;
 namespace Neutron.Core
 {
     [AddComponentMenu("")]
-    public class NeutronObject : MonoBehaviour
+    public class NeutronObject : ActionDispatcher
     {
-        [SerializeField] NeutronIdentity identity;
+        [SerializeField] private NeutronIdentity identity;
         [SerializeField] private byte id;
         private bool hasIdentity;
         internal byte Id => id;
@@ -34,14 +34,12 @@ namespace Neutron.Core
                 identity = transform.root.GetComponent<NeutronIdentity>();
                 if (identity == null)
                     Logger.PrintError($"{gameObject.name} -> The NeutronIdentity component is missing.");
-                else hasIdentity = true;
+                else
+                {
+                    hasIdentity = true;
+                    GetAttributes();
+                }
             }
-        }
-
-        protected virtual void Start()
-        {
-            if (hasIdentity)
-                GetAttributes();
         }
 
         private void GetAttributes()
@@ -58,7 +56,7 @@ namespace Neutron.Core
                     if (attr != null)
                     {
                         if (method.GetParameters().Length < 0)
-                            throw new Exception($"iRPC method with id: {attr.id} -> name: {method.Name} -> requires the (AtomStream, bool, int) parameter in the same order as the method signature.");
+                            throw new Exception($"iRPC method with id: {attr.id} -> name: {method.Name} -> requires the (ByteStream, bool, int) parameter in the same order as the method signature.");
                         Action iRPC = method.CreateDelegate(typeof(Action), this) as Action;
                         identity.AddRpc(id, attr.id, iRPC);
                     }
@@ -66,6 +64,11 @@ namespace Neutron.Core
                 }
                 else continue;
             }
+        }
+
+        protected void iRPC(ByteStream parameters, Channel channel, Target target)
+        {
+            NeutronNetwork.iRPC(parameters, identity.isItFromTheServer, channel, target);
         }
 
 #if UNITY_EDITOR

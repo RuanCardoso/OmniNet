@@ -14,46 +14,43 @@
 using System;
 using System.Net;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Neutron.Core
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-0x64)]
-    internal class NeutronNetwork : MonoBehaviour
+    public class NeutronNetwork : MonoBehaviour
     {
-        internal static NeutronNetwork Instance { get; private set; }
-        internal static ByteStreamPool ByteStreams = new();
-        private static UdpServer Server { get; set; }
-        private UdpServer udpServer = new UdpServer();
-        private UdpClient udpClient = new UdpClient();
+        private static UdpServer udpServer = new UdpServer();
+        private static UdpClient udpClient = new UdpClient();
+
+        #region Events
         public static event Action<bool> OnConnected;
+        #endregion
 
         [SerializeField] private int targetFrameRate = 60;
         private void Awake()
         {
-            Instance = this;
+            DontDestroyOnLoad(this);
 #if UNITY_SERVER
             Console.Clear();
             Console.WriteLine("Neutron Network is being initialized...");
 #endif
             Application.targetFrameRate = targetFrameRate;
-        }
-
-        private void Start()
-        {
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, 5055);
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
+#endif
+#if UNITY_SERVER
+            Console.WriteLine("Neutron Network is ready!");
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, Helper.GetFreePort()));
             udpClient.Connect(new UdpEndPoint(IPAddress.Loopback, remoteEndPoint.GetPort()));
 #endif
-#if UNITY_SERVER
-            Console.WriteLine("Neutron Network is ready!");
-#endif
 #if UNITY_SERVER || UNITY_EDITOR
-            Server = udpServer;
+            SceneManager.CreateScene("Server", new CreateSceneParameters(LocalPhysicsMode.None));
 #endif
         }
 
@@ -108,12 +105,12 @@ namespace Neutron.Core
                     //Logger.PrintError("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
-                    Server.SendToTarget(recvStream, channel, target, remoteEndPoint);
+                    udpServer.SendToTarget(recvStream, channel, target, remoteEndPoint);
                     break;
             }
         }
 
-        public static void RPC(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
+        internal static void iRPC(ByteStream byteStream, bool isItFromTheServer, Channel channel = Channel.Unreliable, Target target = Target.Me)
         {
 
         }

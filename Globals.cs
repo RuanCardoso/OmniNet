@@ -28,14 +28,14 @@ namespace Neutron.Core
         Disconnect = 255,
     }
 
-    internal enum Channel : byte
+    public enum Channel : byte
     {
         Unreliable = 0,
         Reliable = 1,
         ReliableAndOrderly = 2,
     }
 
-    internal enum Target : byte
+    public enum Target : byte
     {
         Server = 0,
         All = 1,
@@ -50,9 +50,9 @@ namespace Neutron.Core
         Player = 2,
     }
 
-    public static class Helper
+    internal static class Helper
     {
-        public static int GetFreePort()
+        internal static int GetFreePort()
         {
             System.Net.Sockets.UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, 0));
             IPEndPoint endPoint = (IPEndPoint)udpClient.Client.LocalEndPoint;
@@ -61,7 +61,7 @@ namespace Neutron.Core
             return port;
         }
 
-        public static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange)
+        internal static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange)
         {
             var ids = array.Select(predicate);
             if (maxRange == ids.Count())
@@ -70,7 +70,7 @@ namespace Neutron.Core
         }
     }
 
-    public static class Extensions
+    internal static class Extensions
     {
 
     }

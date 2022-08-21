@@ -16,17 +16,38 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Neutron.Core
 {
     [DisallowMultipleComponent]
-    public class NeutronIdentity : MonoBehaviour
+    public class NeutronIdentity : ActionDispatcher
     {
         [SerializeField] private ushort id;
         [SerializeField] private ushort playerId;
         [SerializeField] private NeutronObjectType objectType = NeutronObjectType.Player;
+        [SerializeField] internal bool isItFromTheServer;
         private bool isInRoot = false;
         private readonly Dictionary<(ushort, ushort, byte, byte, NeutronObjectType), Action> iRPCMethods = new(); // playerid, identityid, instance id, rpcId, type
+
+        protected virtual void Awake()
+        {
+            isInRoot = transform == transform.root;
+        }
+
+        protected virtual void Start()
+        {
+#if UNITY_EDITOR
+            if (isInRoot && !isItFromTheServer && objectType == NeutronObjectType.Static)
+            {
+                GameObject serverObject = Instantiate(gameObject);
+                serverObject.name = $"{gameObject.name}_Server";
+                NeutronIdentity serverIdentity = serverObject.GetComponent<NeutronIdentity>();
+                serverIdentity.isItFromTheServer = true;
+                SceneManager.MoveGameObjectToScene(serverObject, SceneManager.GetSceneByName("Server"));
+            }
+#endif
+        }
 
         internal void AddRpc(byte instanceId, byte rpcId, Action method)
         {
@@ -56,6 +77,14 @@ namespace Neutron.Core
                 }
                 else id = 0;
             }
+        }
+
+        private void OnDrawGizmos()
+        {
+            Vector3 position = transform.position;
+            if (!isItFromTheServer) position.y += 0.2f;
+            else position.y -= 0.2f;
+            UnityEditor.Handles.Label(position, $"{(isItFromTheServer ? "Server -> " : "Client -> ")} {id}");
         }
 #endif
     }

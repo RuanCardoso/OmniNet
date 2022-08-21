@@ -18,6 +18,11 @@ namespace Neutron.Core
 {
     public class iRPCAttribute : Attribute
     {
-        public byte id;
+        internal readonly byte id;
+
+        public iRPCAttribute(byte id)
+        {
+            this.id = id;
+        }
     }
 }
