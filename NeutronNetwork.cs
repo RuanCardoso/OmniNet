@@ -118,7 +118,7 @@ namespace Neutron.Core
             }
         }
 
-        public static void Message(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        public static void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
             Send(byteStream, playerId, channel, target);
         }

@@ -94,17 +94,21 @@ namespace MessagePack.Unity.Editor
                             {
                                 FileInfo asmDef = new(asmDefs[0]);
                                 csProjFile = asmDef.Name.Replace(".asmdef", ".csproj");
-                                string inputPath = Path.Combine("../", csProjFile);
+                                string inputPath = $"../{csProjFile}";
 
                                 bool mapMode = EditorUtility.DisplayDialog("Neutron", "Generate with map mode?", "Yes", "No");
                                 MpcArgument argument = new()
                                 {
                                     Input = inputPath,
-                                    Output = Path.Combine("../", outputPath, "code-gen"),
+                                    Output = $"../{outputPath}/code-gen",
                                     ResolverName = csProjFile.Replace(".csproj", "Resolver").Replace("Assembly-CSharp", "AssemblyCSharp"),
                                     Namespace = "Neutron",
                                     UseMapMode = mapMode,
                                 };
+
+                                if (Directory.Exists(Path.GetFullPath("." + argument.Output)))
+                                    Directory.Delete(argument.Output, true);
+                                else UnityEngine.Debug.LogError($"output directory not found: {Path.GetFullPath("." + argument.Output)}");
 
                                 if (window == null) window = CreateInstance<MessagePackWindow>();
                                 window.mpcArgument = argument;

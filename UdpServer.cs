@@ -60,7 +60,8 @@ namespace Neutron.Core
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, GetClient(remoteEndPoint));
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
-            if (sender == null) Logger.LogError("No client found with id " + sender.remoteEndPoint.GetPort());
+            if (sender == null)
+                Logger.LogError("No client found with id " + sender.remoteEndPoint.GetPort());
             else
             {
                 switch (target)

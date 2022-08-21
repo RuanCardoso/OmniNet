@@ -106,5 +106,7 @@ namespace Neutron.Core
             ReadOnlyMemory<byte> data = value.Buffer;
             return MessagePackSerializer.Deserialize<T>(data[..value.BytesWritten], options);
         }
+
+        public static void Send(this ByteStream value, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0) => NeutronNetwork.Send(value, channel, target, playerId);
     }
 }

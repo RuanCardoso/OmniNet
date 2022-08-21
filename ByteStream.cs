@@ -201,7 +201,7 @@ namespace Neutron.Core
         }
 
         bool isRelease = false;
-        public void Release()
+        internal void Release()
         {
             if (isRelease)
                 throw new Exception($"The ByteStream is already released!");
