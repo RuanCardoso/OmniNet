@@ -89,6 +89,18 @@ namespace Neutron.Core
             byteStream.Write(data, 0, data.Length);
             return byteStream;
         }
+
+        public static ByteStream PackTwo<T>(this T value, MessagePackSerializerOptions options = null) where T : ISerializable
+        {
+            IBufferWriter<byte> bufferWriter = new ArrayBufferWriter<byte>(1000);
+            MessagePackSerializer.Serialize<T>(bufferWriter, value, options);
+            // ByteStream byteStream = ByteStream.Get();
+            // byteStream.WritePacket(MessageType.GlobalMessage);
+            // byteStream.Write(value.Id);
+            //byteStream.Write(bufferWriter.GetSpan());
+            return default;
+        }
+
         public static T Unpack<T>(this ByteStream value, MessagePackSerializerOptions options = null)
         {
             ReadOnlyMemory<byte> data = value.Buffer;

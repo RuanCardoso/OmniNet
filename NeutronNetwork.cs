@@ -36,7 +36,7 @@ namespace Neutron.Core
         #endregion
 
         public static IFormatterResolver Formatter { get; private set; }
-        public static void AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
+        public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
         {
             if (_ != "Awake")
                 Logger.PrintError($"AddResolver must be called from Awake");
@@ -45,8 +45,9 @@ namespace Neutron.Core
                 Formatter = resolver == null
                     ? (resolver = CompositeResolver.Create(NeutronResolver.Instance, MessagePack.Unity.Extension.UnityBlitWithPrimitiveArrayResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
                     : (resolver = CompositeResolver.Create(resolver, Formatter));
-                MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
+                return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
             }
+            return MessagePackSerializer.DefaultOptions;
         }
 
         [SerializeField] private int targetFrameRate = 60;
