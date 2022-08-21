@@ -20,7 +20,7 @@ namespace Neutron.Core
     {
         protected override string Name => "Neutron_Server";
         protected override bool IsServer => true;
-        private ConcurrentDictionary<int, UdpClient> udpClients = new();
+        private ConcurrentDictionary<int, UdpClient> clients = new();
 
         protected override void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
@@ -30,7 +30,7 @@ namespace Neutron.Core
                 case MessageType.Connect:
                     {
                         UdpClient _client_ = new(remoteEndPoint, globalSocket);
-                        if (udpClients.TryAdd(uniqueId, _client_))
+                        if (clients.TryAdd(uniqueId, _client_))
                         {
                             ByteStream connStream = ByteStream.Get();
                             connStream.WritePacket(MessageType.Connect);
@@ -51,7 +51,7 @@ namespace Neutron.Core
         internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => GetClient(remoteEndPoint.GetPort());
         internal UdpClient GetClient(int playerId)
         {
-            if (udpClients.TryGetValue(playerId, out UdpClient udpClient))
+            if (clients.TryGetValue(playerId, out UdpClient udpClient))
                 return udpClient;
             else return null;
         }
@@ -73,7 +73,7 @@ namespace Neutron.Core
                         break;
                     case Target.All:
                         {
-                            foreach (var (id, udpClient) in udpClients)
+                            foreach (var (id, udpClient) in clients)
                             {
                                 if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
                                 else udpClient.Send(byteStream);
@@ -82,7 +82,7 @@ namespace Neutron.Core
                         break;
                     case Target.Others:
                         {
-                            foreach (var (id, udpClient) in udpClients)
+                            foreach (var (id, udpClient) in clients)
                             {
                                 if (id != sender.remoteEndPoint.GetPort())
                                 {
@@ -103,7 +103,7 @@ namespace Neutron.Core
         internal override void Close(bool fromServer = false)
         {
             base.Close();
-            foreach (var udpClient in udpClients.Values)
+            foreach (var udpClient in clients.Values)
                 udpClient.Close();
         }
     }

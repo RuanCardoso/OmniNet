@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 using System;
+using System.Collections.Generic;
 using System.Net;
 using MessagePack;
 using MessagePack.Resolvers;
@@ -25,8 +26,9 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x64)]
     public class NeutronNetwork : MonoBehaviour
     {
-        private static UdpServer udpServer = new UdpServer();
-        private static UdpClient udpClient = new UdpClient();
+        private static Dictionary<int, Action<ByteStream>> handlers = new();
+        private static UdpServer udpServer = new();
+        private static UdpClient udpClient = new();
 
         #region Events
         public static event Action<bool> OnConnected;
@@ -67,44 +69,17 @@ namespace Neutron.Core
 #endif
         }
 
-        int value;
-        private void Update()
+        public static void AddHandler<T>(Action<ByteStream> handler) where T : ISerializable, new()
         {
-            for (int i = 0; i < 100; i++)
-            {
-                if (Input.GetKeyDown(KeyCode.Space))
-                {
-                    ByteStream byteStream = ByteStream.Get();
-                    byteStream.WritePacket(MessageType.Test);
-                    byteStream.Write(++value);
-                    udpClient.Send(byteStream, Channel.Unreliable, Target.All);
-                    byteStream.Release();
-                }
-            }
+            T instance = new T();
+            if (!handlers.TryAdd(instance.Id, handler))
+                Logger.PrintError($"Handler for {instance.Id} already exists!");
+        }
 
-            for (int i = 0; i < 100; i++)
-            {
-                if (Input.GetKeyDown(KeyCode.R))
-                {
-                    ByteStream byteStream = ByteStream.Get();
-                    byteStream.WritePacket(MessageType.Test);
-                    byteStream.Write(++value);
-                    udpClient.Send(byteStream, Channel.Reliable, Target.All);
-                    byteStream.Release();
-                }
-            }
-
-            for (int i = 0; i < 100; i++)
-            {
-                if (Input.GetKeyDown(KeyCode.O))
-                {
-                    ByteStream byteStream = ByteStream.Get();
-                    byteStream.WritePacket(MessageType.Test);
-                    byteStream.Write(++value);
-                    udpClient.Send(byteStream, Channel.ReliableAndOrderly, Target.All);
-                    byteStream.Release();
-                }
-            }
+        private static void Send(ByteStream byteStream, int playerId, Channel channel, Target target)
+        {
+            if (playerId != 0) udpServer.Send(byteStream, channel, target, playerId);
+            else udpClient.Send(byteStream, channel, target);
         }
 
         internal static void OnMessage(ByteStream recvStream, MessageType messageType, Channel channel, Target target, UdpEndPoint remoteEndPoint, bool isServer)
@@ -114,8 +89,12 @@ namespace Neutron.Core
                 case MessageType.Connect:
                     OnConnected?.Invoke(isServer);
                     break;
-                case MessageType.Message:
-                    Logger.Log("Message: " + "sss");
+                case MessageType.GlobalMessage:
+                    {
+                        int id = recvStream.ReadInt();
+                        if (handlers.TryGetValue(id, out Action<ByteStream> action)) action(recvStream);
+                        else Logger.PrintError($"Handler for {id} not found!");
+                    }
                     break;
                 case MessageType.Test:
                     Logger.PrintError("Test: " + recvStream.ReadInt());
@@ -126,20 +105,14 @@ namespace Neutron.Core
             }
         }
 
-        internal static void iRPC(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
-        {
-
-        }
-
-        public static void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        public static void Message(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
             Send(byteStream, playerId, channel, target);
         }
 
-        private static void Send(ByteStream byteStream, int playerId, Channel channel, Target target)
+        internal static void iRPC(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
-            if (playerId != 0) udpServer.Send(byteStream, channel, target, playerId);
-            else udpClient.Send(byteStream, channel, target);
+
         }
 
         private void OnApplicationQuit()

@@ -30,7 +30,7 @@ namespace Neutron.Core
         Test = 1,
         Acknowledgement = 2,
         Zone = 3,
-        Message = 4,
+        GlobalMessage = 4,
         Connect = 254,
         Disconnect = 255,
     }
@@ -79,11 +79,11 @@ namespace Neutron.Core
 
     public static class Extensions
     {
-        public static ByteStream Pack<T>(this ISerializable value, MessagePackSerializerOptions options = null) where T : ISerializable
+        public static ByteStream Pack<T>(this T value, MessagePackSerializerOptions options = null) where T : ISerializable
         {
-            byte[] data = MessagePackSerializer.Serialize<T>((T)value, options);
+            byte[] data = MessagePackSerializer.Serialize<T>(value, options);
             ByteStream byteStream = ByteStream.Get();
-            byteStream.WritePacket(MessageType.Message);
+            byteStream.WritePacket(MessageType.GlobalMessage);
             byteStream.Write(value.Id);
             byteStream.Write(data, 0, data.Length);
             return byteStream;
