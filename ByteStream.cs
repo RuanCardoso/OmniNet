@@ -185,7 +185,22 @@ namespace Neutron.Core
         }
 
         static ByteStreamPool byteStreams = new();
-        public static ByteStream Get() => byteStreams.Get();
-        public void Release() => byteStreams.Release(this);
+        public static ByteStream Get()
+        {
+            ByteStream _get_ = byteStreams.Get();
+            _get_.isRelease = false;
+            if (_get_.position != 0 || _get_.bytesWritten != 0)
+                throw new Exception($"The ByteStream is not empty. Position: {_get_.position}, BytesWritten: {_get_.bytesWritten}");
+            return _get_;
+        }
+
+        bool isRelease = false;
+        public void Release()
+        {
+            if (isRelease)
+                throw new Exception($"The ByteStream is already released!");
+            isRelease = true;
+            byteStreams.Release(this);
+        }
     }
 }

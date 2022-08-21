@@ -98,10 +98,13 @@ namespace Neutron.Core
                 case MessageType.GlobalMessage:
                     {
                         int id = recvStream.ReadInt();
-                        ByteStream messageStream = ByteStream.Get();
-                        messageStream.Write(recvStream, recvStream.Position, recvStream.BytesWritten);
                         if (handlers.TryGetValue(id, out Action<ByteStream> handler))
+                        {
+                            ByteStream messageStream = ByteStream.Get();
+                            messageStream.Write(recvStream, recvStream.Position, recvStream.BytesWritten);
                             handler(messageStream);
+                            messageStream.Release();
+                        }
                         else Logger.PrintError($"Handler for {id} not found!");
                     }
                     break;
