@@ -13,6 +13,9 @@
     ===========================================================*/
 using System;
 using System.Net;
+using MessagePack;
+using MessagePack.Resolvers;
+using Neutron.Resolvers;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -29,9 +32,19 @@ namespace Neutron.Core
         public static event Action<bool> OnConnected;
         #endregion
 
+        static IFormatterResolver FormatterResolver;
+        public static void AddResolver(IFormatterResolver resolver = null)
+        {
+            FormatterResolver = resolver == null
+                ? (resolver = CompositeResolver.Create(NeutronResolver.Instance, MessagePack.Unity.Extension.UnityBlitResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
+                : (resolver = CompositeResolver.Create(resolver, FormatterResolver));
+            MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
+        }
+
         [SerializeField] private int targetFrameRate = 60;
         private void Awake()
         {
+            AddResolver();
             DontDestroyOnLoad(this);
 #if UNITY_SERVER
             Console.Clear();
@@ -57,9 +70,9 @@ namespace Neutron.Core
         int value;
         private void Update()
         {
-            //for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 100; i++)
             {
-                //if (Input.GetKeyDown(KeyCode.Space))
+                if (Input.GetKeyDown(KeyCode.Space))
                 {
                     ByteStream byteStream = ByteStream.Get();
                     byteStream.WritePacket(MessageType.Test);
@@ -101,8 +114,11 @@ namespace Neutron.Core
                 case MessageType.Connect:
                     OnConnected?.Invoke(isServer);
                     break;
+                case MessageType.Message:
+                    Logger.Log("Message: " + "sss");
+                    break;
                 case MessageType.Test:
-                    //Logger.PrintError("Test: " + recvStream.ReadInt());
+                    Logger.PrintError("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
                     udpServer.Send(recvStream, channel, target, remoteEndPoint);

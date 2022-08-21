@@ -11,7 +11,7 @@
 #pragma warning disable SA1312 // Variable names should begin with lower-case letter
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace Neutron.Core.Resolvers
+namespace Neutron.Resolvers
 {
     public class NeutronResolver : global::MessagePack.IFormatterResolver
     {
