@@ -25,7 +25,7 @@ namespace MessagePack.Unity.Editor
 
         MpcArgument mpcArgument;
 
-        [MenuItem("Neutron/Open CodeGen %F11")]
+        //[MenuItem("Neutron/Open CodeGen %F11")]
         public static void OpenWindow()
         {
             if (window != null)
