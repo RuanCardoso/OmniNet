@@ -44,7 +44,7 @@ namespace Neutron.Core
         [SerializeField] private int targetFrameRate = 60;
         private void Awake()
         {
-            AddResolver();
+            AddResolver(null);
             DontDestroyOnLoad(this);
 #if UNITY_SERVER
             Console.Clear();

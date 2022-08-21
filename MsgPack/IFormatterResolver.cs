@@ -64,7 +64,7 @@ namespace MessagePack
 
         private static void Throw(Type t, IFormatterResolver resolver)
         {
-            throw new FormatterNotRegisteredException("Could not load Ahead of Time code, make sure you have generated and loaded it!");
+            throw new FormatterNotRegisteredException($"Formatter for type {t.FullName} is not registered. Please call NeutronNetwork.AddResolver(resolver) before. If it is already registered, verify that the serialized type is public.");
         }
 
         private static readonly ThreadsafeTypeKeyHashTable<Func<IFormatterResolver, IMessagePackFormatter>> FormatterGetters =

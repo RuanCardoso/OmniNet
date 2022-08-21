@@ -79,12 +79,12 @@ namespace Neutron.Core
 
     public static class Extensions
     {
-        public static ByteStream Pack(this ISerializable obj, MessagePackSerializerOptions options = null)
+        public static ByteStream Pack<T>(this ISerializable value, MessagePackSerializerOptions options = null) where T : ISerializable
         {
-            byte[] data = MessagePackSerializer.Serialize<ISerializable>(obj, null);
+            byte[] data = MessagePackSerializer.Serialize<T>((T)value, options);
             ByteStream byteStream = ByteStream.Get();
             byteStream.WritePacket(MessageType.Message);
-            byteStream.Write(obj.Id);
+            byteStream.Write(value.Id);
             byteStream.Write(data, 0, data.Length);
             return byteStream;
         }
