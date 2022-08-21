@@ -84,6 +84,12 @@ namespace Neutron.Core
             Write((byte)(value >> 56));
         }
 
+        public void Write(Span<byte> value)
+        {
+            for (int i = 0; i < value.Length; i++)
+                Write(value[i]);
+        }
+
         public void Write(byte[] value, int offset, int size)
         {
             int available = size - offset;
