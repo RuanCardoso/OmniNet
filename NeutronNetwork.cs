@@ -121,6 +121,7 @@ namespace Neutron.Core
         public static void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
             Send(byteStream, playerId, channel, target);
+            byteStream.Release();
         }
 
         internal static void iRPC(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
