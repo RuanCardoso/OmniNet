@@ -105,19 +105,24 @@ namespace Neutron.Core
                     //Logger.PrintError("Test: " + recvStream.ReadInt());
                     if (!isServer)
                         return;
-                    udpServer.SendToTarget(recvStream, channel, target, remoteEndPoint);
+                    udpServer.Send(recvStream, channel, target, remoteEndPoint);
                     break;
             }
         }
 
-        internal static void iRPC(ByteStream byteStream, bool isItFromTheServer, Channel channel = Channel.Unreliable, Target target = Target.Me)
+        internal static void iRPC(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
 
         }
 
         public static void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
-            if (playerId != 0) udpServer.SendToTarget(byteStream, channel, target, playerId);
+            Send(byteStream, playerId, channel, target);
+        }
+
+        private static void Send(ByteStream byteStream, int playerId, Channel channel, Target target)
+        {
+            if (playerId != 0) udpServer.Send(byteStream, channel, target, playerId);
             else udpClient.Send(byteStream, channel, target);
         }
 

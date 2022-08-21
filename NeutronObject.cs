@@ -70,7 +70,7 @@ namespace Neutron.Core
 
         protected void iRPC(ByteStream parameters, Channel channel, Target target)
         {
-            NeutronNetwork.iRPC(parameters, identity.isItFromTheServer, channel, target);
+            //NeutronNetwork.iRPC(parameters, identity.isItFromTheServer, channel, target);
         }
 
 #if UNITY_EDITOR

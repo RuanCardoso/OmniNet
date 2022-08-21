@@ -25,9 +25,9 @@ namespace Neutron.Core
 
         public byte[] Buffer => buffer;
         public int BytesWritten => bytesWritten;
-        public int BytesAvailable => bytesWritten - position;
-        public DateTime LastWriteTime => lastWriteTime;
+        public int BytesRemaining => bytesWritten - position;
         public int Position { get => position; set => position = value; }
+        internal DateTime LastWriteTime => lastWriteTime;
 
         public ByteStream(int size) => buffer = new byte[size];
         public void Write(byte value)
@@ -96,8 +96,7 @@ namespace Neutron.Core
             Write(value.buffer, 0, value.bytesWritten);
         }
 
-        public void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
-
+        internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
         public void EndWrite()
         {
             isRawBytes = false;

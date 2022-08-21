@@ -48,13 +48,7 @@ namespace Neutron.Core
             }
         }
 
-        internal override UdpClient GetClient(UdpEndPoint remoteEndPoint)
-        {
-            if (udpClients.TryGetValue(remoteEndPoint.GetPort(), out UdpClient udpClient))
-                return udpClient;
-            else return null;
-        }
-
+        internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => GetClient(remoteEndPoint.GetPort());
         internal UdpClient GetClient(int playerId)
         {
             if (udpClients.TryGetValue(playerId, out UdpClient udpClient))
@@ -63,7 +57,7 @@ namespace Neutron.Core
         }
 
         internal void Send(ByteStream byteStream, Channel channel, Target target, int playerId) => Send(byteStream, channel, target, GetClient(playerId));
-        internal void Send(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, GetClient(remoteEndPoint.GetPort()));
+        internal void Send(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, GetClient(remoteEndPoint));
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
             if (sender == null) Logger.LogError("No client found with id " + sender.remoteEndPoint.GetPort());
