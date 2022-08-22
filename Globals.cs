@@ -32,6 +32,10 @@ namespace Neutron.Core
         Acknowledgement = 2,
         Zone = 3,
         GlobalMessage = 4,
+        iRPCPlayer = 5,
+        iRPCInstantiated = 6,
+        iRPCScene = 7,
+        Instantiate = 8,
         Connect = 254,
         Disconnect = 255,
     }
@@ -51,11 +55,11 @@ namespace Neutron.Core
         Me = 3,
     }
 
-    internal enum NeutronObjectType : byte
+    internal enum ObjectType : byte
     {
-        DynamicallyInstantiated = 0,
-        Static = 1,
-        Player = 2,
+        Player = 0,
+        Instantiated = 1,
+        Scene = 2,
     }
 
     internal static class Helper

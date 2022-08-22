@@ -21,14 +21,18 @@ using UnityEngine.SceneManagement;
 namespace Neutron.Core
 {
     [DisallowMultipleComponent]
+    [DefaultExecutionOrder(-0x63)]
     public class NeutronIdentity : ActionDispatcher
     {
-        [SerializeField] private ushort id;
-        [SerializeField] private ushort playerId;
-        [SerializeField] private NeutronObjectType objectType = NeutronObjectType.Player;
+        internal static readonly Dictionary<(ushort, ObjectType, bool), NeutronIdentity> identities = new(); // identity, object type, server or client!
+        internal static readonly Dictionary<(ushort, ushort, ObjectType, bool), NeutronIdentity> dynamicIdentities = new(); // playerid, identity, object type, server or client!
+        [SerializeField] internal bool isRegistered;
+        [SerializeField] internal ushort id;
+        [SerializeField] internal ushort playerId;
+        [SerializeField] internal ObjectType objectType = ObjectType.Player;
         [SerializeField] internal bool isItFromTheServer;
         private bool isInRoot = false;
-        private readonly Dictionary<(ushort, ushort, byte, byte, NeutronObjectType), Action> iRPCMethods = new(); // playerid, identityid, instance id, rpcId, type
+        private readonly Dictionary<(ushort, ushort, byte, byte, ObjectType), Action> iRPCMethods = new(); // playerid, identityid, instance id, rpcId, type
 
         protected virtual void Awake()
         {
@@ -38,7 +42,7 @@ namespace Neutron.Core
         protected virtual void Start()
         {
 #if UNITY_EDITOR
-            if (isInRoot && !isItFromTheServer && objectType == NeutronObjectType.Static)
+            if (isInRoot && !isItFromTheServer)
             {
                 GameObject serverObject = Instantiate(gameObject);
                 serverObject.name = $"{gameObject.name}_Server";
@@ -47,6 +51,39 @@ namespace Neutron.Core
                 SceneManager.MoveGameObjectToScene(serverObject, SceneManager.GetSceneByName("Server"));
             }
 #endif
+            if (isInRoot && isRegistered)
+            {
+                switch (objectType)
+                {
+                    case ObjectType.Player:
+                    case ObjectType.Scene:
+                        if (!identities.TryAdd((id, objectType, isItFromTheServer), this))
+                            Logger.PrintError($"NeutronIdentity: {id} | {objectType} | {isItFromTheServer} already exists!");
+                        break;
+                    case ObjectType.Instantiated:
+                        if (!dynamicIdentities.TryAdd((playerId, id, objectType, isItFromTheServer), this))
+                            Logger.PrintError($"NeutronIdentity: {playerId} | {id} | {objectType} | {isItFromTheServer} already exists!");
+                        break;
+                }
+            }
+        }
+
+        private void RegisterIdentity()
+        {
+            if (isInRoot && !isRegistered && objectType != ObjectType.Scene)
+            {
+                switch (objectType)
+                {
+                    case ObjectType.Player:
+                        playerId = id = (ushort)NeutronNetwork.Id;
+                        break;
+                    case ObjectType.Instantiated:
+                        playerId = (ushort)NeutronNetwork.Id;
+                        break;
+                }
+
+                isRegistered = true;
+            }
         }
 
         internal void AddRpc(byte instanceId, byte rpcId, Action method)
@@ -60,7 +97,7 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
-                if (objectType == NeutronObjectType.Static)
+                if (objectType == ObjectType.Scene)
                 {
                     if (!(isInRoot = transform == transform.root))
                         Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");

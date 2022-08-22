@@ -70,7 +70,22 @@ namespace Neutron.Core
 
         protected void iRPC(ByteStream parameters, Channel channel, Target target)
         {
-            //NeutronNetwork.iRPC(parameters, identity.isItFromTheServer, channel, target);
+            if (hasIdentity && identity.isRegistered)
+            {
+                int playerId = IsItFromTheServer ? identity.playerId : 0;
+                switch (identity.objectType)
+                {
+                    case ObjectType.Player:
+                        NeutronNetwork.iRPC(parameters, MessageType.iRPCPlayer, channel, target, playerId);
+                        break;
+                    case ObjectType.Scene:
+                        NeutronNetwork.iRPC(parameters, MessageType.iRPCScene, channel, target, playerId);
+                        break;
+                    case ObjectType.Instantiated:
+                        NeutronNetwork.iRPC(parameters, MessageType.iRPCInstantiated, channel, target, playerId);
+                        break;
+                }
+            }
         }
 
 #if UNITY_EDITOR

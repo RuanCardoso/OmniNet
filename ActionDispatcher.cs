@@ -23,14 +23,16 @@ namespace Neutron.Core
     {
         private object root = new();
         private Queue<Action> actions = new();
+        protected virtual int ActionsPerFrame => 1;
 
         protected virtual void Update()
         {
             lock (root)
             {
-                while (actions.Count > 0)
+                for (int i = 0; i < ActionsPerFrame; i++)
                 {
-                    actions.Dequeue()();
+                    if (actions.Count > 0) actions.Dequeue()();
+                    else continue;
                 }
             }
         }

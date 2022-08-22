@@ -25,14 +25,19 @@ namespace Neutron.Core
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-0x64)]
-    public class NeutronNetwork : MonoBehaviour
+    public class NeutronNetwork : ActionDispatcher
     {
+        private static NeutronNetwork instance;
         private static Dictionary<int, Action<ByteStream>> handlers = new();
         private static UdpServer udpServer = new();
         private static UdpClient udpClient = new();
 
         #region Events
         public static event Action<bool> OnConnected;
+        #endregion
+
+        #region Properties
+        public static int Id => udpClient.Id;
         #endregion
 
         public static IFormatterResolver Formatter { get; private set; }
@@ -55,6 +60,7 @@ namespace Neutron.Core
         {
             AddResolver(null);
             DontDestroyOnLoad(this);
+            instance = this;
 #if UNITY_SERVER
             Console.Clear();
             Console.WriteLine("Neutron Network is being initialized...");
@@ -124,9 +130,29 @@ namespace Neutron.Core
             byteStream.Release();
         }
 
-        internal static void iRPC(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        internal static void iRPC(ByteStream byteStream, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
+            ByteStream iRPCStream = ByteStream.Get();
+            iRPCStream.WritePacket(msgType);
+            iRPCStream.Write(byteStream);
+            byteStream.Release();
+            Send(iRPCStream, playerId, channel, target);
+            iRPCStream.Release();
+        }
 
+        public static void Spawn(ByteStream byteStream, NeutronIdentity prefab, Vector3 position = default, Quaternion rotation = default, bool immediate = true, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        {
+            // if (immediate)
+            // {
+            //     NeutronIdentity go = Instantiate(prefab, position, rotation);
+            // }
+
+            // ByteStream instantiateStream = ByteStream.Get();
+            // instantiateStream.WritePacket(MessageType.Instantiate);
+            // instantiateStream.Write(byteStream);
+            // byteStream.Release();
+            // Send(instantiateStream, playerId, channel, target);
+            // instantiateStream.Release();
         }
 
         private void OnApplicationQuit()
