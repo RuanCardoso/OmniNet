@@ -61,7 +61,7 @@ namespace Neutron.Core
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
             if (sender == null)
-                Logger.LogError("Sender is null!");
+                Logger.PrintError("Sender is null!");
             else
             {
                 switch (target)

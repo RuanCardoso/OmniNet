@@ -28,7 +28,7 @@ namespace Neutron.Core
     public class NeutronNetwork : ActionDispatcher
     {
         private static NeutronNetwork instance;
-        private static Dictionary<int, Action<ByteStream>> handlers = new();
+        private static Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static UdpServer udpServer = new();
         private static UdpClient udpClient = new();
 
@@ -82,7 +82,7 @@ namespace Neutron.Core
 #endif
         }
 
-        public static void AddHandler<T>(Action<ByteStream> handler) where T : ISerializable, new()
+        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
         {
             T instance = new T();
             if (!handlers.TryAdd(instance.Id, handler))
@@ -105,18 +105,21 @@ namespace Neutron.Core
                 case MessageType.GlobalMessage:
                     {
                         int id = recvStream.ReadInt();
-                        if (handlers.TryGetValue(id, out Action<ByteStream> handler))
+                        if (handlers.TryGetValue(id, out Action<ByteStream, bool> handler))
                         {
                             ByteStream messageStream = ByteStream.Get();
                             messageStream.Write(recvStream, recvStream.Position, recvStream.BytesWritten);
-                            handler(messageStream);
+                            handler(messageStream, isServer);
                             messageStream.Release();
+                            if (!isServer)
+                                return;
+                            udpServer.Send(recvStream, channel, target, remoteEndPoint);
                         }
                         else Logger.PrintError($"Handler for {id} not found!");
                     }
                     break;
-                case MessageType.Test:
-                    Logger.PrintError("Test: " + recvStream.ReadInt());
+                case MessageType.StressTest:
+                    Logger.PrintError($"Stress Test! {recvStream.ReadInt()}");
                     if (!isServer)
                         return;
                     udpServer.Send(recvStream, channel, target, remoteEndPoint);

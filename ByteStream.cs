@@ -190,7 +190,7 @@ namespace Neutron.Core
                 throw new System.Exception($"Byte Stream: Not enough data to read!");
         }
 
-        static ByteStreamPool byteStreams = new(40);
+        static ByteStreamPool byteStreams = new(4);
         public static ByteStream Get()
         {
             ByteStream _get_ = byteStreams.Get();
@@ -203,10 +203,12 @@ namespace Neutron.Core
         bool isRelease = false;
         internal void Release()
         {
-            if (isRelease)
-                throw new Exception($"The ByteStream is already released!");
-            isRelease = true;
-            byteStreams.Release(this);
+            if (isRelease) throw new Exception($"The ByteStream is already released!");
+            else
+            {
+                isRelease = true;
+                byteStreams.Release(this);
+            }
         }
     }
 }

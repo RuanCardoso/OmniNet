@@ -30,6 +30,8 @@ namespace Neutron.Core
         {
             internal uint sequence = 0;
             internal uint expectedSequence = 1;
+            internal uint minAck = 1;
+            internal uint maxAck = 1;
             internal readonly object sync_root = new();
             internal readonly HashSet<uint> acknowledgmentsReceived = new();
             internal readonly SortedDictionary<uint, ByteStream> dataBySequence = new();
@@ -259,27 +261,28 @@ namespace Neutron.Core
                                                                     if (ack < channelObject.expectedSequence || !channelObject.acknowledgmentsReceived.Add(ack))
                                                                         continue;
 
-                                                                    uint min = channelObject.acknowledgmentsReceived.Min();
-                                                                    uint max = channelObject.acknowledgmentsReceived.Max();
-
                                                                     #region Write Sequenced Messages
                                                                     ByteStream data = new(256);
                                                                     data.Write(recvStream.Buffer, 0, recvStream.BytesWritten);
                                                                     data.Position = recvStream.Position;
+                                                                    recvStream.Release();
                                                                     data.isRawBytes = true;
                                                                     channelObject.dataBySequence.Add(ack, data);
                                                                     #endregion
 
                                                                     #region Put Data By Sequence
-                                                                    if (min == channelObject.expectedSequence)
+                                                                    channelObject.minAck = Math.Min(channelObject.minAck, ack);
+                                                                    channelObject.maxAck = Math.Max(channelObject.maxAck, ack);
+                                                                    if (channelObject.minAck == channelObject.expectedSequence)
                                                                     {
-                                                                        uint range = max - (min - 1);
+                                                                        uint range = channelObject.maxAck - (channelObject.minAck - 1);
                                                                         if (channelObject.acknowledgmentsReceived.Count == range)
                                                                         {
                                                                             foreach (var (_, dataBySequence) in channelObject.dataBySequence)
                                                                                 OnMessage(dataBySequence, channel, target, msgType, remoteEndPoint);
 
-                                                                            channelObject.expectedSequence = max + 1;
+                                                                            channelObject.expectedSequence = channelObject.maxAck + 1;
+                                                                            channelObject.minAck = channelObject.maxAck = channelObject.expectedSequence;
                                                                             channelObject.acknowledgmentsReceived.Clear();
                                                                             channelObject.dataBySequence.Clear();
                                                                         }
@@ -300,7 +303,9 @@ namespace Neutron.Core
                                     Logger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
                                     break;
                             }
-                            recvStream.Release();
+
+                            if (channel != Channel.ReliableAndOrderly)
+                                recvStream.Release();
                         }
                         else
                             throw new System.Exception($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
@@ -311,6 +316,7 @@ namespace Neutron.Core
                     {
                         if (ex.ErrorCode == 10004)
                             break;
+                        Logger.LogStacktrace(ex);
                     }
                     catch (Exception ex)
                     {

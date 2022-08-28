@@ -32,10 +32,11 @@ namespace Neutron.Core
             {
                 if (pool.Count == 0)
                 {
-                    Logger.LogError("The pool is empty, a new object will be created(The pool will automatically resize with each new object created!). You should increase the pool size.");
-                    return new ByteStream(512);
+                    Logger.PrintError("The pool is empty, a new object will be created(The pool will automatically resize with each new object created!). You should increase the pool size.");
+                    return new ByteStream(128);
                 }
-                return pool.Pop();
+                else
+                    return pool.Pop();
             }
         }
 

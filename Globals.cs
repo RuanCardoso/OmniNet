@@ -28,7 +28,7 @@ namespace Neutron.Core
     internal enum MessageType : byte
     {
         None = 0,
-        Test = 1,
+        StressTest = 1,
         Acknowledgement = 2,
         Zone = 3,
         GlobalMessage = 4,
