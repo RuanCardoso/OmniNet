@@ -13,11 +13,11 @@
 
 namespace Neutron.Resolvers
 {
-    public class NeutronResolver : global::MessagePack.IFormatterResolver
+    public class NeutronRuntimeResolver : global::MessagePack.IFormatterResolver
     {
-        public static readonly global::MessagePack.IFormatterResolver Instance = new NeutronResolver();
+        public static readonly global::MessagePack.IFormatterResolver Instance = new NeutronRuntimeResolver();
 
-        private NeutronResolver()
+        private NeutronRuntimeResolver()
         {
         }
 
@@ -32,7 +32,7 @@ namespace Neutron.Resolvers
 
             static FormatterCache()
             {
-                var f = NeutronResolverGetFormatterHelper.GetFormatter(typeof(T));
+                var f = NeutronRuntimeResolverGetFormatterHelper.GetFormatter(typeof(T));
                 if (f != null)
                 {
                     Formatter = (global::MessagePack.Formatters.IMessagePackFormatter<T>)f;
@@ -41,11 +41,11 @@ namespace Neutron.Resolvers
         }
     }
 
-    internal static class NeutronResolverGetFormatterHelper
+    internal static class NeutronRuntimeResolverGetFormatterHelper
     {
         private static readonly global::System.Collections.Generic.Dictionary<global::System.Type, int> lookup;
 
-        static NeutronResolverGetFormatterHelper()
+        static NeutronRuntimeResolverGetFormatterHelper()
         {
             lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(0)
             {

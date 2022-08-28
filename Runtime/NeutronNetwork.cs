@@ -48,7 +48,7 @@ namespace Neutron.Core
             else
             {
                 Formatter = resolver == null
-                    ? (resolver = CompositeResolver.Create(NeutronResolver.Instance, MessagePack.Unity.Extension.UnityBlitWithPrimitiveArrayResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
+                    ? (resolver = CompositeResolver.Create(NeutronRuntimeResolver.Instance, MessagePack.Unity.Extension.UnityBlitWithPrimitiveArrayResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
                     : (resolver = CompositeResolver.Create(resolver, Formatter));
                 return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
             }

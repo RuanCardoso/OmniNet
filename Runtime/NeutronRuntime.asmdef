@@ -1,5 +1,5 @@
 {
-    "name": "Neutron",
+    "name": "NeutronRuntime",
     "rootNamespace": "",
     "references": [
         "GUID:bbde805d927e795439d7a746d1749cab",
@@ -7,7 +7,7 @@
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": true,
+    "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
