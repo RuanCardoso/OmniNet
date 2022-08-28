@@ -15,7 +15,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -67,24 +66,45 @@ namespace Neutron.Core
 
         protected async void SendReliableMessages(UdpEndPoint remoteEndPoint)
         {
-            Channel[] channels = { Channel.Reliable, Channel.ReliableAndOrderly };
             await Task.Run(async () =>
             {
+                Channel[] channels = {
+                    Channel.Reliable,
+                    Channel.ReliableAndOrderly
+                };
+
+                List<uint> toRemove = new List<uint>();
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
                     await Task.Delay(15);
                     for (int i = 0; i < channels.Length; i++)
                     {
                         ChannelObject channelObject = GetChannelObject(channels[i]);
-                        foreach (var (_, _stream_) in channelObject.relayMessages)
+                        foreach (var (seq, _stream_) in channelObject.relayMessages)
                         {
-                            if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
+                            if (!_stream_.isRelease)
                             {
-                                _stream_.Position = 0;
-                                _stream_.SetLastWriteTime();
-                                Send(_stream_, remoteEndPoint);
+                                if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
+                                {
+                                    _stream_.Position = 0;
+                                    _stream_.SetLastWriteTime();
+                                    Send(_stream_, remoteEndPoint);
+                                }
+                            }
+                            else toRemove.Add(seq);
+                        }
+
+                        for (int i1 = 0; i1 < toRemove.Count; i1++)
+                        {
+                            uint seq = toRemove[i1];
+                            if (channelObject.relayMessages.TryRemove(seq, out ByteStream _stream_))
+                            {
+                                _stream_.isRelease = false;
+                                _stream_.Release();
                             }
                         }
+
+                        toRemove.Clear();
                     }
                 }
             }, cancellationTokenSource.Token);
@@ -200,7 +220,10 @@ namespace Neutron.Core
                                                         Channel _channel_ = (Channel)recvStream.ReadByte();
                                                         ChannelObject channelObject = client.GetChannelObject(_channel_);
                                                         uint sequence = recvStream.ReadUInt();
-                                                        if (channelObject.relayMessages.TryRemove(sequence, out ByteStream stream)) { stream.Release(); }
+                                                        if (channelObject.relayMessages.TryGetValue(sequence, out ByteStream stream))
+                                                        {
+                                                            if (!stream.isRelease) stream.isRelease = true;
+                                                        }
                                                     }
                                                 }
                                                 break;

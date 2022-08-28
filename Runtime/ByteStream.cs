@@ -200,7 +200,7 @@ namespace Neutron.Core
             return _get_;
         }
 
-        bool isRelease = false;
+        internal bool isRelease = false;
         internal void Release()
         {
             if (isRelease)
