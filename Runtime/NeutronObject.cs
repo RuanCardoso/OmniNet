@@ -58,9 +58,12 @@ namespace Neutron.Core
                     if (attr != null)
                     {
                         if (method.GetParameters().Length < 0)
-                            throw new Exception($"iRPC method with id: {attr.id} -> name: {method.Name} -> requires the (ByteStream, bool, int) parameter in the same order as the method signature.");
-                        Action iRPC = method.CreateDelegate(typeof(Action), this) as Action;
-                        identity.AddRpc(id, attr.id, iRPC);
+                            Logger.PrintError($"iRPC method with id: {attr.id} -> name: {method.Name} -> requires the (ByteStream, bool, int) parameter in the same order as the method signature.");
+                        else
+                        {
+                            Action iRPC = method.CreateDelegate(typeof(Action), this) as Action;
+                            identity.AddRpc(id, attr.id, iRPC);
+                        }
                     }
                     else continue;
                 }

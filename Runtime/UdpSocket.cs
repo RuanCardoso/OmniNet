@@ -124,20 +124,23 @@ namespace Neutron.Core
         {
             uint _sequence_ = 0;
             if (IsServer)
-                throw new Exception("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
-
-            ChannelObject channelObject = GetChannelObject(channel);
-            ByteStream poolStream = ByteStream.Get();
-            poolStream.Write((byte)((byte)channel | (byte)target << 2));
-            lock (channelObject.sync_root) poolStream.Write(_sequence_ = ++channelObject.sequence);
-            poolStream.Write(byteStream);
-            ByteStream relayStream = ByteStream.Get();
-            relayStream.Write(poolStream);
-            relayStream.SetLastWriteTime();
-            channelObject.relayMessages.TryAdd(_sequence_, relayStream);
-            int length = Send(poolStream, remoteEndPoint);
-            poolStream.Release();
-            return length;
+                Logger.PrintError("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
+            else
+            {
+                ChannelObject channelObject = GetChannelObject(channel);
+                ByteStream poolStream = ByteStream.Get();
+                poolStream.Write((byte)((byte)channel | (byte)target << 2));
+                lock (channelObject.sync_root) poolStream.Write(_sequence_ = ++channelObject.sequence);
+                poolStream.Write(byteStream);
+                ByteStream relayStream = ByteStream.Get();
+                relayStream.Write(poolStream);
+                relayStream.SetLastWriteTime();
+                channelObject.relayMessages.TryAdd(_sequence_, relayStream);
+                int length = Send(poolStream, remoteEndPoint);
+                poolStream.Release();
+                return length;
+            }
+            return 0;
         }
 
         protected int Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, int offset = 0)
@@ -174,7 +177,7 @@ namespace Neutron.Core
 
                 int bytesWritten = byteStream.BytesWritten;
                 int length = globalSocket.SendTo(byteStream.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
-                if (length != bytesWritten) throw new Exception($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
+                if (length != bytesWritten) Logger.PrintError($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
                 return length;
             }
             catch (ObjectDisposedException) { return 0; }
@@ -202,8 +205,11 @@ namespace Neutron.Core
                             byte bit = recvStream.ReadByte();
                             Channel channel = (Channel)(bit & 0x3);
                             Target target = (Target)((bit >> 2) & 0x3);
-                            if ((byte)target > 0x3)
-                                throw new Exception($"{Name} - StartReadingData - Invalid target {target}");
+                            if ((byte)target > 0x3 || (byte)channel > 0x3)
+                            {
+                                Logger.PrintError($"{Name} - StartReadingData - Invalid target -> {target} or channel -> {channel}");
+                                return;
+                            }
                             #endregion
                             switch (channel)
                             {
@@ -344,19 +350,22 @@ namespace Neutron.Core
                                 recvStream.Release();
                         }
                         else
-                            throw new System.Exception($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
+                            Logger.PrintError($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
                     }
-                    catch (ThreadAbortException) { }
-                    catch (ObjectDisposedException) { }
+                    catch (ThreadAbortException) { continue; }
+                    catch (ObjectDisposedException) { continue; }
                     catch (SocketException ex)
                     {
                         if (ex.ErrorCode == 10004)
                             break;
+
                         Logger.LogStacktrace(ex);
+                        continue;
                     }
                     catch (Exception ex)
                     {
                         Logger.LogStacktrace(ex);
+                        continue;
                     }
                 }
             })
@@ -376,7 +385,7 @@ namespace Neutron.Core
                 case Channel.ReliableAndOrderly:
                     return reliableAndOrderlyChannel;
                 default:
-                    throw new Exception($"{Name} - GetChannel - Invalid channel {channel}");
+                    return default;
             }
         }
 

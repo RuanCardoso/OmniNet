@@ -61,17 +61,10 @@ namespace Neutron.Core
             AddResolver(null);
             DontDestroyOnLoad(this);
             instance = this;
-#if UNITY_SERVER
-            Console.Clear();
-            Console.WriteLine("Neutron Network is being initialized...");
-#endif
             Application.targetFrameRate = targetFrameRate;
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, 5055);
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
-#endif
-#if UNITY_SERVER
-            Console.WriteLine("Neutron Network is ready!");
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, Helper.GetFreePort()));
@@ -79,6 +72,13 @@ namespace Neutron.Core
 #endif
 #if UNITY_SERVER || UNITY_EDITOR
             SceneManager.CreateScene("Server", new CreateSceneParameters(LocalPhysicsMode.None));
+#endif
+        }
+
+        private void Start()
+        {
+#if UNITY_SERVER
+            Console.Clear();
 #endif
         }
 

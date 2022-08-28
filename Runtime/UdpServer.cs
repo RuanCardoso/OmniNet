@@ -60,8 +60,7 @@ namespace Neutron.Core
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, GetClient(remoteEndPoint));
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
-            if (sender == null)
-                Logger.PrintError("Sender is null!");
+            if (sender == null) Logger.PrintError("Sender is null!");
             else
             {
                 switch (target)
@@ -96,7 +95,8 @@ namespace Neutron.Core
                         break;
                     case Target.Server:
                     default:
-                        throw new System.Exception("Invalid target!");
+                        Logger.PrintError($"Invalid target -> {target}");
+                        break;
                 }
             }
         }

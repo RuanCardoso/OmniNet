@@ -32,16 +32,19 @@ namespace Neutron.Core
         public ByteStream(int size) => buffer = new byte[size];
         public void Write(byte value)
         {
-            ThrowIfNotEnoughSpace(sizeof(byte));
-            buffer[position++] = value;
-            bytesWritten += sizeof(byte);
+            if (ThrowIfNotEnoughSpace(sizeof(byte)))
+            {
+                buffer[position++] = value;
+                bytesWritten += sizeof(byte);
+            }
         }
 
         internal void WritePacket(MessageType value)
         {
             if (position != 0 || bytesWritten != 0)
-                throw new Exception($"The ByteStream is not empty. Position: {position}, BytesWritten: {bytesWritten}");
-            Write((byte)value);
+                Logger.PrintError($"The ByteStream is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
+            else
+                Write((byte)value);
         }
 
         public void Write(int value)
@@ -117,8 +120,9 @@ namespace Neutron.Core
 
         public byte ReadByte()
         {
-            ThrowIfNotEnoughData(sizeof(byte));
-            return buffer[position++];
+            if (ThrowIfNotEnoughData(sizeof(byte)))
+                return buffer[position++];
+            else return 0;
         }
 
         internal MessageType ReadPacket()
@@ -178,16 +182,24 @@ namespace Neutron.Core
                 value[offset + i] = ReadByte();
         }
 
-        private void ThrowIfNotEnoughSpace(int size)
+        private bool ThrowIfNotEnoughSpace(int size)
         {
             if (position + size > buffer.Length)
-                throw new System.Exception($"Byte Stream: Not enough space to write!");
+            {
+                Logger.PrintError($"Byte Stream: Not enough space to write!");
+                return false;
+            }
+            return true;
         }
 
-        private void ThrowIfNotEnoughData(int size)
+        private bool ThrowIfNotEnoughData(int size)
         {
             if (position + size > bytesWritten)
-                throw new System.Exception($"Byte Stream: Not enough data to read!");
+            {
+                Logger.PrintError($"Byte Stream: Not enough data to read!");
+                return false;
+            }
+            return true;
         }
 
         static ByteStreamPool byteStreams = new(0);
@@ -196,15 +208,14 @@ namespace Neutron.Core
             ByteStream _get_ = byteStreams.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0)
-                throw new Exception($"The ByteStream is not empty. Position: {_get_.position}, BytesWritten: {_get_.bytesWritten}, Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+                Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             return _get_;
         }
 
         internal bool isRelease = false;
         internal void Release()
         {
-            if (isRelease)
-                throw new Exception($"The ByteStream is already released!");
+            if (isRelease) Logger.PrintError($"The ByteStream is already released!");
             else
             {
                 isRelease = true;

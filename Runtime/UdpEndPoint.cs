@@ -31,9 +31,16 @@ namespace Neutron.Core
         public override EndPoint Create(SocketAddress socketAddress)
         {
             if (socketAddress.Family != AddressFamily)
-                throw new Exception("Invalid address family");
+            {
+                Logger.PrintError("Invalid address family");
+                return default;
+            }
+
             if (socketAddress.Size < 8)
-                throw new Exception("Error: SocketAddress.Size < 8");
+            {
+                Logger.PrintError("Error: SocketAddress.Size < 8");
+                return default;
+            }
 
             if (this.socketAddress != socketAddress)
             {
@@ -46,7 +53,10 @@ namespace Neutron.Core
                 }
 
                 if (this.socketAddress.GetHashCode() == 0)
-                    throw new Exception("Error: SocketAddress.GetHashCode() == 0");
+                {
+                    Logger.PrintError("Error: SocketAddress.GetHashCode() == 0");
+                    return default;
+                }
             }
 
             return this;
@@ -67,7 +77,7 @@ namespace Neutron.Core
                         return address;
                     }
                 default:
-                    throw new SocketException((int)SocketError.AddressFamilyNotSupported);
+                    return default;
             }
         }
 
@@ -84,7 +94,7 @@ namespace Neutron.Core
                         return port;
                     }
                 default:
-                    throw new SocketException((int)SocketError.AddressFamilyNotSupported);
+                    return default;
             }
         }
 

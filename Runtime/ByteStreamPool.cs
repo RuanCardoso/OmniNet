@@ -32,7 +32,7 @@ namespace Neutron.Core
             {
                 if (pool.Count == 0)
                 {
-                    Logger.PrintError("The pool is empty, a new object will be created(The pool will automatically resize with each new object created!). You should increase the pool size.");
+                    Logger.Print("Allocating a new ByteStream!");
                     return new ByteStream(128);
                 }
                 else

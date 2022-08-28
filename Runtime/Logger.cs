@@ -20,6 +20,7 @@ namespace Neutron.Core
 {
     public static class Logger
     {
+#if !UNITY_SERVER || UNITY_EDITOR
         public static void Print(object message) => Debug.LogFormat(LogType.Log, LogOption.NoStacktrace, null, "{0}", message);
         public static void PrintError(object message) => Debug.LogFormat(LogType.Error, LogOption.NoStacktrace, null, "{0}", message);
         public static void PrintWarning(object message) => Debug.LogFormat(LogType.Warning, LogOption.NoStacktrace, null, "{0}", message);
@@ -27,6 +28,15 @@ namespace Neutron.Core
         public static void LogError(object message) => Debug.LogFormat(LogType.Error, LogOption.None, null, "{0}", message);
         public static void LogWarning(object message) => Debug.LogFormat(LogType.Warning, LogOption.None, null, "{0}", message);
         public static void LogStacktrace(Exception message) => Debug.LogException(message);
+#else
+        public static void Print(object message) => Console.WriteLine(message);
+        public static void PrintError(object message) => Console.WriteLine(message);
+        public static void PrintWarning(object message) => Console.WriteLine(message);
+        public static void Log(object message) => Console.WriteLine(message);
+        public static void LogError(object message) => Console.WriteLine(message);
+        public static void LogWarning(object message) => Console.WriteLine(message);
+        public static void LogStacktrace(Exception message) => Console.WriteLine(message);
+#endif
     }
 }
 #endif

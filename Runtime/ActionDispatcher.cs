@@ -29,11 +29,8 @@ namespace Neutron.Core
         {
             lock (root)
             {
-                for (int i = 0; i < ActionsPerFrame; i++)
-                {
-                    if (actions.Count > 0) actions.Dequeue()();
-                    else continue;
-                }
+                for (int i = 0; i < ActionsPerFrame && actions.Count > 0; i++)
+                    actions.Dequeue()();
             }
         }
 

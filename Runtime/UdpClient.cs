@@ -47,18 +47,21 @@ namespace Neutron.Core
         internal int Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
         {
             if (remoteEndPoint == null)
-                throw new System.Exception("You must call Connect() before Send()");
-
-            switch (channel)
+                Logger.PrintError("You must call Connect() before Send()");
+            else
             {
-                case Channel.Unreliable:
-                    return SendUnreliable(byteStream, remoteEndPoint, target);
-                case Channel.Reliable:
-                case Channel.ReliableAndOrderly:
-                    return SendReliable(byteStream, remoteEndPoint, channel, target);
-                default:
-                    return 0;
+                switch (channel)
+                {
+                    case Channel.Unreliable:
+                        return SendUnreliable(byteStream, remoteEndPoint, target);
+                    case Channel.Reliable:
+                    case Channel.ReliableAndOrderly:
+                        return SendReliable(byteStream, remoteEndPoint, channel, target);
+                    default:
+                        return 0;
+                }
             }
+            return 0;
         }
 
         protected override void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
