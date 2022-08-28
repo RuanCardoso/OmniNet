@@ -38,6 +38,24 @@ namespace Neutron.Core.Tests
 
         private void Update()
         {
+            if (Input.GetKeyDown(KeyCode.U))
+            {
+                for (int i = 0; i < 100; i++)
+                    Send(Channel.Unreliable);
+            }
+
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                for (int i = 0; i < 100; i++)
+                    Send(Channel.Reliable);
+            }
+
+            if (Input.GetKeyDown(KeyCode.O))
+            {
+                for (int i = 0; i < 100; i++)
+                    Send(Channel.ReliableAndOrderly);
+            }
+
             for (int i = 0; i < perFrame; i++)
             {
                 // check if it throws an error in multithread.

@@ -190,7 +190,7 @@ namespace Neutron.Core
                 throw new System.Exception($"Byte Stream: Not enough data to read!");
         }
 
-        static ByteStreamPool byteStreams = new(4);
+        static ByteStreamPool byteStreams = new(128);
         public static ByteStream Get()
         {
             ByteStream _get_ = byteStreams.Get();

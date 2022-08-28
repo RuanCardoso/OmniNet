@@ -232,7 +232,11 @@ namespace Neutron.Core
                                                     if (client != null)
                                                     {
                                                         ChannelObject channelObject = client.GetChannelObject(channel);
-                                                        if (!channelObject.acknowledgmentsReceived.Add(ack)) continue;
+                                                        if (!channelObject.acknowledgmentsReceived.Add(ack))
+                                                        {
+                                                            recvStream.Release();
+                                                            continue;
+                                                        }
                                                         OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                     }
                                                     else
@@ -253,16 +257,22 @@ namespace Neutron.Core
                                                         {
                                                             case Channel.Reliable:
                                                                 if (!channelObject.acknowledgmentsReceived.Add(ack))
+                                                                {
+                                                                    recvStream.Release();
                                                                     continue;
+                                                                }
                                                                 else OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
                                                                 break;
                                                             case Channel.ReliableAndOrderly:
                                                                 {
                                                                     if (ack < channelObject.expectedSequence || !channelObject.acknowledgmentsReceived.Add(ack))
+                                                                    {
+                                                                        recvStream.Release();
                                                                         continue;
+                                                                    }
 
                                                                     #region Write Sequenced Messages
-                                                                    ByteStream data = new(256);
+                                                                    ByteStream data = new(recvStream.BytesWritten);
                                                                     data.Write(recvStream.Buffer, 0, recvStream.BytesWritten);
                                                                     data.Position = recvStream.Position;
                                                                     recvStream.Release();
