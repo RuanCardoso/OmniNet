@@ -111,7 +111,7 @@ namespace Neutron.Core
             poolStream.Write((byte)((byte)channel | (byte)target << 2));
             lock (channelObject.sync_root) poolStream.Write(_sequence_ = ++channelObject.sequence);
             poolStream.Write(byteStream);
-            ByteStream relayStream = new ByteStream(poolStream.BytesWritten);
+            ByteStream relayStream = ByteStream.Get();
             relayStream.Write(poolStream);
             relayStream.SetLastWriteTime();
             channelObject.relayMessages.TryAdd(_sequence_, relayStream);
@@ -143,7 +143,7 @@ namespace Neutron.Core
                                 buffer[++offset] = (byte)(_sequence_ >> 24);
                                 offset = 0;
 
-                                ByteStream relayStream = new ByteStream(byteStream.BytesWritten);
+                                ByteStream relayStream = ByteStream.Get();
                                 relayStream.Write(byteStream);
                                 relayStream.SetLastWriteTime();
                                 channelObject.relayMessages.TryAdd(_sequence_, relayStream);
@@ -200,7 +200,7 @@ namespace Neutron.Core
                                                         Channel _channel_ = (Channel)recvStream.ReadByte();
                                                         ChannelObject channelObject = client.GetChannelObject(_channel_);
                                                         uint sequence = recvStream.ReadUInt();
-                                                        channelObject.relayMessages.TryRemove(sequence, out _);
+                                                        if (channelObject.relayMessages.TryRemove(sequence, out ByteStream stream)) { stream.Release(); }
                                                     }
                                                 }
                                                 break;
@@ -272,7 +272,7 @@ namespace Neutron.Core
                                                                     }
 
                                                                     #region Write Sequenced Messages
-                                                                    ByteStream data = new(recvStream.BytesWritten);
+                                                                    ByteStream data = ByteStream.Get();
                                                                     data.Write(recvStream.Buffer, 0, recvStream.BytesWritten);
                                                                     data.Position = recvStream.Position;
                                                                     recvStream.Release();
@@ -289,7 +289,10 @@ namespace Neutron.Core
                                                                         if (channelObject.acknowledgmentsReceived.Count == range)
                                                                         {
                                                                             foreach (var (_, dataBySequence) in channelObject.dataBySequence)
+                                                                            {
                                                                                 OnMessage(dataBySequence, channel, target, msgType, remoteEndPoint);
+                                                                                dataBySequence.Release();
+                                                                            }
 
                                                                             channelObject.expectedSequence = channelObject.maxAck + 1;
                                                                             channelObject.minAck = channelObject.maxAck = channelObject.expectedSequence;
