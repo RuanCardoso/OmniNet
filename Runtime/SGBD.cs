@@ -82,6 +82,7 @@ namespace Neutron.Core
 
         public void Close()
         {
+            ThrowErrorIfNotInitialized();
             iDbConnection.Close();
             iDbConnection.Dispose();
         }
