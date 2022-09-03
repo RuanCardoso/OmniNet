@@ -22,7 +22,7 @@ using UnityEngine;
 
 namespace Neutron.Core
 {
-    public class SGBD
+    public class SGBD : IDisposable
     {
         #region Fields
         private string tableName;
@@ -60,7 +60,7 @@ namespace Neutron.Core
         }
         #endregion
 
-        public SGBD(string tableName) => this.tableName = tableName;
+        public SGBD(string tableName = null) => this.tableName = tableName;
         public void Initialize(IDbConnection iDbConnection, Compiler compiler, int timeout = 30)
         {
             try
@@ -78,6 +78,17 @@ namespace Neutron.Core
         public void Initialize(int timeout = 30)
         {
             Initialize(new SqliteConnection("Data Source=neutron_server_db.sqlite3"), new SqliteCompiler(), timeout);
+        }
+
+        public void Close()
+        {
+            iDbConnection.Close();
+            iDbConnection.Dispose();
+        }
+
+        public void Dispose()
+        {
+            Close();
         }
 
         void ThrowErrorIfNotInitialized()
