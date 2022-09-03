@@ -201,17 +201,20 @@ namespace Neutron.Core
                             recvStream.Write(buffer, 0, length);
                             recvStream.Position = 0;
                             recvStream.isRawBytes = true;
+
                             #region Bit Mask
-                            byte bit = recvStream.ReadByte();
-                            Channel channel = (Channel)(bit & 0x3);
-                            Target target = (Target)((bit >> 2) & 0x3);
-                            if ((byte)target > 0x3 || (byte)channel > 0x3)
+                            byte maskBit = recvStream.ReadByte();
+                            Channel bitChannel = (Channel)(maskBit & 0x3);
+                            Target bitTarget = (Target)((maskBit >> 2) & 0x3);
+                            if ((byte)bitTarget > 0x3 || (byte)bitChannel > 0x3)
                             {
-                                Logger.PrintError($"{Name} - StartReadingData - Invalid target -> {target} or channel -> {channel}");
-                                return;
+                                Logger.PrintError($"{Name} - StartReadingData - Invalid target -> {bitTarget} or channel -> {bitChannel}");
+                                recvStream.Release();
+                                continue;
                             }
                             #endregion
-                            switch (channel)
+
+                            switch (bitChannel)
                             {
                                 case Channel.Unreliable:
                                     {
@@ -234,7 +237,7 @@ namespace Neutron.Core
                                                 }
                                                 break;
                                             default:
-                                                OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                OnMessage(recvStream, bitChannel, bitTarget, msgType, remoteEndPoint);
                                                 break;
                                         }
                                     }
@@ -246,7 +249,7 @@ namespace Neutron.Core
                                         uint ack = recvStream.ReadUInt();
                                         ByteStream ackStream = ByteStream.Get();
                                         ackStream.WritePacket(MessageType.Acknowledgement);
-                                        ackStream.Write((byte)channel);
+                                        ackStream.Write((byte)bitChannel);
                                         ackStream.Write(ack);
                                         SendUnreliable(ackStream, remoteEndPoint, Target.Me);
                                         ackStream.Release();
@@ -260,19 +263,19 @@ namespace Neutron.Core
                                                     UdpClient client = GetClient(remoteEndPoint);
                                                     if (client != null)
                                                     {
-                                                        ChannelObject channelObject = client.GetChannelObject(channel);
+                                                        ChannelObject channelObject = client.GetChannelObject(bitChannel);
                                                         if (!channelObject.acknowledgmentsReceived.Add(ack))
                                                         {
                                                             recvStream.Release();
                                                             continue;
                                                         }
-                                                        OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                        OnMessage(recvStream, bitChannel, bitTarget, msgType, remoteEndPoint);
                                                     }
                                                     else
                                                     {
-                                                        OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                        OnMessage(recvStream, bitChannel, bitTarget, msgType, remoteEndPoint);
                                                         UdpClient _client_ = GetClient(remoteEndPoint);
-                                                        if (_client_ != null) _client_.GetChannelObject(channel).acknowledgmentsReceived.Add(ack);
+                                                        if (_client_ != null) _client_.GetChannelObject(bitChannel).acknowledgmentsReceived.Add(ack);
                                                     }
                                                 }
                                                 break;
@@ -281,8 +284,8 @@ namespace Neutron.Core
                                                     UdpClient client = GetClient(remoteEndPoint);
                                                     if (client != null)
                                                     {
-                                                        ChannelObject channelObject = client.GetChannelObject(channel);
-                                                        switch (channel)
+                                                        ChannelObject channelObject = client.GetChannelObject(bitChannel);
+                                                        switch (bitChannel)
                                                         {
                                                             case Channel.Reliable:
                                                                 if (!channelObject.acknowledgmentsReceived.Add(ack))
@@ -290,7 +293,7 @@ namespace Neutron.Core
                                                                     recvStream.Release();
                                                                     continue;
                                                                 }
-                                                                else OnMessage(recvStream, channel, target, msgType, remoteEndPoint);
+                                                                else OnMessage(recvStream, bitChannel, bitTarget, msgType, remoteEndPoint);
                                                                 break;
                                                             case Channel.ReliableAndOrderly:
                                                                 {
@@ -319,7 +322,7 @@ namespace Neutron.Core
                                                                         {
                                                                             foreach (var (_, dataBySequence) in channelObject.dataBySequence)
                                                                             {
-                                                                                OnMessage(dataBySequence, channel, target, msgType, remoteEndPoint);
+                                                                                OnMessage(dataBySequence, bitChannel, bitTarget, msgType, remoteEndPoint);
                                                                                 dataBySequence.Release();
                                                                             }
 
@@ -342,11 +345,11 @@ namespace Neutron.Core
                                     }
                                     break;
                                 default:
-                                    Logger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
+                                    Logger.PrintError($"Unknown channel {bitChannel} received from {remoteEndPoint}");
                                     break;
                             }
 
-                            if (channel != Channel.ReliableAndOrderly)
+                            if (bitChannel != Channel.ReliableAndOrderly)
                                 recvStream.Release();
                         }
                         else
