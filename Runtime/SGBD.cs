@@ -75,13 +75,13 @@ namespace Neutron.Core
 
         public static void Initialize(string tableName, int timeout = 30)
         {
-            Initialize(new SqliteConnection("URI=Server.sqlite3"), new SqliteCompiler(), tableName, timeout);
+            Initialize(new SqliteConnection("Data Source=neutron_server_db.sqlite3"), new SqliteCompiler(), tableName, timeout);
         }
 
         static void ThrowErrorIfNotInitialized()
         {
             if (query == null || queryFactory == null || iDbConnection == null)
-                throw new Exception($"Call {nameof(Initialize)} before it!");
+                throw new Exception($"Call \"{nameof(Initialize)}()\" before it!");
             if (iDbConnection != null)
             {
                 if (iDbConnection.State != ConnectionState.Open)
