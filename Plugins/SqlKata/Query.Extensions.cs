@@ -3,6 +3,7 @@ using System;
 using System.Threading.Tasks;
 using System.Data;
 using System.Threading;
+using Newtonsoft.Json;
 
 namespace SqlKata.Execution
 {
@@ -340,6 +341,11 @@ namespace SqlKata.Execution
         public static async Task<T> MaxAsync<T>(this Query query, string column, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await query.AggregateAsync<T>("max", new[] { column }, transaction, timeout, cancellationToken);
+        }
+
+        public static T Get<T>(this object obj)
+        {
+            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj));
         }
 
         internal static XQuery CastToXQuery(Query query, string method = null)
