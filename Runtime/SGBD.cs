@@ -22,16 +22,17 @@ using UnityEngine;
 
 namespace Neutron.Core
 {
-    public static class SGBD
+    public class SGBD
     {
         #region Fields
-        private static Query query;
-        private static QueryFactory queryFactory;
-        private static IDbConnection iDbConnection;
+        private string tableName;
+        private Query query;
+        private QueryFactory queryFactory;
+        private IDbConnection iDbConnection;
         #endregion
 
         #region Properties
-        public static Query Db
+        public Query Db
         {
             get
             {
@@ -40,7 +41,7 @@ namespace Neutron.Core
             }
         }
 
-        public static QueryFactory Factory
+        public QueryFactory Factory
         {
             get
             {
@@ -49,7 +50,7 @@ namespace Neutron.Core
             }
         }
 
-        public static IDbConnection Connection
+        public IDbConnection Connection
         {
             get
             {
@@ -59,13 +60,14 @@ namespace Neutron.Core
         }
         #endregion
 
-        public static void Initialize(IDbConnection iDbConnection, Compiler compiler, string tableName, int timeout = 30)
+        public SGBD(string tableName) => this.tableName = tableName;
+        public void Initialize(IDbConnection iDbConnection, Compiler compiler, int timeout = 30)
         {
             try
             {
-                SGBD.iDbConnection = iDbConnection;
-                SGBD.iDbConnection.Open();
-                query = (queryFactory = new QueryFactory(SGBD.iDbConnection, compiler, timeout)).Query(tableName);
+                this.iDbConnection = iDbConnection;
+                this.iDbConnection.Open();
+                query = (queryFactory = new QueryFactory(this.iDbConnection, compiler, timeout)).Query(tableName);
             }
             catch (Exception ex)
             {
@@ -73,12 +75,12 @@ namespace Neutron.Core
             }
         }
 
-        public static void Initialize(string tableName, int timeout = 30)
+        public void Initialize(int timeout = 30)
         {
-            Initialize(new SqliteConnection("Data Source=neutron_server_db.sqlite3"), new SqliteCompiler(), tableName, timeout);
+            Initialize(new SqliteConnection("Data Source=neutron_server_db.sqlite3"), new SqliteCompiler(), timeout);
         }
 
-        static void ThrowErrorIfNotInitialized()
+        void ThrowErrorIfNotInitialized()
         {
             if (query == null || queryFactory == null || iDbConnection == null)
                 throw new Exception($"Call \"{nameof(Initialize)}()\" before it!");
