@@ -343,7 +343,7 @@ namespace SqlKata.Execution
             return await query.AggregateAsync<T>("max", new[] { column }, transaction, timeout, cancellationToken);
         }
 
-        public static T Get<T>(this object obj)
+        public static T Deserialize<T>(this object obj)
         {
             return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj));
         }
