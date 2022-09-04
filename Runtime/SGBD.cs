@@ -14,6 +14,7 @@
 
 using System;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 using Mono.Data.Sqlite;
 using SqlKata;
@@ -81,28 +82,40 @@ namespace Neutron.Core
             Initialize(new SqliteConnection("Data Source=neutron_server_db.sqlite3"), new SqliteCompiler(), timeout);
         }
 
-        public Task<T> QueueUserWorkItemAsync<T>(Func<SGBD, Task<T>> query)
+        public Task<T> QueueUserWorkItemAsync<T>(Func<SGBD, Task<T>> query, CancellationToken token = default)
         {
+            if (token.IsCancellationRequested)
+                return default;
+
             return Task.Run(() =>
             {
+                if (token.IsCancellationRequested)
+                    return default;
+
                 using (SGBD sgbd = new SGBD(tableName))
                 {
                     sgbd.Initialize();
                     return query(sgbd);
                 }
-            });
+            }, token);
         }
 
-        public Task<T> QueueUserWorkItemAsync<T>(Func<SGBD, T> query)
+        public Task<T> QueueUserWorkItemAsync<T>(Func<SGBD, T> query, CancellationToken token = default)
         {
+            if (token.IsCancellationRequested)
+                return default;
+
             return Task.Run(() =>
             {
+                if (token.IsCancellationRequested)
+                    return default;
+
                 using (SGBD sgbd = new SGBD(tableName))
                 {
                     sgbd.Initialize();
                     return query(sgbd);
                 }
-            });
+            }, token);
         }
 
         public void Close()
