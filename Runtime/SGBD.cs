@@ -164,11 +164,8 @@ namespace Neutron.Core
 
     public enum SGDBType
     {
+        MariaDB,
         MySQL,
         SQLite,
-        PostgreSQL,
-        Oracle,
-        Firebird,
-        SQLServer
     }
 }
