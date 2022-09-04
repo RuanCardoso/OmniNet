@@ -31,6 +31,7 @@ namespace Neutron.Core
         private Query query;
         private QueryFactory queryFactory;
         private IDbConnection iDbConnection;
+        private SqliteConnection sqliteConnection;
         #endregion
 
         #region Properties
@@ -60,6 +61,15 @@ namespace Neutron.Core
                 return iDbConnection;
             }
         }
+
+        public SqliteConnection SQLiteConnection
+        {
+            get
+            {
+                ThrowErrorIfNotInitialized();
+                return sqliteConnection;
+            }
+        }
         #endregion
 
         public SGBD(string tableName = null) => this.tableName = tableName;
@@ -79,7 +89,16 @@ namespace Neutron.Core
 
         public void Initialize(int timeout = 30)
         {
-            Initialize(new SqliteConnection("Data Source=neutron_server_db.sqlite3"), new SqliteCompiler(), timeout);
+            try
+            {
+                sqliteConnection = new("Data Source=neutron_server_db.sqlite3");
+                this.iDbConnection = sqliteConnection;
+                query = (queryFactory = new QueryFactory(sqliteConnection, new SqliteCompiler(), timeout)).Query(tableName);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+            }
         }
 
         public Task<T> QueueUserWorkItemAsync<T>(Func<SGBD, Task<T>> query, CancellationToken token = default)
