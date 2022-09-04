@@ -17,6 +17,7 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using Mono.Data.Sqlite;
+using MySqlConnector;
 using SqlKata;
 using SqlKata.Compilers;
 using SqlKata.Execution;
@@ -32,6 +33,7 @@ namespace Neutron.Core
         private QueryFactory queryFactory;
         private IDbConnection iDbConnection;
         private SqliteConnection sqliteConnection;
+        private MySqlConnection mySqlConnection;
         #endregion
 
         #region Properties
@@ -70,13 +72,22 @@ namespace Neutron.Core
                 return sqliteConnection;
             }
         }
+
+        public MySqlConnection MySQLConnection
+        {
+            get
+            {
+                ThrowErrorIfNotInitialized();
+                return mySqlConnection;
+            }
+        }
         #endregion
 
-        public SGBD(string tableName = null) => this.tableName = tableName;
-        public void Initialize(IDbConnection iDbConnection, Compiler compiler, int timeout = 30)
+        public void Initialize(IDbConnection iDbConnection, Compiler compiler, string tableName, int timeout = 30)
         {
             try
             {
+                this.tableName = tableName;
                 this.iDbConnection = iDbConnection;
                 this.iDbConnection.Open();
                 query = (queryFactory = new QueryFactory(this.iDbConnection, compiler, timeout)).Query(tableName);
@@ -87,55 +98,38 @@ namespace Neutron.Core
             }
         }
 
-        public void Initialize(int timeout = 30)
+        public void Initialize(string tableName, SGDBType sGDBType = SGDBType.SQLite, string connectionString = "Data Source=neutron_server_db.sqlite3", int timeout = 30)
         {
             try
             {
-                sqliteConnection = new("Data Source=neutron_server_db.sqlite3");
-                this.iDbConnection = sqliteConnection;
-                sqliteConnection.Open();
-                query = (queryFactory = new QueryFactory(sqliteConnection, new SqliteCompiler(), timeout)).Query(tableName);
+                this.tableName = tableName;
+                switch (sGDBType)
+                {
+                    case SGDBType.SQLite:
+                        {
+                            sqliteConnection = new(connectionString);
+                            this.iDbConnection = sqliteConnection;
+                            sqliteConnection.Open();
+                            query = (queryFactory = new QueryFactory(sqliteConnection, new SqliteCompiler(), timeout)).Query(tableName);
+                        }
+                        break;
+                    case SGDBType.MariaDB:
+                    case SGDBType.MySQL:
+                        {
+                            mySqlConnection = new MySqlConnection(connectionString);
+                            this.iDbConnection = mySqlConnection;
+                            mySqlConnection.Open();
+                            query = (queryFactory = new QueryFactory(mySqlConnection, new MySqlCompiler(), timeout)).Query(tableName);
+                        }
+                        break;
+                    default:
+                        throw new Exception("SGDB Type not supported!");
+                }
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
             }
-        }
-
-        public Task<T> QueueUserWorkItemAsync<T>(Func<SGBD, Task<T>> query, CancellationToken token = default)
-        {
-            if (token.IsCancellationRequested)
-                return default;
-
-            return Task.Run(() =>
-            {
-                if (token.IsCancellationRequested)
-                    return default;
-
-                using (SGBD sgbd = new SGBD(tableName))
-                {
-                    sgbd.Initialize();
-                    return query(sgbd);
-                }
-            }, token);
-        }
-
-        public Task<T> QueueUserWorkItemAsync<T>(Func<SGBD, T> query, CancellationToken token = default)
-        {
-            if (token.IsCancellationRequested)
-                return default;
-
-            return Task.Run(() =>
-            {
-                if (token.IsCancellationRequested)
-                    return default;
-
-                using (SGBD sgbd = new SGBD(tableName))
-                {
-                    sgbd.Initialize();
-                    return query(sgbd);
-                }
-            }, token);
         }
 
         public void Close()
@@ -150,14 +144,14 @@ namespace Neutron.Core
             Close();
         }
 
-        void ThrowErrorIfNotInitialized()
+        private void ThrowErrorIfNotInitialized()
         {
             if (query == null || queryFactory == null || iDbConnection == null)
-                throw new Exception($"Call \"{nameof(Initialize)}()\" before it!");
+                throw new Exception($"Call \"{nameof(Initialize)}()\" before it! -> {iDbConnection.State}");
             if (iDbConnection != null)
             {
                 if (iDbConnection.State != ConnectionState.Open)
-                    throw new Exception("The database is not connected!");
+                    throw new Exception($"The database is not connected! -> {iDbConnection.State}");
             }
         }
     }
