@@ -93,6 +93,7 @@ namespace Neutron.Core
             {
                 sqliteConnection = new("Data Source=neutron_server_db.sqlite3");
                 this.iDbConnection = sqliteConnection;
+                sqliteConnection.Open();
                 query = (queryFactory = new QueryFactory(sqliteConnection, new SqliteCompiler(), timeout)).Query(tableName);
             }
             catch (Exception ex)
