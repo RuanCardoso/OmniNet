@@ -14,8 +14,6 @@
 
 using System;
 using System.Data;
-using System.Threading;
-using System.Threading.Tasks;
 using Mono.Data.Sqlite;
 using MySqlConnector;
 using SqlKata;
@@ -34,6 +32,7 @@ namespace Neutron.Core
         private IDbConnection iDbConnection;
         private SqliteConnection sqliteConnection;
         private MySqlConnection mySqlConnection;
+        internal bool finishAfterUse;
         #endregion
 
         #region Properties
