@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using MySqlConnector;
 using Neutron.Core;
 using Neutron.Database;
 using UnityEngine;
@@ -14,14 +15,14 @@ public class DatabaseTests : MonoBehaviour
 
     private void Start()
     {
-        Manager = new((db) => db.Initialize("Users", SGDBType.MariaDB, $"Server={address};Database={database};Uid={username};Pwd={password};"), 0);
+        Manager = new((db) => db.Initialize("Users", SGDBType.MariaDB, $"Server={address};Database={database};Uid={username};Pwd={password};timeout=30;"), 100);
     }
 
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            for (int i = 0; i < 1; i++)
+            for (int i = 0; i < 10; i++)
             {
                 Task.Run(() =>
                 {
@@ -42,5 +43,10 @@ public class DatabaseTests : MonoBehaviour
                 });
             }
         }
+    }
+
+    private void OnApplicationQuit()
+    {
+        Manager.Close();
     }
 }

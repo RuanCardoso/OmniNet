@@ -123,7 +123,7 @@ namespace Neutron.Core
         {
             ThrowErrorIfNotInitialized();
             iDbConnection.Close();
-            iDbConnection.Dispose();
+            //iDbConnection.Dispose();
         }
 
         public void Dispose()
