@@ -18,6 +18,8 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using MessagePack;
 using MessagePack.Resolvers;
+using MessagePack.Unity;
+using MessagePack.Unity.Extension;
 using Neutron.Resolvers;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -49,7 +51,7 @@ namespace Neutron.Core
             else
             {
                 Formatter = resolver == null
-                    ? (resolver = CompositeResolver.Create(NeutronRuntimeResolver.Instance, MessagePack.Unity.Extension.UnityBlitWithPrimitiveArrayResolver.Instance, MessagePack.Unity.UnityResolver.Instance, StandardResolver.Instance))
+                    ? (resolver = CompositeResolver.Create(NeutronRuntimeResolver.Instance, UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance))
                     : (resolver = CompositeResolver.Create(resolver, Formatter));
                 return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
             }
