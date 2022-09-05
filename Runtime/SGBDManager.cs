@@ -44,7 +44,7 @@ namespace Neutron.Core
             {
                 if (pool.Count == 0)
                 {
-                    Logger.Print("Query: No connections available, a new connection will be opened!");
+                    Logger.Print("Query: No connections available, a temporary connection will open!");
                     return this.initializer(true);
                 }
                 else
