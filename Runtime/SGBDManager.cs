@@ -24,7 +24,7 @@ namespace Neutron.Core
         private Stack<SGBD> pool = new();
         private Func<bool, SGBD> initializer;
 
-        public SGBDManager(Action<SGBD> initializer, int length = 30, bool reuseTemporaryConnections = false)
+        public SGBDManager(Action<SGBD> initializer, int connections = 30, bool reuseTemporaryConnections = false)
         {
             this.initializer = (finishAfterUse) =>
             {
@@ -34,7 +34,7 @@ namespace Neutron.Core
                 return sgbd;
             };
 
-            for (int i = 0; i < length; i++)
+            for (int i = 0; i < connections; i++)
                 pool.Push(this.initializer(false));
         }
 

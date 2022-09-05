@@ -105,21 +105,11 @@ namespace Neutron.Core
                 switch (dBType)
                 {
                     case SGDBType.SQLite:
-                        {
-                            sqliteConnection = new(connectionString);
-                            this.iDbConnection = sqliteConnection;
-                            sqliteConnection.Open();
-                            query = (queryFactory = new QueryFactory(sqliteConnection, new SqliteCompiler(), timeout)).Query(tableName);
-                        }
+                        Initialize(new SqliteConnection(connectionString), new SqliteCompiler(), tableName, timeout);
                         break;
                     case SGDBType.MariaDB:
                     case SGDBType.MySQL:
-                        {
-                            mySqlConnection = new MySqlConnection(connectionString);
-                            this.iDbConnection = mySqlConnection;
-                            mySqlConnection.Open();
-                            query = (queryFactory = new QueryFactory(mySqlConnection, new MySqlCompiler(), timeout)).Query(tableName);
-                        }
+                        Initialize(new MySqlConnection(connectionString), new MySqlCompiler(), tableName, timeout);
                         break;
                     default:
                         throw new Exception("SGDB Type not supported!");
