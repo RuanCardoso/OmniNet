@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     public static class Helper
     {

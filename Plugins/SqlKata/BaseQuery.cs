@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     public abstract class AbstractQuery
     {

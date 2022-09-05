@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     internal class ConditionsCompilerProvider
     {

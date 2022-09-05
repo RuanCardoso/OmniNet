@@ -1,6 +1,6 @@
 using System;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     public abstract class AbstractJoin : AbstractClause
     {

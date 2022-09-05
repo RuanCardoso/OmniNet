@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public partial class Compiler
     {

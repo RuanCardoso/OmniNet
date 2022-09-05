@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public class SqlServerCompiler : Compiler
     {

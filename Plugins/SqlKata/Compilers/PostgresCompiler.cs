@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public class PostgresCompiler : Compiler
     {

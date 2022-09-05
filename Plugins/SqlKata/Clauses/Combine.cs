@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     public abstract class AbstractCombine : AbstractClause
     {

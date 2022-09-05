@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     public abstract class AbstractCondition : AbstractClause
     {

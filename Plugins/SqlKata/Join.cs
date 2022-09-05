@@ -1,6 +1,6 @@
 using System;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     public class Join : BaseQuery<Join>
     {

@@ -1,8 +1,6 @@
 using System.Collections.Generic;
-using SqlKata;
-using SqlKata.Compilers;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public class SqliteCompiler : Compiler
     {

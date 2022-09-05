@@ -1,4 +1,4 @@
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public class MySqlCompiler : Compiler
     {

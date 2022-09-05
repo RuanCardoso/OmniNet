@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     /// <summary>
     /// Represents aggregate clause like "COUNT", "MAX" or etc.

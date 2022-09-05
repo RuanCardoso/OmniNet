@@ -1,9 +1,8 @@
 using System;
 using System.Data;
 using System.Linq;
-using SqlKata.Compilers;
 
-namespace SqlKata.Execution
+namespace Neutron.Database
 {
     public class XQuery : Query
     {

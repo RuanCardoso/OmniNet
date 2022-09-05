@@ -5,7 +5,7 @@ using System.Data;
 using System.Threading;
 using Newtonsoft.Json;
 
-namespace SqlKata.Execution
+namespace Neutron.Database
 {
     public static class QueryExtensions
     {

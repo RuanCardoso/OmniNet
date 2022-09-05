@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public class CteFinder
     {

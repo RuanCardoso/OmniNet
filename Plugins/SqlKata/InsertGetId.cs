@@ -1,4 +1,4 @@
-namespace SqlKata.Execution
+namespace Neutron.Database
 {
     public class InsertGetIdRow<T>
     {

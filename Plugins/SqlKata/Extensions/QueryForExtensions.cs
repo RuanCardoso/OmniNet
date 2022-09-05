@@ -1,7 +1,6 @@
 using System;
-using SqlKata.Compilers;
 
-namespace SqlKata.Extensions
+namespace Neutron.Database
 {
     public static class QueryForExtensions
     {

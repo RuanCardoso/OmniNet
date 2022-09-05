@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public class FirebirdCompiler : Compiler
     {

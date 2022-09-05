@@ -1,6 +1,6 @@
 using System;
 
-namespace SqlKata
+namespace Neutron.Database
 {
     /// <summary>
     /// This class is used as metadata to ignore a property on insert and update queries

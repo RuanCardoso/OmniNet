@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-namespace SqlKata.Compilers
+namespace Neutron.Database
 {
     public class OracleCompiler : Compiler
     {

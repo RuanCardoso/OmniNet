@@ -7,9 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Humanizer;
-using SqlKata.Compilers;
 
-namespace SqlKata.Execution
+namespace Neutron.Database
 {
     public class QueryFactory : IDisposable
     {

@@ -1,4 +1,4 @@
-namespace SqlKata
+namespace Neutron.Database
 {
     public abstract class AbstractOrderBy : AbstractClause
     {

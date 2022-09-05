@@ -4,7 +4,7 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SqlKata.Execution
+namespace Neutron.Database
 {
     public class PaginationResult<T>
     {
