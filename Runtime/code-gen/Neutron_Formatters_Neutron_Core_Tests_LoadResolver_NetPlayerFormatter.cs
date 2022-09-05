@@ -14,12 +14,12 @@
 #pragma warning disable SA1403 // File may only contain a single namespace
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace Neutron.Formatters
+namespace Neutron.Formatters.Neutron.Core.Tests
 {
-    public sealed class LoadResolver_NetPlayerFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::LoadResolver.NetPlayer>
+    public sealed class LoadResolver_NetPlayerFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::Neutron.Core.Tests.LoadResolver.NetPlayer>
     {
 
-        public void Serialize(ref global::MessagePack.MessagePackWriter writer, global::LoadResolver.NetPlayer value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref global::MessagePack.MessagePackWriter writer, global::Neutron.Core.Tests.LoadResolver.NetPlayer value, global::MessagePack.MessagePackSerializerOptions options)
         {
             global::MessagePack.IFormatterResolver formatterResolver = options.Resolver;
             writer.WriteArrayHeader(5);
@@ -30,7 +30,7 @@ namespace Neutron.Formatters
             writer.Write(value.Level);
         }
 
-        public global::LoadResolver.NetPlayer Deserialize(ref global::MessagePack.MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::Neutron.Core.Tests.LoadResolver.NetPlayer Deserialize(ref global::MessagePack.MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
         {
             if (reader.TryReadNil())
             {
@@ -40,7 +40,7 @@ namespace Neutron.Formatters
             options.Security.DepthStep(ref reader);
             global::MessagePack.IFormatterResolver formatterResolver = options.Resolver;
             var length = reader.ReadArrayHeader();
-            var ____result = new global::LoadResolver.NetPlayer();
+            var ____result = new global::Neutron.Core.Tests.LoadResolver.NetPlayer();
 
             for (int i = 0; i < length; i++)
             {

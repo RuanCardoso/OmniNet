@@ -49,7 +49,7 @@ namespace Neutron.Resolvers
         {
             lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(1)
             {
-                { typeof(global::LoadResolver.NetPlayer), 0 },
+                { typeof(global::Neutron.Core.Tests.LoadResolver.NetPlayer), 0 },
             };
         }
 
@@ -63,7 +63,7 @@ namespace Neutron.Resolvers
 
             switch (key)
             {
-                case 0: return new Neutron.Formatters.LoadResolver_NetPlayerFormatter();
+                case 0: return new Neutron.Formatters.Neutron.Core.Tests.LoadResolver_NetPlayerFormatter();
                 default: return null;
             }
         }

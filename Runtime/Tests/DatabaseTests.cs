@@ -1,52 +1,67 @@
+/*===========================================================
+    Author: Ruan Cardoso
+    -
+    Country: Brazil(Brasil)
+    -
+    Contact: cardoso.ruan050322@gmail.com
+    -
+    Support: neutron050322@gmail.com
+    -
+    Unity Minor Version: 2021.3 LTS
+    -
+    License: Open Source (MIT)
+    ===========================================================*/
+
 using System;
 using System.Threading.Tasks;
-using MySqlConnector;
-using Neutron.Core;
 using Neutron.Database;
 using UnityEngine;
 
-public class DatabaseTests : MonoBehaviour
+namespace Neutron.Core.Tests
 {
-    private static string address = "localhost";
-    private static string database = "usersdb";
-    private static string username = "root";
-    private static string password = "";
-    private SGBDManager Manager;
-
-    private void Start()
+    public class DatabaseTests : MonoBehaviour
     {
-        Manager = new((db) => db.Initialize("Users", SGDBType.MariaDB, $"Server={address};Database={database};Uid={username};Pwd={password};timeout=30;"), 100);
-    }
+        private static string address = "localhost";
+        private static string database = "usersdb";
+        private static string username = "root";
+        private static string password = "";
+        private SGBDManager Manager;
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
+        private void Start()
         {
-            for (int i = 0; i < 10; i++)
+            Manager = new((db) => db.Initialize("Users", SGDBType.MariaDB, $"Server={address};Database={database};Uid={username};Pwd={password};"), 0);
+        }
+
+        private void Update()
+        {
+            if (Input.GetKeyDown(KeyCode.Space))
             {
-                Task.Run(() =>
+                for (int i = 0; i < 1; i++)
                 {
-                    try
+                    Task.Run(() =>
                     {
-                        var dB = Manager.Get();
-                        int affectedRows = dB.Db.Insert(new
+                        try
                         {
-                            Name = "Ruan",
-                        }, null, 1);
-                        Neutron.Core.Logger.Print("Flushed");
-                        Manager.Release(dB);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogException(ex);
-                    }
-                });
+                            var dB = Manager.Get();
+                            int affectedRows = dB.Db.Insert(new
+                            {
+                                Name = "Ruan",
+                            }, null, 1);
+                            Neutron.Core.Logger.Print("Flushed");
+                            Manager.Release(dB);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogException(ex);
+                        }
+                    });
+                }
             }
         }
-    }
 
-    private void OnApplicationQuit()
-    {
-        Manager.Close();
+        private void OnApplicationQuit()
+        {
+            Manager.Close();
+        }
     }
 }

@@ -121,14 +121,12 @@ namespace Neutron.Core
 
         public void Close()
         {
-            ThrowErrorIfNotInitialized();
             iDbConnection.Close();
-            //iDbConnection.Dispose();
         }
 
         public void Dispose()
         {
-            Close();
+            iDbConnection.Dispose();
         }
 
         private void ThrowErrorIfNotInitialized()

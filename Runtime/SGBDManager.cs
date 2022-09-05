@@ -60,7 +60,11 @@ namespace Neutron.Core
                     pool.Push(sgbd);
                 }
             }
-            else sgbd.Close();
+            else
+            {
+                sgbd.Dispose();
+                sgbd.Close();
+            }
         }
 
         public void Close()
