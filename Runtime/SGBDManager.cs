@@ -24,13 +24,13 @@ namespace Neutron.Core
         private Stack<SGBD> pool = new();
         private Func<bool, SGBD> initializer;
 
-        public SGBDManager(Action<SGBD> initializer, int length = 128)
+        public SGBDManager(Action<SGBD> initializer, int length = 30, bool reuseTemporaryConnections = false)
         {
             this.initializer = (finishAfterUse) =>
             {
                 var sgbd = new SGBD();
                 initializer?.Invoke(sgbd);
-                sgbd.finishAfterUse = finishAfterUse;
+                sgbd.finishAfterUse = !reuseTemporaryConnections ? finishAfterUse : false;
                 return sgbd;
             };
 
