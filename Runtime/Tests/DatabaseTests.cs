@@ -10,12 +10,18 @@ public class DatabaseTests : MonoBehaviour
     private static string database = "usersdb";
     private static string username = "root";
     private static string password = "";
-    private SGBDManager Manager = new((db) => db.Initialize("Users", SGDBType.MariaDB, $"Server={address};Database={database};Uid={username};Pwd={password};"), 5);
+    private SGBDManager Manager;
+
+    private void Start()
+    {
+        Manager = new((db) => db.Initialize("Users", SGDBType.MariaDB, $"Server={address};Database={database};Uid={username};Pwd={password};"), 0);
+    }
+
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 1; i++)
             {
                 Task.Run(() =>
                 {
