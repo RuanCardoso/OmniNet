@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Neutron.Core;
 using Neutron.Database;
 using UnityEngine;
@@ -13,14 +14,17 @@ public class DatabaseTests : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 10; i++)
             {
-                var dB = Manager.Get();
-                dB.Db.Insert(new
+                Task.Run(() =>
                 {
-                    Name = "Ruan",
+                    var dB = Manager.Get();
+                    dB.Db.Insert(new
+                    {
+                        Name = "Ruan",
+                    });
+                    Manager.Release(dB);
                 });
-                Manager.Release(dB);
             }
         }
     }
