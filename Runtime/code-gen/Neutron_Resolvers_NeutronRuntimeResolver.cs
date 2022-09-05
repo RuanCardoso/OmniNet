@@ -47,8 +47,9 @@ namespace Neutron.Resolvers
 
         static NeutronRuntimeResolverGetFormatterHelper()
         {
-            lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(0)
+            lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(1)
             {
+                { typeof(global::LoadResolver.NetPlayer), 0 },
             };
         }
 
@@ -62,6 +63,7 @@ namespace Neutron.Resolvers
 
             switch (key)
             {
+                case 0: return new Neutron.Formatters.LoadResolver_NetPlayerFormatter();
                 default: return null;
             }
         }
