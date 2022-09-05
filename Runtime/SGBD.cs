@@ -97,12 +97,12 @@ namespace Neutron.Core
             }
         }
 
-        public void Initialize(string tableName, SGDBType sGDBType = SGDBType.SQLite, string connectionString = "Data Source=neutron_server_db.sqlite3", int timeout = 30)
+        public void Initialize(string tableName, SGDBType dBType = SGDBType.SQLite, string connectionString = "Data Source=neutron_server_db.sqlite3", int timeout = 30)
         {
             try
             {
                 this.tableName = tableName;
-                switch (sGDBType)
+                switch (dBType)
                 {
                     case SGDBType.SQLite:
                         {
