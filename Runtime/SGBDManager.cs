@@ -23,7 +23,7 @@ namespace Neutron.Core
         private Stack<SGBD> pool = new();
         private Func<bool, SGBD> initializer;
 
-        public SGBDManager(Action<SGBD> initializer, int connections = 30, bool reuseTemporaryConnections = false)
+        public SGBDManager(Action<SGBD> initializer, int connections = 2, bool reuseTemporaryConnections = false)
         {
             this.initializer = (finishAfterUse) =>
             {
