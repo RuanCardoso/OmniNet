@@ -27,14 +27,13 @@ namespace Neutron.Core
     {
         internal class ChannelObject
         {
-            internal uint sequence = 0;
-            internal uint expectedSequence = 1;
-            internal uint minAck = 1;
-            internal uint maxAck = 1;
-            internal readonly object sync_root = new();
-            internal readonly HashSet<uint> acknowledgmentsReceived = new();
-            internal readonly SortedDictionary<uint, ByteStream> dataBySequence = new();
-            internal readonly ConcurrentDictionary<uint, ByteStream> relayMessages = new();
+            internal int sequence = int.MinValue;
+            internal int expectedSequence = int.MinValue + 1;
+            internal int minAck = int.MinValue + 1;
+            internal int maxAck = int.MinValue + 1;
+            internal readonly HashSet<int> acknowledgmentsReceived = new();
+            internal readonly SortedDictionary<int, ByteStream> dataBySequence = new();
+            internal readonly ConcurrentDictionary<int, ByteStream> relayMessages = new();
         }
 
         protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
@@ -73,7 +72,7 @@ namespace Neutron.Core
                     Channel.ReliableAndOrderly
                 };
 
-                List<uint> toRemove = new List<uint>();
+                List<int> toRemove = new List<int>();
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
                     await Task.Delay(15);
@@ -96,7 +95,7 @@ namespace Neutron.Core
 
                         for (int i1 = 0; i1 < toRemove.Count; i1++)
                         {
-                            uint seq = toRemove[i1];
+                            int seq = toRemove[i1];
                             if (channelObject.relayMessages.TryRemove(seq, out ByteStream _stream_))
                             {
                                 _stream_.isRelease = false;
@@ -122,7 +121,7 @@ namespace Neutron.Core
 
         protected int SendReliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
         {
-            uint _sequence_ = 0;
+            int _sequence_ = 0;
             if (IsServer)
                 Logger.PrintError("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
             else
@@ -130,7 +129,8 @@ namespace Neutron.Core
                 ChannelObject channelObject = GetChannelObject(channel);
                 ByteStream poolStream = ByteStream.Get();
                 poolStream.Write((byte)((byte)channel | (byte)target << 2));
-                lock (channelObject.sync_root) poolStream.Write(_sequence_ = ++channelObject.sequence);
+                _sequence_ = Interlocked.Increment(ref channelObject.sequence);
+                poolStream.Write(_sequence_);
                 poolStream.Write(byteStream);
                 ByteStream relayStream = ByteStream.Get();
                 relayStream.Write(poolStream);
@@ -149,7 +149,7 @@ namespace Neutron.Core
             {
                 if (byteStream.isRawBytes)
                 {
-                    uint _sequence_ = 0;
+                    int _sequence_ = 0;
                     byteStream.Position = 0;
                     Channel channel = (Channel)(byteStream.ReadByte() & 0x3);
                     switch (channel)
@@ -159,7 +159,7 @@ namespace Neutron.Core
                             {
                                 ChannelObject channelObject = GetChannelObject(channel);
                                 byte[] buffer = byteStream.Buffer;
-                                lock (channelObject.sync_root) _sequence_ = ++channelObject.sequence;
+                                _sequence_ = Interlocked.Increment(ref channelObject.sequence);
                                 buffer[++offset] = (byte)_sequence_;
                                 buffer[++offset] = (byte)(_sequence_ >> 8);
                                 buffer[++offset] = (byte)(_sequence_ >> 16);
@@ -228,7 +228,7 @@ namespace Neutron.Core
                                                     {
                                                         Channel _channel_ = (Channel)recvStream.ReadByte();
                                                         ChannelObject channelObject = client.GetChannelObject(_channel_);
-                                                        uint sequence = recvStream.ReadUInt();
+                                                        int sequence = recvStream.ReadInt();
                                                         if (channelObject.relayMessages.TryGetValue(sequence, out ByteStream stream))
                                                         {
                                                             if (!stream.isRelease) stream.isRelease = true;
@@ -246,7 +246,7 @@ namespace Neutron.Core
                                 case Channel.ReliableAndOrderly:
                                     {
                                         #region Send Acknowledgement
-                                        uint ack = recvStream.ReadUInt();
+                                        int ack = recvStream.ReadInt();
                                         ByteStream ackStream = ByteStream.Get();
                                         ackStream.WritePacket(MessageType.Acknowledgement);
                                         ackStream.Write((byte)bitChannel);
@@ -317,7 +317,7 @@ namespace Neutron.Core
                                                                     channelObject.maxAck = Math.Max(channelObject.maxAck, ack);
                                                                     if (channelObject.minAck == channelObject.expectedSequence)
                                                                     {
-                                                                        uint range = channelObject.maxAck - (channelObject.minAck - 1);
+                                                                        int range = channelObject.maxAck - (channelObject.minAck - 1);
                                                                         if (channelObject.acknowledgmentsReceived.Count == range)
                                                                         {
                                                                             foreach (var (_, dataBySequence) in channelObject.dataBySequence)

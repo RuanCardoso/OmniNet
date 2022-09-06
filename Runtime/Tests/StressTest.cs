@@ -32,7 +32,7 @@ namespace Neutron.Core.Tests
         {
             ByteStream stream = ByteStream.Get();
             stream.WritePacket(MessageType.StressTest);
-            //stream.Write(++index);
+            stream.Write(++index);
             stream.Send(channel, Target.All);
         }
 
