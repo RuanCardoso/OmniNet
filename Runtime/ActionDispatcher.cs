@@ -23,14 +23,14 @@ namespace Neutron.Core
     {
         private object root = new();
         private Queue<Action> actions = new();
-        [Header("Dispatcher Options")]
-        [SerializeField] protected int actionsPerFrame = 1;
+        [Header("[DISPATCHER OPTIONS]")]
+        [SerializeField] protected int ACTIONS_PER_FRAME = 1;
 
         protected virtual void Update()
         {
             lock (root)
             {
-                for (int i = 0; i < actionsPerFrame && actions.Count > 0; i++)
+                for (int i = 0; i < ACTIONS_PER_FRAME && actions.Count > 0; i++)
                     actions.Dequeue()();
             }
         }
