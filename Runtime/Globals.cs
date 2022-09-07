@@ -92,7 +92,7 @@ namespace Neutron.Core
 #if UNITY_SERVER
             var definedSymbols = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Server).Split(';').ToList();
 #else
-            var definedSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup).Split(';').ToList();
+            var definedSymbols = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(targetGroup)).Split(';').ToList();
 #endif
 
             if (!string.IsNullOrEmpty(except))
