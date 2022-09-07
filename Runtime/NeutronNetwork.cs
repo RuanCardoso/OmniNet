@@ -30,7 +30,7 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x64)]
     public class NeutronNetwork : ActionDispatcher
     {
-        private static NeutronNetwork instance;
+        internal static NeutronNetwork instance;
         private static Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static UdpServer udpServer = new();
         private static UdpClient udpClient = new();
@@ -94,6 +94,7 @@ namespace Neutron.Core
 #endif
         }
 
+        internal void InternDispatch(Action action) => Dispatch(action);
 #if UNITY_EDITOR
         [ContextMenu("Set Compiler Options")]
         private void SetCompilerOptions()

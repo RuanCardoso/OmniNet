@@ -30,12 +30,20 @@ namespace Neutron.Core
             IsConnected = true;
             this.globalSocket = socket;
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), remoteEndPoint.GetPort()); // copy endpoint to avoid reference problems!
+#if NEUTRON_MULTI_THREADED
             SendReliableMessages(this.remoteEndPoint);
+#else
+            NeutronNetwork.instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
+#endif
         }
 
         internal void Connect(UdpEndPoint remoteEndPoint)
         {
-            SendReliableMessages(remoteEndPoint);
+#if NEUTRON_MULTI_THREADED
+            SendReliableMessages(this.remoteEndPoint);
+#else
+            NeutronNetwork.instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
+#endif
             this.remoteEndPoint = remoteEndPoint;
             ByteStream connStream = ByteStream.Get();
             connStream.WritePacket(MessageType.Connect);

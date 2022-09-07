@@ -13,12 +13,14 @@
     ===========================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityEngine;
 using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace Neutron.Core
@@ -63,50 +65,67 @@ namespace Neutron.Core
             StartReadingData();
         }
 
+#if NEUTRON_MULTI_THREADED
         protected async void SendReliableMessages(UdpEndPoint remoteEndPoint)
+#else
+        WaitForSeconds yieldSec = new WaitForSeconds(15);
+        protected IEnumerator SendReliableMessages(UdpEndPoint remoteEndPoint)
+#endif
         {
+#if NEUTRON_MULTI_THREADED
             await Task.Run(async () =>
             {
-                Channel[] channels = {
+#endif
+            Channel[] channels = {
                     Channel.Reliable,
                     Channel.ReliableAndOrderly
                 };
 
-                List<int> toRemove = new List<int>();
-                while (!cancellationTokenSource.IsCancellationRequested)
+            List<int> toRemove = new List<int>();
+#if NEUTRON_MULTI_THREADED
+            while (!cancellationTokenSource.IsCancellationRequested)
+#else
+            while (true)
+#endif
+            {
+#if NEUTRON_MULTI_THREADED
+                await Task.Delay(15);
+#else
+                yield return yieldSec;
+#endif
+                for (int i = 0; i < channels.Length; i++)
                 {
-                    await Task.Delay(15);
-                    for (int i = 0; i < channels.Length; i++)
+                    ChannelObject channelObject = GetChannelObject(channels[i]);
+                    foreach (var (seq, _stream_) in channelObject.relayMessages)
                     {
-                        ChannelObject channelObject = GetChannelObject(channels[i]);
-                        foreach (var (seq, _stream_) in channelObject.relayMessages)
+                        if (!_stream_.isRelease)
                         {
-                            if (!_stream_.isRelease)
+                            if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
                             {
-                                if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
-                                {
-                                    _stream_.Position = 0;
-                                    _stream_.SetLastWriteTime();
-                                    Send(_stream_, remoteEndPoint);
-                                }
-                            }
-                            else toRemove.Add(seq);
-                        }
-
-                        for (int i1 = 0; i1 < toRemove.Count; i1++)
-                        {
-                            int seq = toRemove[i1];
-                            if (channelObject.relayMessages.TryRemove(seq, out ByteStream _stream_))
-                            {
-                                _stream_.isRelease = false;
-                                _stream_.Release();
+                                _stream_.Position = 0;
+                                _stream_.SetLastWriteTime();
+                                Send(_stream_, remoteEndPoint);
                             }
                         }
-
-                        toRemove.Clear();
+                        else toRemove.Add(seq);
                     }
+
+                    for (int i1 = 0; i1 < toRemove.Count; i1++)
+                    {
+                        int seq = toRemove[i1];
+                        if (channelObject.relayMessages.TryRemove(seq, out ByteStream _stream_))
+                        {
+                            _stream_.isRelease = false;
+                            _stream_.Release();
+                        }
+                    }
+
+                    toRemove.Clear();
                 }
+            }
+#if NEUTRON_MULTI_THREADED
             }, cancellationTokenSource.Token);
+#endif
         }
 
         protected int SendUnreliable(ByteStream byteStream, UdpEndPoint remoteEndPoint, Target target = Target.Me)

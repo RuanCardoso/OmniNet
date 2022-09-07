@@ -21,23 +21,26 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class ActionDispatcher : MonoBehaviour
     {
-        private object root = new();
+        private object syncRoot = new();
         private Queue<Action> actions = new();
+
+        #region Serialized
         [Header("[DISPATCHER OPTIONS]")]
-        [SerializeField] protected int ACTIONS_PER_FRAME = 1;
+        [SerializeField] protected int ACT_PER_FRAME = 1;
+        #endregion
 
         protected virtual void Update()
         {
-            lock (root)
+            lock (syncRoot)
             {
-                for (int i = 0; i < ACTIONS_PER_FRAME && actions.Count > 0; i++)
+                for (int i = 0; i < ACT_PER_FRAME && actions.Count > 0; i++)
                     actions.Dequeue()();
             }
         }
 
-        public void Dispatch(Action action)
+        protected void Dispatch(Action action)
         {
-            lock (root)
+            lock (syncRoot)
             {
                 actions.Enqueue(action);
             }
