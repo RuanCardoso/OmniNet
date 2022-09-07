@@ -89,7 +89,11 @@ namespace Neutron.Core
         {
             BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
             BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget);
+#if UNITY_SERVER
+            var definedSymbols = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Server).Split(';').ToList();
+#else
             var definedSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup).Split(';').ToList();
+#endif
 
             if (!string.IsNullOrEmpty(except))
             {

@@ -105,6 +105,7 @@ namespace Neutron.Core
             else defines.Add("NEUTRON_MULTI_THREADED");
             Helper.SetDefine(defines: defines.ToArray());
         }
+        private void OnValidate() => SetCompilerOptions();
 #endif
 
         public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
