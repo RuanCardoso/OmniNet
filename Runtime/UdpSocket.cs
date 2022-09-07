@@ -405,9 +405,7 @@ namespace Neutron.Core
                                         break;
                                 }
                             }
-
-                            if (bitChannel != Channel.ReliableAndOrderly)
-                                recvStream.Release();
+                            if (bitChannel != Channel.ReliableAndOrderly) recvStream.Release();
                         }
                         else
                             Logger.PrintError($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
