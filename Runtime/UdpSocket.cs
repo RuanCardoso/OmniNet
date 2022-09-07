@@ -413,21 +413,16 @@ namespace Neutron.Core
                             Logger.PrintError($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
 #if NEUTRON_MULTI_THREADED
                     }
-                    catch (ThreadAbortException)
-                    {
-                        continue;
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        continue;
-                    }
+                    catch (ThreadAbortException) { continue; }
+                    catch (ObjectDisposedException) { continue; }
                     catch (SocketException ex)
                     {
-                        if (ex.ErrorCode == 10004)
-                            break;
-
-                        Logger.LogStacktrace(ex);
-                        continue;
+                        if (ex.ErrorCode == 10004) break;
+                        else
+                        {
+                            Logger.LogStacktrace(ex);
+                            continue;
+                        }
                     }
                     catch (Exception ex)
                     {
