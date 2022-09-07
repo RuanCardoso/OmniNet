@@ -30,7 +30,7 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x64)]
     public class NeutronNetwork : ActionDispatcher
     {
-        internal static NeutronNetwork instance;
+        internal static NeutronNetwork Instance { get; private set; }
         private static Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static UdpServer udpServer = new();
         private static UdpClient udpClient = new();
@@ -70,7 +70,7 @@ namespace Neutron.Core
         {
             AddResolver(null);
             DontDestroyOnLoad(this);
-            instance = this;
+            Instance = this;
 #if NEUTRON_LOCK_FPS
             Application.targetFrameRate = MAX_FPS;
 #endif

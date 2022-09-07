@@ -33,18 +33,18 @@ namespace Neutron.Core
 #if NEUTRON_MULTI_THREADED
             SendReliableMessages(this.remoteEndPoint);
 #else
-            NeutronNetwork.instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
+            NeutronNetwork.Instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
 #endif
         }
 
         internal void Connect(UdpEndPoint remoteEndPoint)
         {
+            this.remoteEndPoint = remoteEndPoint;
 #if NEUTRON_MULTI_THREADED
             SendReliableMessages(this.remoteEndPoint);
 #else
-            NeutronNetwork.instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
+            NeutronNetwork.Instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
 #endif
-            this.remoteEndPoint = remoteEndPoint;
             ByteStream connStream = ByteStream.Get();
             connStream.WritePacket(MessageType.Connect);
             Send(connStream, Channel.Reliable, Target.Me);
