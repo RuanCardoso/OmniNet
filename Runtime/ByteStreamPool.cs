@@ -17,7 +17,9 @@ namespace Neutron.Core
 {
     public class ByteStreamPool
     {
+#if NEUTRON_MULTI_THREADED
         private object _lock = new();
+#endif
         private Stack<ByteStream> pool = new();
 
         public ByteStreamPool(int length = 128)
@@ -28,7 +30,9 @@ namespace Neutron.Core
 
         public ByteStream Get()
         {
+#if NEUTRON_MULTI_THREADED
             lock (_lock)
+#endif
             {
                 if (pool.Count == 0)
                 {
@@ -43,7 +47,9 @@ namespace Neutron.Core
         public void Release(ByteStream stream)
         {
             stream.EndWrite();
+#if NEUTRON_MULTI_THREADED
             lock (_lock)
+#endif
             {
                 pool.Push(stream);
             }

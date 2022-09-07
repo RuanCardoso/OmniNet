@@ -35,7 +35,11 @@ namespace Neutron.Core
             internal int maxAck = int.MinValue + 1;
             internal readonly HashSet<int> acknowledgmentsReceived = new();
             internal readonly SortedDictionary<int, ByteStream> dataBySequence = new();
+#if NEUTRON_MULTI_THREADED
             internal readonly ConcurrentDictionary<int, ByteStream> relayMessages = new();
+#else
+            internal readonly Dictionary<int, ByteStream> relayMessages = new();
+#endif
         }
 
         protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
@@ -109,6 +113,7 @@ namespace Neutron.Core
                                     _stream_.Position = 0;
                                     _stream_.SetLastWriteTime();
                                     Send(_stream_, remoteEndPoint);
+                                    Debug.Log("enviado!");
                                 }
                             }
                             else toRemove.Add(seq);
@@ -117,13 +122,16 @@ namespace Neutron.Core
                         for (int i1 = 0; i1 < toRemove.Count; i1++)
                         {
                             int seq = toRemove[i1];
+#if NEUTRON_MULTI_THREADED
                             if (channelObject.relayMessages.TryRemove(seq, out ByteStream _stream_))
+#else
+                            if (channelObject.relayMessages.Remove(seq, out ByteStream _stream_))
+#endif
                             {
                                 _stream_.isRelease = false;
                                 _stream_.Release();
                             }
                         }
-
                         toRemove.Clear();
                     }
                 }
@@ -152,13 +160,21 @@ namespace Neutron.Core
                 ChannelObject channelObject = GetChannelObject(channel);
                 ByteStream poolStream = ByteStream.Get();
                 poolStream.Write((byte)((byte)channel | (byte)target << 2));
+#if NEUTRON_MULTI_THREADED
                 _sequence_ = Interlocked.Increment(ref channelObject.sequence);
+#else
+                _sequence_ = ++channelObject.sequence;
+#endif
                 poolStream.Write(_sequence_);
                 poolStream.Write(byteStream);
                 ByteStream relayStream = ByteStream.Get();
                 relayStream.Write(poolStream);
                 relayStream.SetLastWriteTime();
+#if NEUTRON_MULTI_THREADED
                 channelObject.relayMessages.TryAdd(_sequence_, relayStream);
+#else
+                channelObject.relayMessages.Add(_sequence_, relayStream);
+#endif
                 int length = Send(poolStream, remoteEndPoint);
                 poolStream.Release();
                 return length;
@@ -182,7 +198,11 @@ namespace Neutron.Core
                             {
                                 ChannelObject channelObject = GetChannelObject(channel);
                                 byte[] buffer = byteStream.Buffer;
+#if NEUTRON_MULTI_THREADED
                                 _sequence_ = Interlocked.Increment(ref channelObject.sequence);
+#else
+                                _sequence_ = ++channelObject.sequence;
+#endif
                                 buffer[++offset] = (byte)_sequence_;
                                 buffer[++offset] = (byte)(_sequence_ >> 8);
                                 buffer[++offset] = (byte)(_sequence_ >> 16);
@@ -192,7 +212,11 @@ namespace Neutron.Core
                                 ByteStream relayStream = ByteStream.Get();
                                 relayStream.Write(byteStream);
                                 relayStream.SetLastWriteTime();
+#if NEUTRON_MULTI_THREADED
                                 channelObject.relayMessages.TryAdd(_sequence_, relayStream);
+#else
+                                channelObject.relayMessages.Add(_sequence_, relayStream);
+#endif
                                 break;
                             }
                     }
@@ -277,6 +301,7 @@ namespace Neutron.Core
                                                             if (channelObject.relayMessages.TryGetValue(sequence, out ByteStream stream))
                                                             {
                                                                 if (!stream.isRelease) stream.isRelease = true;
+                                                                Debug.Log($"received ack?");
                                                             }
                                                         }
                                                     }
