@@ -106,17 +106,17 @@ namespace Neutron.Core
                         ChannelObject channelObject = GetChannelObject(channels[i]);
                         foreach (var (seq, _stream_) in channelObject.relayMessages)
                         {
-                            if (!_stream_.isRelease)
+                            if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
                             {
-                                if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
+                                if (!_stream_.isRelease)
                                 {
                                     _stream_.Position = 0;
                                     _stream_.SetLastWriteTime();
                                     Send(_stream_, remoteEndPoint);
-                                    Debug.Log("enviado!");
                                 }
+                                else toRemove.Add(seq);
                             }
-                            else toRemove.Add(seq);
+                            else continue;
                         }
 
                         for (int i1 = 0; i1 < toRemove.Count; i1++)
@@ -301,7 +301,6 @@ namespace Neutron.Core
                                                             if (channelObject.relayMessages.TryGetValue(sequence, out ByteStream stream))
                                                             {
                                                                 if (!stream.isRelease) stream.isRelease = true;
-                                                                Debug.Log($"received ack?");
                                                             }
                                                         }
                                                     }
