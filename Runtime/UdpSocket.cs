@@ -72,7 +72,7 @@ namespace Neutron.Core
 #if NEUTRON_MULTI_THREADED
         protected async void SendReliableMessages(UdpEndPoint remoteEndPoint)
 #else
-        WaitForSeconds yieldSec = new WaitForSeconds(15);
+        WaitForSeconds yieldSec = new WaitForSeconds(0.015f);
         protected IEnumerator SendReliableMessages(UdpEndPoint remoteEndPoint)
 #endif
         {
