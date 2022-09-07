@@ -290,7 +290,6 @@ namespace Neutron.Core
                                     case Channel.Reliable:
                                     case Channel.ReliableAndOrderly:
                                         {
-                                            Debug.LogError("yeah boy");
                                             #region Send Acknowledgement
                                             int ack = recvStream.ReadInt();
                                             ByteStream ackStream = ByteStream.Get();
