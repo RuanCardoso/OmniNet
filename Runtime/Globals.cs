@@ -17,6 +17,9 @@ using System.Buffers;
 using System.Linq;
 using System.Net;
 using MessagePack;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Neutron.Core
 {
@@ -80,6 +83,39 @@ namespace Neutron.Core
                 return maxRange;
             return Enumerable.Range(0, maxRange).Except(ids).ToArray()[0];
         }
+
+#if UNITY_EDITOR
+        public static void SetDefine(bool remove = false, string except = "", params string[] defines)
+        {
+            BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
+            BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget);
+            var definedSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup).Split(';').ToList();
+
+            if (!string.IsNullOrEmpty(except))
+            {
+                var _except = except.Split(';').ToList();
+                definedSymbols.RemoveAll(x => _except.Contains(x));
+            }
+
+            for (int i = 0; i < defines.Length; i++)
+            {
+                string def = defines[i];
+                if (remove) definedSymbols.Remove(def);
+                else if (!definedSymbols.Contains(def))
+                {
+                    if (def.ToUpper().Contains("_REMOVED")) definedSymbols.Remove(def.Replace("_REMOVED", "").Replace("_removed", ""));
+                    else definedSymbols.Add(def);
+                }
+            }
+
+            string symbols = string.Join(";", definedSymbols.ToArray());
+#if UNITY_SERVER
+            PlayerSettings.SetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Server, symbols);
+#else
+            PlayerSettings.SetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(targetGroup), symbols);
+#endif
+        }
+#endif
     }
 
     public static class Extensions

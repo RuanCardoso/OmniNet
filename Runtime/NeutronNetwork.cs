@@ -43,6 +43,14 @@ namespace Neutron.Core
         public static int Id => udpClient.Id;
         #endregion
 
+        #region Compiler Options
+        [SerializeField][Header("[COMPILER OPTIONS]")] private bool MULTI_THREADED = false;
+        [SerializeField] private bool LOCK_FPS = true;
+#if NEUTRON_LOCK_FPS
+        [Header("[RUNTIME OPTIONS]")]
+        [SerializeField] private int MAX_FPS = 60;
+#endif
+        #endregion
         public static IFormatterResolver Formatter { get; private set; }
         public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
         {
@@ -58,13 +66,14 @@ namespace Neutron.Core
             return MessagePackSerializer.DefaultOptions;
         }
 
-        [SerializeField] private int targetFrameRate = 60;
         private void Awake()
         {
             AddResolver(null);
             DontDestroyOnLoad(this);
             instance = this;
-            Application.targetFrameRate = targetFrameRate;
+#if NEUTRON_LOCK_FPS
+            Application.targetFrameRate = MAX_FPS;
+#endif
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, 5055);
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
@@ -84,6 +93,19 @@ namespace Neutron.Core
             Console.Clear();
 #endif
         }
+
+#if UNITY_EDITOR
+        [ContextMenu("Set Compiler Options")]
+        private void SetCompilerOptions()
+        {
+            List<string> defines = new();
+            if (!LOCK_FPS) defines.Add("NEUTRON_LOCK_FPS_REMOVED");
+            else defines.Add("NEUTRON_LOCK_FPS");
+            if (!MULTI_THREADED) defines.Add("NEUTRON_MULTI_THREADED_REMOVED");
+            else defines.Add("NEUTRON_MULTI_THREADED");
+            Helper.SetDefine(defines: defines.ToArray());
+        }
+#endif
 
         public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
         {
