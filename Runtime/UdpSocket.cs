@@ -415,16 +415,10 @@ namespace Neutron.Core
                     }
                     catch (ThreadAbortException)
                     {
-#if !NEUTRON_MULTI_THREADED
-                yield return null;
-#endif
                         continue;
                     }
                     catch (ObjectDisposedException)
                     {
-#if !NEUTRON_MULTI_THREADED
-                yield return null;
-#endif
                         continue;
                     }
                     catch (SocketException ex)
@@ -433,17 +427,11 @@ namespace Neutron.Core
                             break;
 
                         Logger.LogStacktrace(ex);
-#if !NEUTRON_MULTI_THREADED
-                yield return null;
-#endif
                         continue;
                     }
                     catch (Exception ex)
                     {
                         Logger.LogStacktrace(ex);
-#if !NEUTRON_MULTI_THREADED
-                yield return null;
-#endif
                         continue;
                     }
 #endif
