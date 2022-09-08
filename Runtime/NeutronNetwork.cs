@@ -146,10 +146,17 @@ namespace Neutron.Core
                     }
                     break;
                 case MessageType.StressTest:
-                    Logger.PrintError($"Stress Test! -> {isServer}" + recvStream.ReadInt());
-                    if (!isServer)
-                        return;
-                    udpServer.Send(recvStream, channel, target, remoteEndPoint);
+                    {
+                        int indx = recvStream.ReadInt();
+                        Logger.PrintError($"Stress Test! -> {isServer}" + indx);
+                        if (!isServer)
+                            return;
+                        ByteStream stream = ByteStream.Get();
+                        stream.WritePacket(MessageType.StressTest);
+                        stream.Write(indx);
+                        //udpServer.Send(stream, channel, target, remoteEndPoint);
+                        stream.Release();
+                    }
                     break;
             }
         }

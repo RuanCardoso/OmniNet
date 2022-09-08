@@ -27,6 +27,7 @@ namespace Neutron.Core
 {
     internal abstract class UdpSocket
     {
+        internal readonly SlidingWindow window = new();
         internal class ChannelObject
         {
             internal int sequence = int.MinValue;
@@ -80,6 +81,8 @@ namespace Neutron.Core
         protected IEnumerator SendReliableMessages(UdpEndPoint remoteEndPoint)
 #endif
         {
+            window.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
+            return;
 #if NEUTRON_MULTI_THREADED
             await Task.Run(async () =>
             {
@@ -161,20 +164,20 @@ namespace Neutron.Core
                 ByteStream poolStream = ByteStream.Get();
                 poolStream.Write((byte)((byte)channel | (byte)target << 2));
 #if NEUTRON_MULTI_THREADED
-                _sequence_ = Interlocked.Increment(ref channelObject.sequence);
+                _sequence_ = window.Increment();
 #else
                 _sequence_ = ++channelObject.sequence;
 #endif
                 poolStream.Write(_sequence_);
                 poolStream.Write(byteStream);
-                ByteStream relayStream = ByteStream.Get();
+                ByteStream relayStream = window.Get(_sequence_);
                 relayStream.Write(poolStream);
                 relayStream.SetLastWriteTime();
-#if NEUTRON_MULTI_THREADED
-                channelObject.relayMessages.TryAdd(_sequence_, relayStream);
-#else
-                channelObject.relayMessages.Add(_sequence_, relayStream);
-#endif
+// #if NEUTRON_MULTI_THREADED
+//                 channelObject.relayMessages.TryAdd(_sequence_, relayStream);
+// #else
+//                 channelObject.relayMessages.Add(_sequence_, relayStream);
+// #endif
                 int length = Send(poolStream, remoteEndPoint);
                 poolStream.Release();
                 return length;
@@ -182,7 +185,7 @@ namespace Neutron.Core
             return 0;
         }
 
-        protected int Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, int offset = 0)
+        internal int Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, int offset = 0)
         {
             try
             {
@@ -298,10 +301,11 @@ namespace Neutron.Core
                                                             Channel _channel_ = (Channel)recvStream.ReadByte();
                                                             ChannelObject channelObject = client.GetChannelObject(_channel_);
                                                             int sequence = recvStream.ReadInt();
-                                                            if (channelObject.relayMessages.TryGetValue(sequence, out ByteStream stream))
-                                                            {
-                                                                if (!stream.isRelease) stream.isRelease = true;
-                                                            }
+                                                            window.Slide(sequence);
+                                                            // if (channelObject.relayMessages.TryGetValue(sequence, out ByteStream stream))
+                                                            // {
+                                                            //     if (!stream.isRelease) stream.isRelease = true;
+                                                            // }
                                                         }
                                                     }
                                                     break;
@@ -323,6 +327,9 @@ namespace Neutron.Core
                                             SendUnreliable(ackStream, remoteEndPoint, Target.Me);
                                             ackStream.Release();
                                             #endregion
+
+                                            if (!window.Slide(ack))
+                                                continue;
 
                                             MessageType msgType = recvStream.ReadPacket();
                                             switch (msgType)
