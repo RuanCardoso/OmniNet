@@ -202,10 +202,10 @@ namespace Neutron.Core
             return true;
         }
 
-        static ByteStreamPool byteStreams = new(0);
+        static ByteStreamPool streams = new(128);
         public static ByteStream Get()
         {
-            ByteStream _get_ = byteStreams.Get();
+            ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
@@ -219,7 +219,7 @@ namespace Neutron.Core
             else
             {
                 isRelease = true;
-                byteStreams.Release(this);
+                streams.Release(this);
             }
         }
     }

@@ -12,7 +12,9 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System.Collections;
 using System.Net.Sockets;
+using UnityEngine;
 
 namespace Neutron.Core
 {
@@ -41,14 +43,24 @@ namespace Neutron.Core
         {
             this.remoteEndPoint = remoteEndPoint;
 #if NEUTRON_MULTI_THREADED
-            SendReliableMessages(this.remoteEndPoint);
+            Relay(this.remoteEndPoint);
 #else
             NeutronNetwork.Instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
 #endif
-            ByteStream connStream = ByteStream.Get();
-            connStream.WritePacket(MessageType.Connect);
-            Send(connStream, Channel.Reliable, Target.Me);
-            connStream.Release();
+            NeutronNetwork.Instance.StartCoroutine(Connect());
+        }
+
+        WaitForSeconds yieldConnect = new(1f);
+        private IEnumerator Connect()
+        {
+            while (!IsConnected)
+            {
+                ByteStream stream = ByteStream.Get();
+                stream.WritePacket(MessageType.Connect);
+                Send(stream, Channel.Unreliable, Target.Me);
+                stream.Release();
+                yield return yieldConnect;
+            }
         }
 
         internal int Send(ByteStream byteStream) => Send(byteStream, remoteEndPoint, 0);
@@ -63,7 +75,6 @@ namespace Neutron.Core
                     case Channel.Unreliable:
                         return SendUnreliable(byteStream, remoteEndPoint, target);
                     case Channel.Reliable:
-                    case Channel.ReliableAndOrderly:
                         return SendReliable(byteStream, remoteEndPoint, channel, target);
                     default:
                         return 0;

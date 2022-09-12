@@ -22,8 +22,7 @@ namespace Neutron.Core
     {
         private int sequence = -1;
         private int nextSequence = 0;
-        private int offset = 0;
-        private ByteStream[] window = new ByteStream[byte.MaxValue * 10];
+        private ByteStream[] window = new ByteStream[255];
         internal SlidingWindow()
         {
             for (int i = 0; i < window.Length; i++)
@@ -37,37 +36,32 @@ namespace Neutron.Core
             if (nextSequence == sequence)
             {
                 nextSequence = sequence + 1;
-                offset = nextSequence;
                 return true;
             }
-            else if (sequence > nextSequence) return false; // Discard out of order packets!
-            else if (sequence < nextSequence) return false; // Discard duplicate packets!
+            else if (sequence > nextSequence) return false; // out of order! 
+            else if (sequence < nextSequence) return false;  // duplicated!
             else return false;
         }
 
-        internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
+        internal void Relay(UdpSocket _socket_, UdpEndPoint remoteEndPoint, CancellationToken token)
         {
-            Task.Run(async () =>
+            ThreadPool.QueueUserWorkItem(async (o) =>
             {
                 while (!token.IsCancellationRequested)
                 {
-                    for (int i = offset; i < window.Length; i++)
+                    ByteStream _stream_ = window[nextSequence];
+                    if (_stream_.BytesWritten > 0)
                     {
-                        ByteStream _stream_ = window[i];
-                        if (_stream_.BytesWritten > 0)
+                        if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.1d)
                         {
-                            if (DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds > 0.100d)
-                            {
-                                _stream_.Position = 0;
-                                _stream_.SetLastWriteTime();
-                                socket.Send(_stream_, remoteEndPoint);
-                                Logger.Print("Reenviando!");
-                            }
-                            else continue;
+                            _stream_.Position = 0;
+                            _stream_.SetLastWriteTime();
+                            _socket_.Send(_stream_, remoteEndPoint);
+                            Logger.Print("Reenviando!");
                         }
                         else continue;
                     }
-
+                    else continue;
                     await Task.Delay(15);
                 }
             });

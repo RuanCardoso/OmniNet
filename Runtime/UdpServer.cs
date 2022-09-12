@@ -32,11 +32,11 @@ namespace Neutron.Core
                         UdpClient _client_ = new(remoteEndPoint, globalSocket);
                         if (clients.TryAdd(uniqueId, _client_))
                         {
-                            ByteStream connStream = ByteStream.Get();
-                            connStream.WritePacket(MessageType.Connect);
-                            connStream.Write((ushort)uniqueId);
-                            _client_.Send(connStream, Channel.Reliable, target);
-                            connStream.Release();
+                            ByteStream stream = ByteStream.Get();
+                            stream.WritePacket(MessageType.Connect);
+                            stream.Write((ushort)uniqueId);
+                            _client_.Send(stream, channel, target);
+                            stream.Release();
                             NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
                         }
                         else _client_.Close(true);

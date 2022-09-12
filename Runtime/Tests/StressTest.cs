@@ -50,11 +50,17 @@ namespace Neutron.Core.Tests
                     Send(Channel.Reliable);
             }
 
-            if (Input.GetKeyDown(KeyCode.O))
+             if (Input.GetKeyDown(KeyCode.O))
             {
-                for (int i = 0; i < 100; i++)
-                    Send(Channel.ReliableAndOrderly);
+                for (int i = 0; i < 1; i++)
+                    Send(Channel.Reliable);
             }
+
+            // if (Input.GetKeyDown(KeyCode.O))
+            // {
+            //     for (int i = 0; i < 100; i++)
+            //         Send(Channel.ReliableAndOrderly);
+            // }
 
             for (int i = 0; i < perFrame; i++)
             {
@@ -69,8 +75,8 @@ namespace Neutron.Core.Tests
                                 Send(Channel.Unreliable);
                             if (Reliable)
                                 Send(Channel.Reliable);
-                            if (ReliableOrdered)
-                                Send(Channel.ReliableAndOrderly);
+                            // if (ReliableOrdered)
+                            //     Send(Channel.ReliableAndOrderly);
                         }
                     });
                 }
@@ -82,8 +88,8 @@ namespace Neutron.Core.Tests
                             Send(Channel.Unreliable);
                         if (Reliable)
                             Send(Channel.Reliable);
-                        if (ReliableOrdered)
-                            Send(Channel.ReliableAndOrderly);
+                        // if (ReliableOrdered)
+                        //     Send(Channel.ReliableAndOrderly);
                     }
                 }
             }
@@ -106,7 +112,7 @@ namespace Neutron.Core.Tests
             GUI.Label(new Rect(5, 180, 100, 25), "FPS: " + Mathf.Round(count));
             Unreliable = GUI.Toggle(new Rect(10, 10, 100, 20), Unreliable, "Unreliable");
             Reliable = GUI.Toggle(new Rect(10, 30, 100, 20), Reliable, "Reliable");
-            ReliableOrdered = GUI.Toggle(new Rect(10, 50, 110, 20), ReliableOrdered, "ReliableOrdered");
+            //ReliableOrdered = GUI.Toggle(new Rect(10, 50, 110, 20), ReliableOrdered, "ReliableOrdered");
         }
     }
 }

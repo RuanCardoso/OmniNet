@@ -47,7 +47,6 @@ namespace Neutron.Core
     {
         Unreliable = 0,
         Reliable = 1,
-        ReliableAndOrderly = 2,
     }
 
     public enum Target : byte
