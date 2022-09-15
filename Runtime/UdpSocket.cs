@@ -233,8 +233,7 @@ namespace Neutron.Core
                                                             RecvWindow nextWindow = _client_.RECV_WINDOW;
                                                             while (nextWindow.Window[nextWindow.LastProcessedPacket].BytesWritten > 0)
                                                             {
-                                                                Logger.PrintError($"Sequenced: {nextWindow.LastProcessedPacket}");
-                                                                //OnMessage(nextWindow.Window[nextWindow.ExpectedSequence], bitChannel, bitTarget, msgType, remoteEndPoint);
+                                                                OnMessage(nextWindow.Window[nextWindow.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
                                                                 if (nextWindow.ExpectedSequence <= nextWindow.LastProcessedPacket)
                                                                     nextWindow.ExpectedSequence++;
                                                                 nextWindow.LastProcessedPacket++;

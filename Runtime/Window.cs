@@ -100,9 +100,10 @@ namespace Neutron.Core
                         ByteStream window = this.Window[sequence];
                         if (window.BytesWritten <= 0)
                         {
-                            window.Write(RECV_STREAM, 0, RECV_STREAM.BytesWritten);
-                            window.Position = RECV_STREAM.Position;
+                            int POS = RECV_STREAM.Position + sizeof(byte);
+                            window.Write(RECV_STREAM, POS, RECV_STREAM.BytesWritten);
                             window.isRawBytes = RECV_STREAM.isRawBytes;
+                            window.Position = 0;
                         }
                         else { } // Duplicate!
                         break;
