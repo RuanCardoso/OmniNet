@@ -33,7 +33,7 @@ namespace Neutron.Core
             this.globalSocket = socket;
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), remoteEndPoint.GetPort()); // copy endpoint to avoid reference problems!
 #if NEUTRON_MULTI_THREADED
-            //SendReliableMessages(this.remoteEndPoint);
+            Relay(this.remoteEndPoint);
 #else
             NeutronNetwork.Instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
 #endif

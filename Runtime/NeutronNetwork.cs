@@ -158,7 +158,7 @@ namespace Neutron.Core
                         ByteStream stream = ByteStream.Get();
                         stream.WritePacket(MessageType.StressTest);
                         stream.Write(indx);
-                        //udpServer.Send(stream, channel, target, remoteEndPoint);
+                        udpServer.Send(stream, channel, target, remoteEndPoint);
                         stream.Release();
                     }
                     break;
