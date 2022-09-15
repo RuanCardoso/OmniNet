@@ -88,9 +88,14 @@ namespace Neutron.Core
             switch (messageType)
             {
                 case MessageType.Connect:
-                    Id = recvStream.ReadUShort();
-                    IsConnected = true;
-                    NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                    {
+                        if (!IsConnected)
+                        {
+                            Id = recvStream.ReadUShort();
+                            IsConnected = true;
+                            NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                        }
+                    }
                     break;
                 default:
                     NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);

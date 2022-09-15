@@ -22,9 +22,11 @@ namespace Neutron.Core
 {
     internal abstract class UdpSocket
     {
-        private readonly SlidingWindow window = new();
-        protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
+        private readonly RecvWindow RECV_WINDOW = new();
+        private readonly SentWindow SENT_WINDOW = new();
+
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
+        protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
 
         protected abstract bool IsServer { get; }
         protected abstract string Name { get; }
@@ -51,7 +53,7 @@ namespace Neutron.Core
 #endif
         }
 
-        protected void Relay(UdpEndPoint remoteEndPoint) => window.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
+        protected void Relay(UdpEndPoint remoteEndPoint) => SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
         protected int SendUnreliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me)
         {
             ByteStream poolStream = ByteStream.Get();
@@ -72,15 +74,16 @@ namespace Neutron.Core
                 ByteStream dataStream = ByteStream.Get();
                 dataStream.Write((byte)((byte)channel | (byte)target << 2));
 #if NEUTRON_MULTI_THREADED
-                _sequence_ = window.Increment();
+                _sequence_ = SENT_WINDOW.GetSequence();
 #else
                 _sequence_ = ++channelObject.sequence;
 #endif
                 dataStream.Write(_sequence_);
                 dataStream.Write(data);
-                ByteStream windowStream = window.Get(_sequence_);
-                windowStream.Write(dataStream);
+                ByteStream windowStream = SENT_WINDOW.GetWindow(_sequence_);
+                windowStream.EndWrite();
                 windowStream.SetLastWriteTime();
+                windowStream.Write(dataStream);
                 int length = Send(dataStream, remoteEndPoint);
                 dataStream.Release();
                 return length;
@@ -103,7 +106,7 @@ namespace Neutron.Core
                             {
                                 byte[] buffer = data.Buffer;
 #if NEUTRON_MULTI_THREADED
-                                _sequence_ = window.Increment();
+                                _sequence_ = SENT_WINDOW.GetSequence();
 #else
                                 _sequence_ = ++channelObject.sequence;
 #endif
@@ -113,9 +116,10 @@ namespace Neutron.Core
                                 buffer[++offset] = (byte)(_sequence_ >> 24);
                                 offset = 0;
 
-                                ByteStream windowStream = window.Get(_sequence_);
-                                windowStream.Write(data);
+                                ByteStream windowStream = SENT_WINDOW.GetWindow(_sequence_);
+                                windowStream.EndWrite();
                                 windowStream.SetLastWriteTime();
+                                windowStream.Write(data);
                                 break;
                             }
                     }
@@ -190,11 +194,9 @@ namespace Neutron.Core
                                             switch (msgType)
                                             {
                                                 case MessageType.Acknowledgement:
-                                                    if (!GetClient(remoteEndPoint).window.Slide(RECV_STREAM.ReadInt()))
-                                                    {
-                                                        RECV_STREAM.Release();
-                                                        continue;
-                                                    }
+                                                    int acknowledgment = RECV_STREAM.ReadInt();
+                                                    UdpClient _client_ = GetClient(remoteEndPoint);
+                                                    _client_.SENT_WINDOW.Acknowledgement(acknowledgment);
                                                     break;
                                                 default:
                                                     OnMessage(RECV_STREAM, bitChannel, bitTarget, msgType, remoteEndPoint);
@@ -204,30 +206,45 @@ namespace Neutron.Core
                                         break;
                                     case Channel.Reliable:
                                         {
-                                            #region Send Acknowledgement
-                                            int ack = RECV_STREAM.ReadInt();
-                                            ByteStream windowStream = ByteStream.Get();
-                                            windowStream.WritePacket(MessageType.Acknowledgement);
-                                            windowStream.Write(ack);
-                                            SendUnreliable(windowStream, remoteEndPoint, Target.Me);
-                                            windowStream.Release();
-                                            #endregion
-
-                                            MessageType msgType = RECV_STREAM.ReadPacket();
-                                            switch (msgType)
+                                            int sequence = RECV_STREAM.ReadInt();
+                                            UdpClient _client_ = GetClient(remoteEndPoint);
+                                            int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, RECV_STREAM, out RecvWindow.MessageRoute msgRoute);
+                                            if (acknowledgment > -1)
                                             {
-                                                default:
-                                                    {
-                                                        if (GetClient(remoteEndPoint).window.Slide(ack))
-                                                            OnMessage(RECV_STREAM, bitChannel, bitTarget, msgType, remoteEndPoint);
-                                                        else
+                                                if (msgRoute == RecvWindow.MessageRoute.Unk)
+                                                    continue;
+
+                                                #region Send Acknowledgement
+                                                ByteStream windowStream = ByteStream.Get();
+                                                windowStream.WritePacket(MessageType.Acknowledgement);
+                                                windowStream.Write(acknowledgment);
+                                                SendUnreliable(windowStream, remoteEndPoint, Target.Me);
+                                                windowStream.Release();
+                                                #endregion
+
+                                                if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
+                                                    continue;
+
+                                                MessageType msgType = RECV_STREAM.ReadPacket();
+                                                switch (msgType)
+                                                {
+                                                    default:
                                                         {
-                                                            RECV_STREAM.Release();
-                                                            continue; // << skip
+                                                            RecvWindow nextWindow = _client_.RECV_WINDOW;
+                                                            while (nextWindow.Window[nextWindow.LastProcessedPacket].BytesWritten > 0)
+                                                            {
+                                                                Logger.PrintError($"Sequenced: {nextWindow.LastProcessedPacket}");
+                                                                //OnMessage(nextWindow.Window[nextWindow.ExpectedSequence], bitChannel, bitTarget, msgType, remoteEndPoint);
+                                                                if (nextWindow.ExpectedSequence <= nextWindow.LastProcessedPacket)
+                                                                    nextWindow.ExpectedSequence++;
+                                                                nextWindow.LastProcessedPacket++;
+                                                            }
                                                         }
-                                                    }
-                                                    break;
+                                                        break;
+                                                }
+                                                break;
                                             }
+                                            else { }
                                         }
                                         break;
                                     default:

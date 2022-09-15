@@ -30,6 +30,10 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x64)]
     public class NeutronNetwork : ActionDispatcher
     {
+        #region Confs
+        internal const int WINDOW_SIZE = ushort.MaxValue;
+        #endregion
+
         internal static NeutronNetwork Instance { get; private set; }
         private static Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static UdpServer udpServer = new();

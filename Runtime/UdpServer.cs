@@ -39,7 +39,17 @@ namespace Neutron.Core
                             stream.Release();
                             NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
                         }
-                        else _client_.Close(true);
+                        else
+                        {
+                            ByteStream stream = ByteStream.Get();
+                            stream.WritePacket(MessageType.Connect);
+                            stream.Write((ushort)uniqueId);
+                            UdpClient connectedClient = GetClient(remoteEndPoint);
+                            connectedClient.Send(stream, channel, target);
+                            stream.Release();
+                            //*********************//
+                            _client_.Close(true);
+                        }
                     }
                     break;
                 default:
