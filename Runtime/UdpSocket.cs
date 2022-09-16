@@ -54,7 +54,8 @@ namespace Neutron.Core
 #if NEUTRON_MULTI_THREADED
             ReadData();
 #else
-            NeutronNetwork.Instance.StartCoroutine(ReadData());
+            for (int i = 0; i < NeutronNetwork.Instance.RECV_MULTIPLIER; i++)
+                NeutronNetwork.Instance.StartCoroutine(ReadData());
 #endif
         }
 

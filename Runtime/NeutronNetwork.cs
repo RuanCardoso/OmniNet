@@ -12,15 +12,15 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Runtime.CompilerServices;
 using MessagePack;
 using MessagePack.Resolvers;
 using MessagePack.Unity;
 using MessagePack.Unity.Extension;
 using Neutron.Resolvers;
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -50,9 +50,14 @@ namespace Neutron.Core
         #region Compiler Options
         [SerializeField][Header("[COMPILER OPTIONS]")] private bool MULTI_THREADED = false;
         [SerializeField] private bool LOCK_FPS = true;
-#if NEUTRON_LOCK_FPS
+#if NEUTRON_LOCK_FPS || !NEUTRON_MULTI_THREADED
         [Header("[RUNTIME OPTIONS]")]
+#endif
+#if NEUTRON_LOCK_FPS
         [SerializeField] private int MAX_FPS = 60;
+#endif
+#if !NEUTRON_MULTI_THREADED
+        [SerializeField][Min(1)] internal int RECV_MULTIPLIER = 1;
 #endif
         #endregion
         public static IFormatterResolver Formatter { get; private set; }
@@ -76,6 +81,7 @@ namespace Neutron.Core
             DontDestroyOnLoad(this);
             Instance = this;
 #if NEUTRON_LOCK_FPS
+            QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = MAX_FPS;
 #endif
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, 5055);

@@ -19,9 +19,9 @@ namespace Neutron.Core
 {
     public class SGBDManager
     {
-        private object _lock = new();
-        private Stack<SGBD> pool = new();
-        private Func<bool, SGBD> initializer;
+        private readonly object _lock = new();
+        private readonly Stack<SGBD> pool = new();
+        private readonly Func<bool, SGBD> initializer;
 
         public SGBDManager(Action<SGBD> initializer, int connections = 2, bool reuseTemporaryConnections = false)
         {
@@ -29,7 +29,7 @@ namespace Neutron.Core
             {
                 var sgbd = new SGBD();
                 initializer?.Invoke(sgbd);
-                sgbd.finishAfterUse = !reuseTemporaryConnections ? finishAfterUse : false;
+                sgbd.finishAfterUse = !reuseTemporaryConnections && finishAfterUse;
                 return sgbd;
             };
 
@@ -44,7 +44,7 @@ namespace Neutron.Core
                 if (pool.Count == 0)
                 {
                     Logger.Print("Query: No connections available, a temporary connection will open!");
-                    return this.initializer(true);
+                    return initializer(true);
                 }
                 else
                     return pool.Pop();

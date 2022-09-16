@@ -28,8 +28,6 @@ namespace Neutron.Core
         private Query query;
         private QueryFactory queryFactory;
         private IDbConnection iDbConnection;
-        private SqliteConnection sqliteConnection;
-        private MySqlConnection mySqlConnection;
         internal bool finishAfterUse;
         #endregion
 
@@ -38,7 +36,7 @@ namespace Neutron.Core
         {
             get
             {
-                ThrowErrorIfNotInitialized();
+                query = Factory.Query(tableName);
                 return query;
             }
         }
@@ -60,24 +58,6 @@ namespace Neutron.Core
                 return iDbConnection;
             }
         }
-
-        public SqliteConnection SQLiteConnection
-        {
-            get
-            {
-                ThrowErrorIfNotInitialized();
-                return sqliteConnection;
-            }
-        }
-
-        public MySqlConnection MySQLConnection
-        {
-            get
-            {
-                ThrowErrorIfNotInitialized();
-                return mySqlConnection;
-            }
-        }
         #endregion
 
         public void Initialize(IDbConnection iDbConnection, Compiler compiler, string tableName, int timeout = 30)
@@ -87,7 +67,7 @@ namespace Neutron.Core
                 this.tableName = tableName;
                 this.iDbConnection = iDbConnection;
                 this.iDbConnection.Open();
-                query = (queryFactory = new QueryFactory(this.iDbConnection, compiler, timeout)).Query(tableName);
+                queryFactory = new QueryFactory(this.iDbConnection, compiler, timeout);
             }
             catch (Exception ex)
             {
@@ -131,7 +111,7 @@ namespace Neutron.Core
 
         private void ThrowErrorIfNotInitialized()
         {
-            if (query == null || queryFactory == null || iDbConnection == null)
+            if (queryFactory == null || iDbConnection == null)
                 throw new Exception($"Call \"{nameof(Initialize)}()\" before it! -> {iDbConnection.State}");
             if (iDbConnection != null)
             {
