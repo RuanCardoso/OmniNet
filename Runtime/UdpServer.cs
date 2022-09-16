@@ -12,8 +12,9 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System.Collections.Concurrent;
 #if NEUTRON_MULTI_THREADED
+using System.Collections.Concurrent;
+#else
 using System.Collections.Generic;
 #endif
 
