@@ -176,6 +176,7 @@ namespace Neutron.Core
                             if ((byte)bitTarget > 0x3 || (byte)bitChannel > 0x3)
                             {
                                 Logger.PrintError($"{Name} - ReadData - Invalid target -> {bitTarget} or channel -> {bitChannel}");
+                                //*************************************************************************************************//
                                 RECV_STREAM.Release();
 #if !NEUTRON_MULTI_THREADED
                                 yield return null;
@@ -210,7 +211,13 @@ namespace Neutron.Core
                                             if (acknowledgment > -1)
                                             {
                                                 if (msgRoute == RecvWindow.MessageRoute.Unk)
-                                                    continue;
+                                                {
+                                                    RECV_STREAM.Release();
+#if !NEUTRON_MULTI_THREADED
+                                                    yield return null;
+#endif
+                                                    continue; // << skip
+                                                }
 
                                                 #region Send Acknowledgement
                                                 ByteStream windowStream = ByteStream.Get();
@@ -221,7 +228,13 @@ namespace Neutron.Core
                                                 #endregion
 
                                                 if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
-                                                    continue;
+                                                {
+                                                    RECV_STREAM.Release();
+#if !NEUTRON_MULTI_THREADED
+                                                    yield return null;
+#endif
+                                                    continue; // << skip
+                                                }
 
                                                 MessageType msgType = RECV_STREAM.ReadPacket();
                                                 switch (msgType)
@@ -241,9 +254,15 @@ namespace Neutron.Core
                                                 }
                                                 break;
                                             }
-                                            else { }
+                                            else
+                                            {
+                                                RECV_STREAM.Release();
+#if !NEUTRON_MULTI_THREADED
+                                                yield return null;
+#endif
+                                                continue; // << skip
+                                            }
                                         }
-                                        break;
                                     default:
                                         Logger.PrintError($"Unknown channel {bitChannel} received from {remoteEndPoint}");
                                         break;
