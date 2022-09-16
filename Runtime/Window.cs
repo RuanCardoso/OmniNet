@@ -53,7 +53,8 @@ namespace Neutron.Core
             {
                 while (!token.IsCancellationRequested)
                 {
-                    for (int i = 0; i < NeutronNetwork.WINDOW_SIZE; i++)
+                    int sequence = this.sequence;
+                    for (int i = 0; i < sequence; i++)
                     {
                         ByteStream _stream_ = window[i];
                         if (_stream_.BytesWritten > 0 && ack_window[i] == 0)
@@ -95,6 +96,7 @@ namespace Neutron.Core
 
         internal int ExpectedSequence { get; set; } = 0;
         internal int LastProcessedPacket { get; set; } = 0;
+
         internal ByteStream[] Window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
 
         public RecvWindow()
@@ -118,7 +120,7 @@ namespace Neutron.Core
                 case MessageRoute.Orderly:
                 case MessageRoute.OutOfOrder:
                     {
-                        ByteStream window = this.Window[sequence];
+                        ByteStream window = Window[sequence];
                         if (window.BytesWritten <= 0)
                         {
                             int POS = RECV_STREAM.Position + sizeof(byte);
