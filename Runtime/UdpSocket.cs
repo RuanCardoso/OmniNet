@@ -15,11 +15,12 @@
 using System;
 #if !NEUTRON_MULTI_THREADED
 using System.Collections;
+#else
+using ThreadPriority = System.Threading.ThreadPriority;
 #endif
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using ThreadPriority = System.Threading.ThreadPriority;
 
 namespace Neutron.Core
 {
