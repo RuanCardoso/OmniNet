@@ -24,33 +24,25 @@ namespace Neutron.Core
         internal bool IsConnected { get; private set; }
         protected override string Name => "Neutron_Client";
         protected override bool IsServer => false;
-        internal UdpEndPoint remoteEndPoint;
 
+        internal UdpEndPoint remoteEndPoint;
         internal UdpClient() { }
         internal UdpClient(UdpEndPoint remoteEndPoint, Socket socket)
         {
             IsConnected = true;
             this.globalSocket = socket;
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), remoteEndPoint.GetPort()); // copy endpoint to avoid reference problems!
-#if NEUTRON_MULTI_THREADED
-            Relay(this.remoteEndPoint);
-#else
-            NeutronNetwork.Instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
-#endif
+            MessageRelay(this.remoteEndPoint);
         }
 
         internal void Connect(UdpEndPoint remoteEndPoint)
         {
             this.remoteEndPoint = remoteEndPoint;
-#if NEUTRON_MULTI_THREADED
-            Relay(this.remoteEndPoint);
-#else
-            NeutronNetwork.Instance.StartCoroutine(SendReliableMessages(this.remoteEndPoint));
-#endif
+            MessageRelay(this.remoteEndPoint);
             NeutronNetwork.Instance.StartCoroutine(Connect());
         }
 
-        WaitForSeconds yieldConnect = new(1f);
+        readonly WaitForSeconds yieldConnect = new(1f);
         private IEnumerator Connect()
         {
             while (!IsConnected)
@@ -70,15 +62,12 @@ namespace Neutron.Core
                 Logger.PrintError("You must call Connect() before Send()");
             else
             {
-                switch (channel)
+                return channel switch
                 {
-                    case Channel.Unreliable:
-                        return SendUnreliable(byteStream, remoteEndPoint, target);
-                    case Channel.Reliable:
-                        return SendReliable(byteStream, remoteEndPoint, channel, target);
-                    default:
-                        return 0;
-                }
+                    Channel.Unreliable => SendUnreliable(byteStream, remoteEndPoint, target),
+                    Channel.Reliable => SendReliable(byteStream, remoteEndPoint, channel, target),
+                    _ => 0,
+                };
             }
             return 0;
         }

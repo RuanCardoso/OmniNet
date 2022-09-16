@@ -13,6 +13,9 @@
     ===========================================================*/
 
 using System;
+#if !NEUTRON_MULTI_THREADED
+using System.Collections;
+#endif
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -44,48 +47,48 @@ namespace Neutron.Core
             catch (SocketException ex)
             {
                 if (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
-                    Logger.PrintWarning($"The {Name} not binded to {localEndPoint} because it is already in use.");
+                    Logger.PrintWarning($"The {Name} not binded to {localEndPoint} because it is already in use!");
             }
+
 #if NEUTRON_MULTI_THREADED
-            StartReadingData();
+            ReadData();
 #else
-            NeutronNetwork.Instance.StartCoroutine(StartReadingData());
+            NeutronNetwork.Instance.StartCoroutine(ReadData());
 #endif
         }
 
-        protected void Relay(UdpEndPoint remoteEndPoint) => SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
+#if NEUTRON_MULTI_THREADED
+        protected void MessageRelay(UdpEndPoint remoteEndPoint) => SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
+#else
+        protected void MessageRelay(UdpEndPoint remoteEndPoint) => NeutronNetwork.Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
+#endif
         protected int SendUnreliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me)
         {
-            ByteStream poolStream = ByteStream.Get();
-            poolStream.Write((byte)((byte)Channel.Unreliable | (byte)target << 2));
-            poolStream.Write(data);
-            int length = Send(poolStream, remoteEndPoint);
-            poolStream.Release();
+            ByteStream stream = ByteStream.Get();
+            stream.Write((byte)((byte)Channel.Unreliable | (byte)target << 2));
+            stream.Write(data);
+            int length = Send(stream, remoteEndPoint);
+            stream.Release();
             return length;
         }
 
         protected int SendReliable(ByteStream data, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
         {
-            int _sequence_ = 0;
             if (IsServer)
                 Logger.PrintError("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
             else
             {
-                ByteStream dataStream = ByteStream.Get();
-                dataStream.Write((byte)((byte)channel | (byte)target << 2));
-#if NEUTRON_MULTI_THREADED
-                _sequence_ = SENT_WINDOW.GetSequence();
-#else
-                _sequence_ = ++channelObject.sequence;
-#endif
-                dataStream.Write(_sequence_);
-                dataStream.Write(data);
-                ByteStream windowStream = SENT_WINDOW.GetWindow(_sequence_);
-                windowStream.EndWrite();
-                windowStream.SetLastWriteTime();
-                windowStream.Write(dataStream);
-                int length = Send(dataStream, remoteEndPoint);
-                dataStream.Release();
+                ByteStream stream = ByteStream.Get();
+                stream.Write((byte)((byte)channel | (byte)target << 2));
+                int _sequence_ = SENT_WINDOW.GetSequence();
+                stream.Write(_sequence_);
+                stream.Write(data);
+                ByteStream window = SENT_WINDOW.GetWindow(_sequence_);
+                window.EndWrite();
+                window.SetLastWriteTime();
+                window.Write(stream);
+                int length = Send(stream, remoteEndPoint);
+                stream.Release();
                 return length;
             }
             return 0;
@@ -97,7 +100,6 @@ namespace Neutron.Core
             {
                 if (data.isRawBytes)
                 {
-                    int _sequence_ = 0;
                     data.Position = 0;
                     Channel channel = (Channel)(data.ReadByte() & 0x3);
                     switch (channel)
@@ -105,21 +107,17 @@ namespace Neutron.Core
                         case Channel.Reliable:
                             {
                                 byte[] buffer = data.Buffer;
-#if NEUTRON_MULTI_THREADED
-                                _sequence_ = SENT_WINDOW.GetSequence();
-#else
-                                _sequence_ = ++channelObject.sequence;
-#endif
+                                int _sequence_ = SENT_WINDOW.GetSequence();
                                 buffer[++offset] = (byte)_sequence_;
                                 buffer[++offset] = (byte)(_sequence_ >> 8);
                                 buffer[++offset] = (byte)(_sequence_ >> 16);
                                 buffer[++offset] = (byte)(_sequence_ >> 24);
                                 offset = 0;
 
-                                ByteStream windowStream = SENT_WINDOW.GetWindow(_sequence_);
-                                windowStream.EndWrite();
-                                windowStream.SetLastWriteTime();
-                                windowStream.Write(data);
+                                ByteStream window = SENT_WINDOW.GetWindow(_sequence_);
+                                window.EndWrite();
+                                window.SetLastWriteTime();
+                                window.Write(data);
                                 break;
                             }
                     }
@@ -134,34 +132,33 @@ namespace Neutron.Core
         }
 
 #if NEUTRON_MULTI_THREADED
-        private void StartReadingData()
+        private void ReadData()
 #else
-        private IEnumerator StartReadingData()
+        private IEnumerator ReadData()
 #endif
         {
 #if NEUTRON_MULTI_THREADED
             new Thread(() =>
-            {
 #endif
+            {
                 byte[] buffer = new byte[0x5DC];
                 EndPoint endPoint = new UdpEndPoint(0, 0);
 #if NEUTRON_MULTI_THREADED
                 while (!cancellationTokenSource.IsCancellationRequested)
-                {
 #else
-            while (true)
-            {
+                while (true)
 #endif
+                {
 #if NEUTRON_MULTI_THREADED
                     try
-                    {
 #endif
+                    {
 #if !NEUTRON_MULTI_THREADED
-                if (globalSocket.Available <= 0)
-                {
-                    yield return null;
-                    continue;
-                }
+                        if (globalSocket.Available <= 0)
+                        {
+                            yield return null;
+                            continue;
+                        }
 #endif
                         int length = globalSocket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
                         if (length > 0)
@@ -177,10 +174,10 @@ namespace Neutron.Core
                             Target bitTarget = (Target)((maskBit >> 2) & 0x3);
                             if ((byte)bitTarget > 0x3 || (byte)bitChannel > 0x3)
                             {
-                                Logger.PrintError($"{Name} - StartReadingData - Invalid target -> {bitTarget} or channel -> {bitChannel}");
+                                Logger.PrintError($"{Name} - ReadData - Invalid target -> {bitTarget} or channel -> {bitChannel}");
                                 RECV_STREAM.Release();
 #if !NEUTRON_MULTI_THREADED
-                        yield return null;
+                                yield return null;
 #endif
                                 continue; // << skip
                             }
@@ -256,8 +253,8 @@ namespace Neutron.Core
                         }
                         else
                             Logger.PrintError($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
-#if NEUTRON_MULTI_THREADED
                     }
+#if NEUTRON_MULTI_THREADED
                     catch (ThreadAbortException) { continue; }
                     catch (ObjectDisposedException) { continue; }
                     catch (SocketException ex)
@@ -276,11 +273,12 @@ namespace Neutron.Core
                     }
 #endif
 #if !NEUTRON_MULTI_THREADED
-                yield return null;
+                    yield return null;
 #endif
                 }
+            }
 #if NEUTRON_MULTI_THREADED
-            })
+            )
             {
                 Name = Name,
                 IsBackground = true,

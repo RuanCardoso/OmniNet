@@ -13,6 +13,10 @@
     ===========================================================*/
 
 using System;
+#if !NEUTRON_MULTI_THREADED
+using System.Collections;
+using UnityEngine;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,8 +25,8 @@ namespace Neutron.Core
     public class SentWindow
     {
         private int sequence = -1;
-        private ByteStream[] window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
-        private byte[] ack_window = new byte[NeutronNetwork.WINDOW_SIZE]; // 0: not ack, 1: ack
+        private readonly ByteStream[] window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
+        private readonly byte[] ack_window = new byte[NeutronNetwork.WINDOW_SIZE]; // 0: not ack, 1: ack
 
         public SentWindow()
         {
@@ -31,11 +35,21 @@ namespace Neutron.Core
         }
 
         internal void Acknowledgement(int acknowledgment) => ack_window[acknowledgment] = 1;
+#if NEUTRON_MULTI_THREADED
         internal int GetSequence() => Interlocked.Increment(ref sequence);
+#else
+        internal int GetSequence() => ++sequence;
+#endif
         internal ByteStream GetWindow(int sequence) => window[sequence];
+#if NEUTRON_MULTI_THREADED
         internal void Relay(UdpSocket _socket_, UdpEndPoint remoteEndPoint, CancellationToken token)
+#else
+        internal IEnumerator Relay(UdpSocket _socket_, UdpEndPoint remoteEndPoint, CancellationToken token)
+#endif
         {
+#if NEUTRON_MULTI_THREADED
             ThreadPool.QueueUserWorkItem(async (o) =>
+#endif
             {
                 while (!token.IsCancellationRequested)
                 {
@@ -56,9 +70,16 @@ namespace Neutron.Core
                         }
                         else continue;
                     }
+#if NEUTRON_MULTI_THREADED
                     await Task.Delay(15);
+#else
+                    yield return new WaitForSeconds(0.015f);
+#endif
                 }
-            });
+            }
+#if NEUTRON_MULTI_THREADED
+            );
+#endif
         }
     }
 

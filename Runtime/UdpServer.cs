@@ -13,6 +13,9 @@
     ===========================================================*/
 
 using System.Collections.Concurrent;
+#if NEUTRON_MULTI_THREADED
+using System.Collections.Generic;
+#endif
 
 namespace Neutron.Core
 {
@@ -20,8 +23,12 @@ namespace Neutron.Core
     {
         protected override string Name => "Neutron_Server";
         protected override bool IsServer => true;
-        private ConcurrentDictionary<int, UdpClient> clients = new();
 
+#if NEUTRON_MULTI_THREADED
+        private readonly ConcurrentDictionary<int, UdpClient> clients = new();
+#else
+        private readonly Dictionary<int, UdpClient> clients = new();
+#endif
         protected override void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             int uniqueId = remoteEndPoint.GetPort();
@@ -59,18 +66,14 @@ namespace Neutron.Core
         }
 
         internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => GetClient(remoteEndPoint.GetPort());
-        internal UdpClient GetClient(int playerId)
-        {
-            if (clients.TryGetValue(playerId, out UdpClient udpClient))
-                return udpClient;
-            else return null;
-        }
+        internal UdpClient GetClient(int playerId) => clients.TryGetValue(playerId, out UdpClient udpClient) ? udpClient : null;
 
         internal void Send(ByteStream byteStream, Channel channel, Target target, int playerId) => Send(byteStream, channel, target, GetClient(playerId));
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, GetClient(remoteEndPoint));
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
-            if (sender == null) Logger.PrintError("Sender is null!");
+            if (sender == null)
+                Logger.PrintError("Sender is null!");
             else
             {
                 switch (target)
@@ -83,7 +86,7 @@ namespace Neutron.Core
                         break;
                     case Target.All:
                         {
-                            foreach (var (id, udpClient) in clients)
+                            foreach (var (_, udpClient) in clients)
                             {
                                 if (!byteStream.isRawBytes) udpClient.Send(byteStream, channel, target);
                                 else udpClient.Send(byteStream);
