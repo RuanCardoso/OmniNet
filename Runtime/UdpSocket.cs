@@ -145,11 +145,7 @@ namespace Neutron.Core
             {
                 byte[] buffer = new byte[0x5DC];
                 EndPoint endPoint = new UdpEndPoint(0, 0);
-#if NEUTRON_MULTI_THREADED
                 while (!cancellationTokenSource.IsCancellationRequested)
-#else
-                while (true)
-#endif
                 {
 #if NEUTRON_MULTI_THREADED
                     try

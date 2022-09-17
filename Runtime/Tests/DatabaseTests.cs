@@ -47,7 +47,7 @@ namespace Neutron.Core.Tests
                             {
                                 Name = "Ruan",
                             }, null, 1);
-                            Neutron.Core.Logger.Print("Flushed");
+                            Logger.Print("Flushed");
                             Manager.Release(dB);
                         }
                         catch (Exception ex)

@@ -12,13 +12,14 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
 #if !NEUTRON_MULTI_THREADED
 using System.Collections;
 using UnityEngine;
+#else
+using System.Threading.Tasks;
 #endif
 using System.Threading;
-using System.Threading.Tasks;
+using System;
 
 namespace Neutron.Core
 {
@@ -51,30 +52,33 @@ namespace Neutron.Core
             ThreadPool.QueueUserWorkItem(async (o) =>
 #endif
             {
-                while (!token.IsCancellationRequested)
+                int nextSequence = 0;
+                while (nextSequence < window.Length && !token.IsCancellationRequested)
                 {
-                    int sequence = this.sequence;
-                    for (int i = 0; i < sequence; i++)
+                    ByteStream window = this.window[nextSequence];
+                    if (window.BytesWritten > 0)
                     {
-                        ByteStream _stream_ = window[i];
-                        if (_stream_.BytesWritten > 0 && ack_window[i] == 0)
+                        byte ack = ack_window[nextSequence];
+                        if (ack == 1)
+                            nextSequence++;
+                        else
                         {
-                            double totalSeconds = DateTime.UtcNow.Subtract(_stream_.LastWriteTime).TotalSeconds;
-                            if (totalSeconds > 0.1d)
+                            double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
+                            if (totalSeconds > 0d)
                             {
-                                Logger.Print($"Reenviando!");
-                                _stream_.Position = 0;
-                                _stream_.SetLastWriteTime();
-                                _socket_.Send(_stream_, remoteEndPoint);
+                                window.Position = 0;
+                                window.SetLastWriteTime();
+                                _socket_.Send(window, remoteEndPoint);
                             }
-                            else continue;
+                            else { }
                         }
-                        else continue;
                     }
+                    else { }
+
 #if NEUTRON_MULTI_THREADED
-                    await Task.Delay(15);
+                    await Task.Delay(100);
 #else
-                    yield return new WaitForSeconds(0.015f);
+                    yield return new WaitForSeconds(0.1f);
 #endif
                 }
             }
