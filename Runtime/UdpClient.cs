@@ -30,7 +30,7 @@ namespace Neutron.Core
         internal UdpClient(UdpEndPoint remoteEndPoint, Socket socket)
         {
             IsConnected = true;
-            this.globalSocket = socket;
+            globalSocket = socket;
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), remoteEndPoint.GetPort()); // copy endpoint to avoid reference problems!
             MessageRelay(this.remoteEndPoint);
         }

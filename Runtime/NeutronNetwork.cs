@@ -48,6 +48,7 @@ namespace Neutron.Core
         #endregion
 
         #region Compiler Options
+        [SerializeField][Header("[COMPILER OPTIONS]")] private bool AGRESSIVE_RELAY = false;
         [SerializeField][Header("[COMPILER OPTIONS]")] private bool MULTI_THREADED = false;
         [SerializeField] private bool LOCK_FPS = true;
 #if NEUTRON_LOCK_FPS || !NEUTRON_MULTI_THREADED
@@ -114,6 +115,8 @@ namespace Neutron.Core
             else defines.Add("NEUTRON_LOCK_FPS");
             if (!MULTI_THREADED) defines.Add("NEUTRON_MULTI_THREADED_REMOVED");
             else defines.Add("NEUTRON_MULTI_THREADED");
+            if (!AGRESSIVE_RELAY) defines.Add("NEUTRON_AGRESSIVE_RELAY_REMOVED");
+            else defines.Add("NEUTRON_AGRESSIVE_RELAY");
             Helper.SetDefine(defines: defines.ToArray());
         }
         private void OnValidate() => SetCompilerOptions();

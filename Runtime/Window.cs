@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 #endif
 using System.Threading;
 using System;
+using System.Diagnostics;
 
 namespace Neutron.Core
 {
@@ -43,7 +44,7 @@ namespace Neutron.Core
 #endif
         internal ByteStream GetWindow(int sequence) => window[sequence];
 #if NEUTRON_MULTI_THREADED
-        internal void Relay(UdpSocket _socket_, UdpEndPoint remoteEndPoint, CancellationToken token)
+        internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
 #else
         internal IEnumerator Relay(UdpSocket _socket_, UdpEndPoint remoteEndPoint, CancellationToken token)
 #endif
@@ -53,27 +54,50 @@ namespace Neutron.Core
 #endif
             {
                 int nextSequence = 0;
+#if NEUTRON_AGRESSIVE_RELAY
+                while (!token.IsCancellationRequested)
+#else
                 while (nextSequence < window.Length && !token.IsCancellationRequested)
+#endif
                 {
-                    ByteStream window = this.window[nextSequence];
-                    if (window.BytesWritten > 0)
+#if NEUTRON_AGRESSIVE_RELAY
+                    int sequence = this.sequence + 2;
+                    for (int i = nextSequence; i < sequence; i++)
+#endif
                     {
-                        byte ack = ack_window[nextSequence];
-                        if (ack == 1)
-                            nextSequence++;
-                        else
+#if NEUTRON_AGRESSIVE_RELAY
+                        ByteStream window = this.window[i];
+#else
+                        ByteStream window = this.window[nextSequence];
+#endif
+                        if (window.BytesWritten > 0)
                         {
-                            double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
-                            if (totalSeconds > 0d)
+                            byte ack = ack_window[i];
+                            if (ack == 1)
                             {
-                                window.Position = 0;
-                                window.SetLastWriteTime();
-                                _socket_.Send(window, remoteEndPoint);
+#if !NEUTRON_AGRESSIVE_RELAY
+                                nextSequence++;
+#else
+                                int confirmedSequence = i;
+                                if (confirmedSequence == nextSequence)
+                                    nextSequence++;
+#endif
                             }
-                            else { }
+                            else
+                            {
+                                double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
+                                if (totalSeconds > 0d)
+                                {
+                                    Logger.Print("Re-sent!");
+                                    window.Position = 0;
+                                    window.SetLastWriteTime();
+                                    socket.Send(window, remoteEndPoint);
+                                }
+                                else { }
+                            }
                         }
+                        else { }
                     }
-                    else { }
 
 #if NEUTRON_MULTI_THREADED
                     await Task.Delay(100);
