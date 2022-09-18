@@ -20,29 +20,50 @@ using System.Threading.Tasks;
 #endif
 using System.Threading;
 using System;
-using System.Diagnostics;
 
 namespace Neutron.Core
 {
-    public class SentWindow
+    public class Window
     {
-        private int sequence = -1;
-        private readonly ByteStream[] window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
-        private readonly byte[] ack_window = new byte[NeutronNetwork.WINDOW_SIZE]; // 0: not ack, 1: ack
+        int lastIndex = 0;
+        internal ByteStream[] window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
 
-        public SentWindow()
+        public Window()
         {
-            for (int i = 0; i < window.Length; i++)
-                window[i] = new(128);
+            Resize(window.Length - 1);
         }
 
-        internal void Acknowledgement(int acknowledgment) => ack_window[acknowledgment] = 1;
+        internal void Resize(int sequence)
+        {
+            if (sequence > (window.Length - 1))
+            {
+                Array.Resize(ref window, window.Length + NeutronNetwork.WINDOW_SIZE);
+                for (int i = 0; i < lastIndex; i++)
+                {
+                    // remove the references to make it eligible for the garbage collector.
+                    window[i] = null;
+                }
+            }
+
+            for (int i = lastIndex; i < window.Length; i++) window[i] = new(128);
+            if (lastIndex != window.Length) lastIndex = window.Length;
+        }
+    }
+
+    public class SentWindow : Window
+    {
+        private int sequence = -1;
+        internal void Acknowledgement(int acknowledgment) => window[acknowledgment].IsAcked = true;
 #if NEUTRON_MULTI_THREADED
         internal int GetSequence() => Interlocked.Increment(ref sequence);
 #else
         internal int GetSequence() => ++sequence;
 #endif
-        internal ByteStream GetWindow(int sequence) => window[sequence];
+        internal ByteStream GetWindow(int sequence)
+        {
+            Resize(sequence);
+            return window[sequence];
+        }
 #if NEUTRON_MULTI_THREADED
         internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
 #else
@@ -72,12 +93,7 @@ namespace Neutron.Core
 #endif
                         if (window.BytesWritten > 0)
                         {
-#if NEUTRON_AGRESSIVE_RELAY
-                            byte ack = ack_window[i];
-#else
-                            byte ack = ack_window[nextSequence];
-#endif
-                            if (ack == 1)
+                            if (window.IsAcked == true)
                             {
 #if !NEUTRON_AGRESSIVE_RELAY
                                 nextSequence++;
@@ -116,7 +132,7 @@ namespace Neutron.Core
         }
     }
 
-    public class RecvWindow
+    public class RecvWindow : Window
     {
         internal enum MessageRoute : byte
         {
@@ -128,14 +144,6 @@ namespace Neutron.Core
 
         internal int ExpectedSequence { get; set; } = 0;
         internal int LastProcessedPacket { get; set; } = 0;
-
-        internal ByteStream[] Window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
-
-        public RecvWindow()
-        {
-            for (int i = 0; i < Window.Length; i++)
-                Window[i] = new(128);
-        }
 
         internal int Acknowledgment(int sequence, ByteStream RECV_STREAM, out MessageRoute route)
         {
@@ -152,7 +160,8 @@ namespace Neutron.Core
                 case MessageRoute.Orderly:
                 case MessageRoute.OutOfOrder:
                     {
-                        ByteStream window = Window[sequence];
+                        Resize(sequence);
+                        ByteStream window = this.window[sequence];
                         if (window.BytesWritten <= 0)
                         {
                             int POS = RECV_STREAM.Position + sizeof(byte);

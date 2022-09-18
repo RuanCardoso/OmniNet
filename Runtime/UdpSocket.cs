@@ -239,13 +239,16 @@ namespace Neutron.Core
                                                     default:
                                                         {
                                                             RecvWindow nextWindow = _client_.RECV_WINDOW;
-                                                            while (nextWindow.Window[nextWindow.LastProcessedPacket].BytesWritten > 0)
+                                                            while (nextWindow.window.Length > nextWindow.LastProcessedPacket && nextWindow.window[nextWindow.LastProcessedPacket].BytesWritten > 0)
                                                             {
-                                                                OnMessage(nextWindow.Window[nextWindow.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
+                                                                OnMessage(nextWindow.window[nextWindow.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
                                                                 if (nextWindow.ExpectedSequence <= nextWindow.LastProcessedPacket)
                                                                     nextWindow.ExpectedSequence++;
                                                                 nextWindow.LastProcessedPacket++;
                                                             }
+
+                                                            if (nextWindow.LastProcessedPacket > (nextWindow.window.Length - 1))
+                                                                Logger.PrintWarning("Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized.");
                                                         }
                                                         break;
                                                 }

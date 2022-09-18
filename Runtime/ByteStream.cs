@@ -22,14 +22,21 @@ namespace Neutron.Core
         private int position;
         private int bytesWritten;
         private DateTime lastWriteTime;
+        private bool isAcked;
 
         public byte[] Buffer => buffer;
         public int BytesWritten => bytesWritten;
         public int BytesRemaining => bytesWritten - position;
         public int Position { get => position; set => position = value; }
         internal DateTime LastWriteTime => lastWriteTime;
+        internal bool IsAcked { get => isAcked; set => isAcked = value; }
 
-        public ByteStream(int size) => buffer = new byte[size];
+        public ByteStream(int size)
+        {
+            buffer = new byte[size];
+            Logger.PrintWarning("Allocating a new ByteStream!");
+        }
+
         public void Write(byte value)
         {
             if (ThrowIfNotEnoughSpace(sizeof(byte)))

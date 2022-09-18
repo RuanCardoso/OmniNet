@@ -12,11 +12,11 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
-using System.Data;
 using Mono.Data.Sqlite;
 using MySqlConnector;
 using Neutron.Database;
+using System;
+using System.Data;
 using UnityEngine;
 
 namespace Neutron.Core

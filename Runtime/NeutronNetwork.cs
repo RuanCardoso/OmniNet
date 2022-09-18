@@ -20,9 +20,11 @@ using Neutron.Resolvers;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Runtime;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Scripting;
 
 namespace Neutron.Core
 {
@@ -31,20 +33,19 @@ namespace Neutron.Core
     public class NeutronNetwork : ActionDispatcher
     {
         #region Confs
-        internal const int WINDOW_SIZE = ushort.MaxValue;
+        internal const int WINDOW_SIZE = byte.MaxValue;
         #endregion
 
-        internal static NeutronNetwork Instance { get; private set; }
-
-        private static Dictionary<int, Action<ByteStream, bool>> handlers = new();
-        private static UdpServer udpServer = new();
-        private static UdpClient udpClient = new();
+        private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();
+        private static readonly UdpServer udpServer = new();
+        private static readonly UdpClient udpClient = new();
 
         #region Events
         public static event Action<bool> OnConnected;
         #endregion
 
         #region Properties
+        internal static NeutronNetwork Instance { get; private set; }
         public static int Id => udpClient.Id;
         #endregion
 
@@ -104,6 +105,9 @@ namespace Neutron.Core
 #if UNITY_SERVER
             Console.Clear();
 #endif
+
+            if (!GarbageCollector.isIncremental)
+                Logger.PrintWarning("Tip: Enable \"Incremental GC\" for maximum performance!");
         }
 
         internal void InternDispatch(Action action) => Dispatch(action);
@@ -125,7 +129,7 @@ namespace Neutron.Core
 
         public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
         {
-            T instance = new T();
+            T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))
                 Logger.PrintError($"Handler for {instance.Id} already exists!");
         }
@@ -168,7 +172,7 @@ namespace Neutron.Core
                         ByteStream stream = ByteStream.Get();
                         stream.WritePacket(MessageType.StressTest);
                         stream.Write(indx);
-                        udpServer.Send(stream, channel, target, remoteEndPoint);
+                        //udpServer.Send(stream, channel, target, remoteEndPoint);
                         stream.Release();
                     }
                     break;

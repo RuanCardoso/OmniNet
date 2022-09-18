@@ -34,13 +34,7 @@ namespace Neutron.Core
             lock (_lock)
 #endif
             {
-                if (pool.Count == 0)
-                {
-                    Logger.Print("Allocating a new ByteStream!");
-                    return new ByteStream(128);
-                }
-                else
-                    return pool.Pop();
+                return pool.Count == 0 ? new ByteStream(128) : pool.Pop();
             }
         }
 
