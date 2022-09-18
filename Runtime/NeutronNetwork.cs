@@ -35,6 +35,7 @@ namespace Neutron.Core
         #endregion
 
         internal static NeutronNetwork Instance { get; private set; }
+
         private static Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static UdpServer udpServer = new();
         private static UdpClient udpClient = new();
@@ -49,7 +50,7 @@ namespace Neutron.Core
 
         #region Compiler Options
         [SerializeField][Header("[COMPILER OPTIONS]")] private bool AGRESSIVE_RELAY = false;
-        [SerializeField][Header("[COMPILER OPTIONS]")] private bool MULTI_THREADED = false;
+        [SerializeField] private bool MULTI_THREADED = false;
         [SerializeField] private bool LOCK_FPS = true;
 #if NEUTRON_LOCK_FPS || !NEUTRON_MULTI_THREADED
         [Header("[RUNTIME OPTIONS]")]

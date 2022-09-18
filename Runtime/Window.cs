@@ -46,7 +46,7 @@ namespace Neutron.Core
 #if NEUTRON_MULTI_THREADED
         internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
 #else
-        internal IEnumerator Relay(UdpSocket _socket_, UdpEndPoint remoteEndPoint, CancellationToken token)
+        internal IEnumerator Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
 #endif
         {
 #if NEUTRON_MULTI_THREADED
@@ -72,7 +72,11 @@ namespace Neutron.Core
 #endif
                         if (window.BytesWritten > 0)
                         {
+#if NEUTRON_AGRESSIVE_RELAY
                             byte ack = ack_window[i];
+#else
+                            byte ack = ack_window[nextSequence];
+#endif
                             if (ack == 1)
                             {
 #if !NEUTRON_AGRESSIVE_RELAY
@@ -86,7 +90,7 @@ namespace Neutron.Core
                             else
                             {
                                 double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
-                                if (totalSeconds > 0d)
+                                if (totalSeconds > 1d)
                                 {
                                     Logger.Print("Re-sent!");
                                     window.Position = 0;
