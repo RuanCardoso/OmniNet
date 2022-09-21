@@ -126,44 +126,84 @@ namespace Neutron.Core
             //*****************************************************
             while (true)
             {
-                var key = Console.ReadKey().Key;
-                switch (key)
+                if (Console.KeyAvailable)
                 {
-                    case ConsoleKey.Enter:
-                        Logger.Print("Write the command:");
-                        //**********************************
-                        string command = Console.ReadLine();
-                        if (!string.IsNullOrEmpty(command))
-                        {
-                            string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
-                            for (int i = 1; i < parameters.Length; i++)
+                    var key = Console.ReadKey(true).Key;
+                    switch (key)
+                    {
+                        case ConsoleKey.Enter:
+                            Logger.Print("Write the command:");
+                            //**********************************
+                            string command = Console.ReadLine();
+                            dict.Clear();
+                            switch (command)
                             {
-                                string parameter = parameters[i][0];
-                                string value = parameters[i][1];
-                                //*****************************************************************
-                                if (string.IsNullOrEmpty(parameter) || string.IsNullOrEmpty(value))
-                                    Logger.Print("Continuous execution without parameters!");
-                                else
-                                {
-                                    if (!dict.TryAdd(parameter, value))
-                                        dict[parameter] = value;
-                                }
+                                case "clear":
+                                case "Clear":
+                                    Console.Clear();
+                                    break;
+                                default:
+                                    {
+                                        if (!string.IsNullOrEmpty(command))
+                                        {
+                                            int paramsCount = 0;
+                                            string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
+                                            if (parameters.Length <= 1) Logger.Print("Continuous execution without parameters!");
+                                            else
+                                            {
+                                                for (int i = 1; i < parameters.Length; i++)
+                                                {
+                                                    if (parameters[i].InBounds(0) && parameters[i].InBounds(1))
+                                                    {
+                                                        string parameter = parameters[i][0];
+                                                        string value = parameters[i][1];
+                                                        //*****************************************************************
+                                                        if (string.IsNullOrEmpty(parameter) || string.IsNullOrEmpty(value))
+                                                            Logger.Print("Continuous execution without parameters!");
+                                                        else
+                                                        {
+                                                            paramsCount++;
+                                                            if (!dict.TryAdd(parameter, value))
+                                                                dict[parameter] = value;
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        Logger.PrintError("Invalid parameters!");
+                                                        yield return null;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+
+                                            command = parameters[0][0];
+                                            //**************************************************************
+                                            Logger.Print($"Command executed: '{command}' | parameter count: {paramsCount}");
+                                        }
+                                        else
+                                        {
+                                            Logger.PrintError("There are no commands!");
+                                            yield return null;
+                                            continue;
+                                        }
+                                    }
+                                    break;
                             }
-                            //**********************************************
-                            command = parameters[0][0];
-                            //**********************************************
-                            Logger.Print($"Command: '{command}' executed!");
-                        }
-                        else Logger.PrintError("There are no commands!");
-                        break;
-                    case ConsoleKey.Escape:
-                        Logger.Print("Exiting...");
-                        OnApplicationQuit();
-                        Application.Quit(0);
-                        break;
-                    default:
-                        Logger.Print($"There is no command for the '{key}' key");
-                        break;
+                            break;
+                        case ConsoleKey.Escape:
+                            Logger.Print("Exiting...");
+                            OnApplicationQuit();
+                            Application.Quit(0);
+                            break;
+                        default:
+                            Logger.Print($"There is no command for the '{key}' key");
+                            break;
+                    }
+                }
+                else
+                {
+                    yield return null;
+                    continue;
                 }
 
                 yield return null;
