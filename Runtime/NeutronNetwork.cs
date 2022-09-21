@@ -20,7 +20,6 @@ using Neutron.Resolvers;
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Runtime;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -33,7 +32,7 @@ namespace Neutron.Core
     public class NeutronNetwork : ActionDispatcher
     {
         #region Confs
-        internal const int WINDOW_SIZE = byte.MaxValue;
+        internal const int WINDOW_SIZE = byte.MaxValue * 8;
         #endregion
 
         private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();

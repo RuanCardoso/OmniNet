@@ -17,6 +17,7 @@ using UnityEngine;
 
 namespace Neutron.Core.Tests
 {
+    [AddComponentMenu("")]
     public class LoadResolver : MonoBehaviour
     {
         [MessagePackObject]

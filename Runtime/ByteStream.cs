@@ -34,7 +34,7 @@ namespace Neutron.Core
         public ByteStream(int size)
         {
             buffer = new byte[size];
-            Logger.PrintWarning("Allocating a new ByteStream!");
+            //Logger.PrintWarning("Allocating a new ByteStream!");
         }
 
         public void Write(byte value)

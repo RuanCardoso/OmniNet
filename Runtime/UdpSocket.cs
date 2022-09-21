@@ -238,17 +238,19 @@ namespace Neutron.Core
                                                 {
                                                     default:
                                                         {
-                                                            RecvWindow nextWindow = _client_.RECV_WINDOW;
-                                                            while (nextWindow.window.Length > nextWindow.LastProcessedPacket && nextWindow.window[nextWindow.LastProcessedPacket].BytesWritten > 0)
+                                                            RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
+                                                            while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0)
                                                             {
-                                                                OnMessage(nextWindow.window[nextWindow.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
-                                                                if (nextWindow.ExpectedSequence <= nextWindow.LastProcessedPacket)
-                                                                    nextWindow.ExpectedSequence++;
-                                                                nextWindow.LastProcessedPacket++;
+                                                                OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
+                                                                if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)
+                                                                    RECV_WINDOW.ExpectedSequence++;
+                                                                // remove the references to make it eligible for the garbage collector.
+                                                                RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket] = null;
+                                                                RECV_WINDOW.LastProcessedPacket++;
                                                             }
 
-                                                            if (nextWindow.LastProcessedPacket > (nextWindow.window.Length - 1))
-                                                                Logger.PrintWarning("Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized.");
+                                                            if (RECV_WINDOW.LastProcessedPacket > (RECV_WINDOW.window.Length - 1))
+                                                                Logger.PrintWarning($"Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized. {RECV_WINDOW.LastProcessedPacket} : {RECV_WINDOW.window.Length}");
                                                         }
                                                         break;
                                                 }

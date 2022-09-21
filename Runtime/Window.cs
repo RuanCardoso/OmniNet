@@ -28,21 +28,13 @@ namespace Neutron.Core
         int lastIndex = 0;
         internal ByteStream[] window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
 
-        public Window()
-        {
-            Resize(window.Length - 1);
-        }
-
+        public Window() => Resize(window.Length - 1);
         internal void Resize(int sequence)
         {
-            if (sequence > (window.Length - 1))
+            if (!window.InBounds(sequence))
             {
-                Array.Resize(ref window, window.Length + NeutronNetwork.WINDOW_SIZE);
-                for (int i = 0; i < lastIndex; i++)
-                {
-                    // remove the references to make it eligible for the garbage collector.
-                    window[i] = null;
-                }
+                int size = Math.Abs(sequence - window.Length) + NeutronNetwork.WINDOW_SIZE;
+                Array.Resize(ref window, window.Length + size);
             }
 
             for (int i = lastIndex; i < window.Length; i++) window[i] = new(128);
@@ -52,8 +44,22 @@ namespace Neutron.Core
 
     public class SentWindow : Window
     {
+        #region Fields
+        private const int WINDOW_SIZE_COMPENSATION = 2;
         private int sequence = -1;
-        internal void Acknowledgement(int acknowledgment) => window[acknowledgment].IsAcked = true;
+#if NEUTRON_MULTI_THREADED
+        private readonly object window_resize_lock = new();
+#endif
+        #endregion
+        internal void Acknowledgement(int acknowledgment)
+        {
+            if (window.InBounds(acknowledgment))
+            {
+                ByteStream byteStream = window[acknowledgment];
+                if (byteStream != null) byteStream.IsAcked = true;
+            }
+            else Logger.PrintError($"Ack: Discarded, it's out of window limits -> {sequence}:{window.Length}");
+        }
 #if NEUTRON_MULTI_THREADED
         internal int GetSequence() => Interlocked.Increment(ref sequence);
 #else
@@ -61,8 +67,13 @@ namespace Neutron.Core
 #endif
         internal ByteStream GetWindow(int sequence)
         {
-            Resize(sequence);
-            return window[sequence];
+#if NEUTRON_MULTI_THREADED
+            lock (window_resize_lock)
+#endif
+            {
+                Resize(sequence);
+                return window[sequence];
+            }
         }
 #if NEUTRON_MULTI_THREADED
         internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
@@ -75,49 +86,78 @@ namespace Neutron.Core
 #endif
             {
                 int nextSequence = 0;
-#if NEUTRON_AGRESSIVE_RELAY
                 while (!token.IsCancellationRequested)
-#else
-                while (nextSequence < window.Length && !token.IsCancellationRequested)
-#endif
                 {
 #if NEUTRON_AGRESSIVE_RELAY
-                    int sequence = this.sequence + 2;
-                    for (int i = nextSequence; i < sequence; i++)
+#if NEUTRON_MULTI_THREADED
+                    int sequence = Interlocked.CompareExchange(ref this.sequence, 0, 0) + WINDOW_SIZE_COMPENSATION;
+#else
+                    int sequence = this.sequence + WINDOW_SIZE_COMPENSATION;
+#endif
+#if NEUTRON_MULTI_THREADED
+                    //lock (window_resize_lock)
 #endif
                     {
-#if NEUTRON_AGRESSIVE_RELAY
-                        ByteStream window = this.window[i];
-#else
-                        ByteStream window = this.window[nextSequence];
+                        for (int i = nextSequence; i < sequence && window.InBounds(i); i++)
 #endif
-                        if (window.BytesWritten > 0)
                         {
-                            if (window.IsAcked == true)
+                            try
                             {
-#if !NEUTRON_AGRESSIVE_RELAY
-                                nextSequence++;
-#else
-                                int confirmedSequence = i;
-                                if (confirmedSequence == nextSequence)
-                                    nextSequence++;
+#if !NEUTRON_AGRESSIVE_RELAY && NEUTRON_MULTI_THREADED
+                                //lock (window_resize_lock)
 #endif
-                            }
-                            else
-                            {
-                                double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
-                                if (totalSeconds > 1d)
                                 {
-                                    Logger.Print("Re-sent!");
-                                    window.Position = 0;
-                                    window.SetLastWriteTime();
-                                    socket.Send(window, remoteEndPoint);
+#if NEUTRON_AGRESSIVE_RELAY
+                                    ByteStream window = this.window[i];
+#else
+                                    ByteStream window = this.window[nextSequence];
+#endif
+                                    if (window.BytesWritten > 0)
+                                    {
+                                        if (window.IsAcked == true)
+                                        {
+#if !NEUTRON_AGRESSIVE_RELAY
+                                            nextSequence++;
+                                            // remove the references to make it eligible for the garbage collector.
+                                            this.window[i] = null;
+#else
+                                            int confirmedSequence = i;
+                                            if (confirmedSequence == nextSequence)
+                                            {
+                                                nextSequence++;
+                                                // remove the references to make it eligible for the garbage collector.
+                                                this.window[i] = null;
+                                            }
+#endif
+                                        }
+                                        else
+                                        {
+                                            double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
+                                            if (totalSeconds > 0.1d)
+                                            {
+                                                window.Position = 0;
+                                                window.SetLastWriteTime();
+                                                socket.Send(window, remoteEndPoint);
+                                            }
+                                            else { }
+                                        }
+                                    }
+                                    else { }
                                 }
-                                else { }
+                            }
+                            catch (Exception ex)
+                            {
+#if NEUTRON_AGRESSIVE_RELAY
+                                Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
+#else
+                                Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
+#endif
+                                continue;
                             }
                         }
-                        else { }
+#if NEUTRON_AGRESSIVE_RELAY
                     }
+#endif
 
 #if NEUTRON_MULTI_THREADED
                     await Task.Delay(100);
@@ -161,6 +201,7 @@ namespace Neutron.Core
                 case MessageRoute.OutOfOrder:
                     {
                         Resize(sequence);
+                        //*****************************************
                         ByteStream window = this.window[sequence];
                         if (window.BytesWritten <= 0)
                         {

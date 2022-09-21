@@ -123,6 +123,7 @@ namespace Neutron.Core
 
     public static class Extensions
     {
+        public static bool InBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
         public static ByteStream Pack<T>(this T value, MessagePackSerializerOptions options = null) where T : ISerializable
         {
             byte[] data = MessagePackSerializer.Serialize<T>(value, options);

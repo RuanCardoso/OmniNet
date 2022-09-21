@@ -18,9 +18,9 @@ namespace Neutron.Core
     public class ByteStreamPool
     {
 #if NEUTRON_MULTI_THREADED
-        private object _lock = new();
+        private readonly object _lock = new();
 #endif
-        private Stack<ByteStream> pool = new();
+        private readonly Stack<ByteStream> pool = new();
 
         public ByteStreamPool(int length = 128)
         {

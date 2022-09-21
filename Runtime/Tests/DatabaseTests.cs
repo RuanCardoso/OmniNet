@@ -19,6 +19,7 @@ using UnityEngine;
 
 namespace Neutron.Core.Tests
 {
+    [AddComponentMenu("")]
     public class DatabaseTests : MonoBehaviour
     {
         private static string address = "localhost";
