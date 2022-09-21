@@ -44,19 +44,18 @@ namespace Neutron.Core
             try
             {
                 globalSocket.Bind(localEndPoint);
+#if NEUTRON_MULTI_THREADED
+                ReadData();
+#else
+                for (int i = 0; i < NeutronNetwork.Instance.RECV_MULTIPLIER; i++)
+                    NeutronNetwork.Instance.StartCoroutine(ReadData());
+#endif
             }
             catch (SocketException ex)
             {
                 if (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
                     Logger.PrintWarning($"The {Name} not binded to {localEndPoint} because it is already in use!");
             }
-
-#if NEUTRON_MULTI_THREADED
-            ReadData();
-#else
-            for (int i = 0; i < NeutronNetwork.Instance.RECV_MULTIPLIER; i++)
-                NeutronNetwork.Instance.StartCoroutine(ReadData());
-#endif
         }
 
 #if NEUTRON_MULTI_THREADED
