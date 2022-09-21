@@ -18,23 +18,28 @@ namespace Neutron.Core
     public sealed class ByteStream
     {
         internal bool isRawBytes;
-        private readonly byte[] buffer;
         private int position;
         private int bytesWritten;
-        private DateTime lastWriteTime;
         private bool isAcked;
+        private readonly byte[] buffer;
+        private DateTime lastWriteTime;
 
         public byte[] Buffer => buffer;
         public int BytesWritten => bytesWritten;
+        internal DateTime LastWriteTime => lastWriteTime;
         public int BytesRemaining => bytesWritten - position;
         public int Position { get => position; set => position = value; }
-        internal DateTime LastWriteTime => lastWriteTime;
         internal bool IsAcked { get => isAcked; set => isAcked = value; }
 
+#if UNITY_SERVER && !UNITY_EDITOR
+        static int allocated = 0;
+#endif
         public ByteStream(int size)
         {
             buffer = new byte[size];
-            //Logger.PrintWarning("Allocating a new ByteStream!");
+#if UNITY_SERVER && !UNITY_EDITOR
+            Logger.Inline($"Allocated: {Interlocked.Increment(ref allocated)} ByteStream!");
+#endif
         }
 
         public void Write(byte value)
@@ -209,7 +214,7 @@ namespace Neutron.Core
             return true;
         }
 
-        static ByteStreamPool streams = new(128);
+        static readonly ByteStreamPool streams = new(128);
         public static ByteStream Get()
         {
             ByteStream _get_ = streams.Get();

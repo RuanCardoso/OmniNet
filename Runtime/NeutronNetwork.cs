@@ -18,7 +18,9 @@ using MessagePack.Unity;
 using MessagePack.Unity.Extension;
 using Neutron.Resolvers;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using UnityEngine;
@@ -101,12 +103,71 @@ namespace Neutron.Core
 
         private void Start()
         {
-#if UNITY_SERVER
-            Console.Clear();
-#endif
-
+            Invoke(nameof(Main), 0.3f);
             if (!GarbageCollector.isIncremental)
                 Logger.PrintWarning("Tip: Enable \"Incremental GC\" for maximum performance!");
+        }
+
+        private void Main()
+        {
+#if UNITY_SERVER && !UNITY_EDITOR
+            Console.Clear();
+            StartCoroutine(GetKeyConsole());
+#endif
+        }
+
+        private IEnumerator GetKeyConsole()
+        {
+            Dictionary<string, string> dict = new();
+            //*****************************************************
+            Logger.Print("Press 'Enter' to write a command!");
+            Logger.Print("Ex: Ban -user Ruan -days 300");
+            Logger.Print("Press 'ESC' to exit!");
+            //*****************************************************
+            while (true)
+            {
+                var key = Console.ReadKey().Key;
+                switch (key)
+                {
+                    case ConsoleKey.Enter:
+                        Logger.Print("Write the command:");
+                        //**********************************
+                        string command = Console.ReadLine();
+                        if (!string.IsNullOrEmpty(command))
+                        {
+                            string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
+                            for (int i = 1; i < parameters.Length; i++)
+                            {
+                                string parameter = parameters[i][0];
+                                string value = parameters[i][1];
+                                //*****************************************************************
+                                if (string.IsNullOrEmpty(parameter) || string.IsNullOrEmpty(value))
+                                    Logger.Print("Continuous execution without parameters!");
+                                else
+                                {
+                                    if (!dict.TryAdd(parameter, value))
+                                        dict[parameter] = value;
+                                }
+                            }
+                            //**********************************************
+                            command = parameters[0][0];
+                            //**********************************************
+                            Logger.Print($"Command: '{command}' executed!");
+                        }
+                        else Logger.PrintError("There are no commands!");
+                        break;
+                    case ConsoleKey.Escape:
+                        Logger.Print("Exiting...");
+                        OnApplicationQuit();
+                        Application.Quit(0);
+                        break;
+                    default:
+                        Logger.Print($"There is no command for the '{key}' key");
+                        break;
+                }
+
+                yield return null;
+            }
         }
 
         internal void InternDispatch(Action action) => Dispatch(action);
@@ -171,7 +232,7 @@ namespace Neutron.Core
                         ByteStream stream = ByteStream.Get();
                         stream.WritePacket(MessageType.StressTest);
                         stream.Write(indx);
-                        //udpServer.Send(stream, channel, target, remoteEndPoint);
+                        udpServer.Send(stream, channel, target, remoteEndPoint);
                         stream.Release();
                     }
                     break;
