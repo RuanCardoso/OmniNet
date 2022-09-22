@@ -64,6 +64,11 @@ namespace Neutron.Core
         Scene = 2,
     }
 
+    internal enum SizeUnits
+    {
+        Byte, KB, MB, GB, TB, PB, EB, ZB, YB
+    }
+
     internal static class Helper
     {
         internal static int GetFreePort()
@@ -84,7 +89,7 @@ namespace Neutron.Core
         }
 
 #if UNITY_EDITOR
-        public static void SetDefine(bool remove = false, string except = "", params string[] defines)
+        internal static void SetDefine(bool remove = false, string except = "", params string[] defines)
         {
             BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
             BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget);
@@ -123,6 +128,7 @@ namespace Neutron.Core
 
     public static class Extensions
     {
+        internal static string ToSize(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
         public static bool InBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
         public static ByteStream Pack<T>(this T value, MessagePackSerializerOptions options = null) where T : ISerializable
         {
