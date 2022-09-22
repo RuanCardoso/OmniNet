@@ -20,10 +20,14 @@ using Neutron.Resolvers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.Compilation;
+#endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Scripting;
@@ -50,6 +54,9 @@ namespace Neutron.Core
         internal static NeutronNetwork Instance { get; private set; }
         public static int Id => udpClient.Id;
         #endregion
+
+        [SerializeField][HideInInspector] private LocalSettings[] localSettings = new LocalSettings[50];
+        [SerializeField] private LocalSettings settings;
 
         #region Compiler Options
         [SerializeField][Header("[COMPILER OPTIONS]")] private bool AGRESSIVE_RELAY = false;
@@ -223,19 +230,44 @@ namespace Neutron.Core
 
         internal void InternDispatch(Action action) => Dispatch(action);
 #if UNITY_EDITOR
-        [ContextMenu("Set Compiler Options")]
-        private void SetCompilerOptions()
+        [ContextMenu("Request Script Compilation")]
+        private void RequestScriptCompilation()
         {
-            List<string> defines = new();
-            if (!LOCK_FPS) defines.Add("NEUTRON_LOCK_FPS_REMOVED");
-            else defines.Add("NEUTRON_LOCK_FPS");
-            if (!MULTI_THREADED) defines.Add("NEUTRON_MULTI_THREADED_REMOVED");
-            else defines.Add("NEUTRON_MULTI_THREADED");
-            if (!AGRESSIVE_RELAY) defines.Add("NEUTRON_AGRESSIVE_RELAY_REMOVED");
-            else defines.Add("NEUTRON_AGRESSIVE_RELAY");
-            Helper.SetDefine(defines: defines.ToArray());
+            for (int i = 0; i < localSettings.Length; i++)
+                localSettings[i].enabled = false;
+            CompilationPipeline.RequestScriptCompilation();
         }
-        private void OnValidate() => SetCompilerOptions();
+
+        private void Reset() => OnValidate();
+        private void OnValidate()
+        {
+#if UNITY_SERVER
+            BuildTarget buildTarget = BuildTarget.LinuxHeadlessSimulation;
+#else
+            BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
+#endif
+            int index = (int)buildTarget;
+            if (localSettings.InBounds(index))
+            {
+                if (!localSettings[index].enabled)
+                {
+                    localSettings[index].enabled = true;
+                    localSettings[index].name = buildTarget.ToString();
+                }
+                settings = localSettings[index];
+            }
+
+            #region Defines
+            List<string> defs = new();
+            if (!LOCK_FPS) defs.Add("NEUTRON_LOCK_FPS_REMOVED");
+            else defs.Add("NEUTRON_LOCK_FPS");
+            if (!MULTI_THREADED) defs.Add("NEUTRON_MULTI_THREADED_REMOVED");
+            else defs.Add("NEUTRON_MULTI_THREADED");
+            if (!AGRESSIVE_RELAY) defs.Add("NEUTRON_AGRESSIVE_RELAY_REMOVED");
+            else defs.Add("NEUTRON_AGRESSIVE_RELAY");
+            Helper.SetDefine(defines: defs.ToArray());
+            #endregion
+        }
 #endif
 
         public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()

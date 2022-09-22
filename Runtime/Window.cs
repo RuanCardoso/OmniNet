@@ -119,7 +119,7 @@ namespace Neutron.Core
 #if !NEUTRON_AGRESSIVE_RELAY
                                             nextSequence++;
                                             // remove the references to make it eligible for the garbage collector.
-                                            this.window[i] = null;
+                                            this.window[nextSequence - 1] = null;
 #else
                                             int confirmedSequence = i;
                                             if (confirmedSequence == nextSequence)
@@ -133,11 +133,12 @@ namespace Neutron.Core
                                         else
                                         {
                                             double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
-                                            if (totalSeconds > 0.1d)
+                                            if (totalSeconds > 1d)
                                             {
                                                 window.Position = 0;
                                                 window.SetLastWriteTime();
                                                 socket.Send(window, remoteEndPoint);
+                                                Logger.Print("Reenviando");
                                             }
                                             else { }
                                         }

@@ -159,4 +159,13 @@ namespace Neutron.Core
 
         public static void Send(this ByteStream value, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0) => NeutronNetwork.Send(value, channel, target, playerId);
     }
+
+    [Serializable]
+    internal class LocalSettings
+    {
+        public string name = "No Plataform!";
+        public bool enabled;
+        public int ActionsPerFrame = 1;
+        public int maxFramerate = 60;
+    }
 }
