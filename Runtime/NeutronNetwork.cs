@@ -20,6 +20,7 @@ using Neutron.Resolvers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -119,11 +120,11 @@ namespace Neutron.Core
         private IEnumerator GetKeyConsole()
         {
             Dictionary<string, string> dict = new();
-            //*****************************************************
+            //********************************************************
             Logger.Print("Press 'Enter' to write a command!");
             Logger.Print("Ex: Ban -user Ruan -days 300");
             Logger.Print("Press 'ESC' to exit!");
-            //*****************************************************
+            //********************************************************
             while (true)
             {
                 if (Console.KeyAvailable)
@@ -138,9 +139,19 @@ namespace Neutron.Core
                             dict.Clear();
                             switch (command)
                             {
-                                case "clear":
                                 case "Clear":
+                                case "clear":
                                     Console.Clear();
+                                    break;
+                                case "GC Collect":
+                                case "gc collect":
+                                    GC.Collect();
+                                    Logger.Print("Collected");
+                                    break;
+                                case "Memory":
+                                case "memory":
+                                    long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
+                                    Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSize(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSize(SizeUnits.GB)} GB");
                                     break;
                                 default:
                                     {
