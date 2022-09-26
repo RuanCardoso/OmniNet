@@ -50,10 +50,16 @@ namespace Neutron.Core.Tests
                     Send(Channel.Reliable);
             }
 
-             if (Input.GetKeyDown(KeyCode.O))
+            if (Input.GetKeyDown(KeyCode.O))
             {
                 for (int i = 0; i < 1; i++)
                     Send(Channel.Reliable);
+            }
+
+            if (Input.GetKeyDown(KeyCode.I))
+            {
+                for (int i = 0; i < 1; i++)
+                    Send(Channel.Unreliable);
             }
 
             // if (Input.GetKeyDown(KeyCode.O))
@@ -95,21 +101,9 @@ namespace Neutron.Core.Tests
             }
         }
 
-        private float count;
-
-        private IEnumerator Start()
-        {
-            GUI.depth = 2;
-            while (true)
-            {
-                count = 1f / Time.unscaledDeltaTime;
-                yield return new WaitForSeconds(0.1f);
-            }
-        }
-
         private void OnGUI()
         {
-            GUI.Label(new Rect(5, 180, 100, 25), "FPS: " + Mathf.Round(count));
+            GUI.Label(new Rect(5, 180, 200, 25), "FPS: " + Mathf.Round(NeutronNetwork.framerate) + "Ms: " + NeutronNetwork.cpuMs);
             Unreliable = GUI.Toggle(new Rect(10, 10, 100, 20), Unreliable, "Unreliable");
             Reliable = GUI.Toggle(new Rect(10, 30, 100, 20), Reliable, "Reliable");
             //ReliableOrdered = GUI.Toggle(new Rect(10, 50, 110, 20), ReliableOrdered, "ReliableOrdered");

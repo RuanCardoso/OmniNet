@@ -17,6 +17,7 @@ using System.Buffers;
 using System.Linq;
 using System.Net;
 using MessagePack;
+using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -165,7 +166,14 @@ namespace Neutron.Core
     {
         public string name = "No Plataform!";
         public bool enabled;
-        public int ActionsPerFrame = 1;
-        public int maxFramerate = 60;
+        [Range(30, byte.MaxValue * 128)] public int maxFramerate = 60;
+#if NEUTRON_MULTI_THREADED
+        [HideInInspector]
+#endif
+        [Range(1, byte.MaxValue * 8)] public int recvMultiplier = 1;
+        [Min(128)] public int recvBufferSize = 8192;
+        [Min(128)] public int sendBufferSize = 8192;
+        [Min(0)][HideInInspector] public int recvTimeout = 0;
+        [Min(0)][HideInInspector] public int sendTimeout = 0;
     }
 }

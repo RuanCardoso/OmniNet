@@ -36,10 +36,21 @@ namespace Neutron.Core
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-0x64)]
-    public class NeutronNetwork : ActionDispatcher
+    public class NeutronNetwork : MonoBehaviour
     {
-        #region Confs
-        internal const int WINDOW_SIZE = byte.MaxValue * 8;
+        [Serializable]
+        private class Host
+        {
+            [SerializeField] internal string name;
+            [SerializeField] internal string host;
+        }
+
+        #region Framerate
+        [SerializeField][Range(0, 10)] private int fpsUpdateRate = 4;
+        public static float framerate = 0f;
+        public static float cpuMs = 0f;
+        private static int frameCount = 0;
+        private static float deltaTime = 0f;
         #endregion
 
         private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();
@@ -55,23 +66,22 @@ namespace Neutron.Core
         public static int Id => udpClient.Id;
         #endregion
 
-        [SerializeField][HideInInspector] private LocalSettings[] localSettings = new LocalSettings[50];
-        [SerializeField] private LocalSettings settings;
-
-        #region Compiler Options
-        [SerializeField][Header("[COMPILER OPTIONS]")] private bool AGRESSIVE_RELAY = false;
-        [SerializeField] private bool MULTI_THREADED = false;
-        [SerializeField] private bool LOCK_FPS = true;
-#if NEUTRON_LOCK_FPS || !NEUTRON_MULTI_THREADED
-        [Header("[RUNTIME OPTIONS]")]
-#endif
-#if NEUTRON_LOCK_FPS
-        [SerializeField] private int MAX_FPS = 60;
-#endif
-#if !NEUTRON_MULTI_THREADED
-        [SerializeField][Min(1)] internal int RECV_MULTIPLIER = 1;
-#endif
+        #region Fields
+        [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
+        [SerializeField][Range(1, 1500)] internal int udpPacketSize = byte.MaxValue;
+        [SerializeField] private bool agressiveRelay = false;
+        [SerializeField] private bool multiThreaded = false;
+        [SerializeField]
+        private Host[] hosts = {
+            new Host() { host = "127.0.0.1", name = "localhost" } ,
+            new Host() { host = "0.0.0.0", name = "WSL" } ,
+            new Host() { host = "0.0.0.0", name = "Cloud Server" } ,
+        };
         #endregion
+
+        [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[50];
+        [SerializeField] internal LocalSettings platformSettings;
+
         public static IFormatterResolver Formatter { get; private set; }
         public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
         {
@@ -89,20 +99,20 @@ namespace Neutron.Core
 
         private void Awake()
         {
+            Instance = this;
             AddResolver(null);
             DontDestroyOnLoad(this);
-            Instance = this;
-#if NEUTRON_LOCK_FPS
+            #region Framerate
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = MAX_FPS;
-#endif
+            Application.targetFrameRate = platformSettings.maxFramerate;
+            #endregion
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, 5055);
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, Helper.GetFreePort()));
-            udpClient.Connect(new UdpEndPoint(IPAddress.Loopback, remoteEndPoint.GetPort()));
+            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(hosts[0].host), remoteEndPoint.GetPort()));
 #endif
 #if UNITY_SERVER || UNITY_EDITOR
             SceneManager.CreateScene("Server", new CreateSceneParameters(LocalPhysicsMode.None));
@@ -122,6 +132,19 @@ namespace Neutron.Core
             Console.Clear();
             StartCoroutine(GetKeyConsole());
 #endif
+        }
+
+        private void Update()
+        {
+            deltaTime += Time.unscaledDeltaTime;
+            frameCount++;
+            if (deltaTime > 1f / fpsUpdateRate)
+            {
+                framerate = frameCount / deltaTime;
+                cpuMs = deltaTime / frameCount * 1000f;
+                deltaTime = 0f;
+                frameCount = 0;
+            }
         }
 
         private IEnumerator GetKeyConsole()
@@ -159,6 +182,10 @@ namespace Neutron.Core
                                 case "memory":
                                     long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
                                     Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSize(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSize(SizeUnits.GB)} GB");
+                                    break;
+                                case "fps":
+                                case "FPS":
+                                    Logger.Print($"FPS: {framerate}");
                                     break;
                                 default:
                                     {
@@ -228,13 +255,12 @@ namespace Neutron.Core
             }
         }
 
-        internal void InternDispatch(Action action) => Dispatch(action);
 #if UNITY_EDITOR
         [ContextMenu("Request Script Compilation")]
         private void RequestScriptCompilation()
         {
-            for (int i = 0; i < localSettings.Length; i++)
-                localSettings[i].enabled = false;
+            for (int i = 0; i < allPlatformSettings.Length; i++)
+                allPlatformSettings[i].enabled = false;
             CompilationPipeline.RequestScriptCompilation();
         }
 
@@ -247,23 +273,25 @@ namespace Neutron.Core
             BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
 #endif
             int index = (int)buildTarget;
-            if (localSettings.InBounds(index))
+            if (allPlatformSettings.InBounds(index))
             {
-                if (!localSettings[index].enabled)
+                if (!allPlatformSettings[index].enabled)
                 {
-                    localSettings[index].enabled = true;
-                    localSettings[index].name = buildTarget.ToString();
+                    string name = buildTarget.ToString();
+#if UNITY_SERVER
+                    name = "Server";
+#endif
+                    allPlatformSettings[index].enabled = true;
+                    allPlatformSettings[index].name = name;
                 }
-                settings = localSettings[index];
+                platformSettings = allPlatformSettings[index];
             }
 
             #region Defines
             List<string> defs = new();
-            if (!LOCK_FPS) defs.Add("NEUTRON_LOCK_FPS_REMOVED");
-            else defs.Add("NEUTRON_LOCK_FPS");
-            if (!MULTI_THREADED) defs.Add("NEUTRON_MULTI_THREADED_REMOVED");
+            if (!multiThreaded) defs.Add("NEUTRON_MULTI_THREADED_REMOVED");
             else defs.Add("NEUTRON_MULTI_THREADED");
-            if (!AGRESSIVE_RELAY) defs.Add("NEUTRON_AGRESSIVE_RELAY_REMOVED");
+            if (!agressiveRelay) defs.Add("NEUTRON_AGRESSIVE_RELAY_REMOVED");
             else defs.Add("NEUTRON_AGRESSIVE_RELAY");
             Helper.SetDefine(defines: defs.ToArray());
             #endregion

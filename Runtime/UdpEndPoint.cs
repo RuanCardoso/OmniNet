@@ -24,7 +24,7 @@ namespace Neutron.Core
         internal UdpEndPoint(IPAddress address, int port) : base(address, port) => socketAddress = base.Serialize();
 
         [Obsolete] public new int Port => GetPort();
-        [Obsolete] public new IPAddress Address => new IPAddress(GetIPAddress());
+        [Obsolete] public new IPAddress Address => new(GetIPAddress());
 
         public override AddressFamily AddressFamily => AddressFamily.InterNetwork;
         public override SocketAddress Serialize() => socketAddress;

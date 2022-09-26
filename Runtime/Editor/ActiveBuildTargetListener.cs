@@ -1,4 +1,4 @@
-using UnityEngine;
+#if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Build;
 
@@ -13,3 +13,4 @@ namespace Neutron.Editor
         }
     }
 }
+#endif

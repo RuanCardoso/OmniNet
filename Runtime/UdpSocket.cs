@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using JetBrains.Annotations;
 using System;
 #if !NEUTRON_MULTI_THREADED
 using System.Collections;
@@ -21,6 +22,7 @@ using ThreadPriority = System.Threading.ThreadPriority;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using UnityEngine;
 
 namespace Neutron.Core
 {
@@ -38,23 +40,58 @@ namespace Neutron.Core
         internal Socket globalSocket;
         internal readonly CancellationTokenSource cancellationTokenSource = new();
 
+        protected void Initialize()
+        {
+            RECV_WINDOW.Initialize();
+            SENT_WINDOW.Initialize();
+        }
+
         internal void Bind(UdpEndPoint localEndPoint)
         {
-            globalSocket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            globalSocket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+            {
+                ReceiveBufferSize = NeutronNetwork.Instance.platformSettings.recvBufferSize,
+                SendBufferSize = NeutronNetwork.Instance.platformSettings.sendBufferSize,
+            };
+
             try
             {
+#if UNITY_SERVER || UNITY_EDITOR
+                if (IsServer) // Only work in Windows Server and Linux Server, Mac Os Server not support!
+                {
+                    switch (Application.platform)
+                    {
+                        case RuntimePlatform.LinuxEditor:
+                        case RuntimePlatform.LinuxServer:
+                        case RuntimePlatform.WindowsEditor:
+                        case RuntimePlatform.WindowsServer:
+                            Native.setsockopt(globalSocket.Handle, SocketOptionLevel.Udp, SocketOptionName.NoChecksum, 0, sizeof(int));
+                            break;
+                        default:
+                            Logger.PrintWarning("This plataform not support -> \"SocketOptionName.NoChecksum\"");
+                            break;
+                    }
+                }
+#endif
+                Initialize();
+                globalSocket.ExclusiveAddressUse = true;
                 globalSocket.Bind(localEndPoint);
 #if NEUTRON_MULTI_THREADED
                 ReadData();
 #else
-                for (int i = 0; i < NeutronNetwork.Instance.RECV_MULTIPLIER; i++)
-                    NeutronNetwork.Instance.StartCoroutine(ReadData());
+                NeutronNetwork.Instance.StartCoroutine(ReadData());
 #endif
             }
             catch (SocketException ex)
             {
                 if (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
                     Logger.PrintWarning($"The {Name} not binded to {localEndPoint} because it is already in use!");
+                else
+                    Logger.LogStacktrace(ex);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogStacktrace(ex);
             }
         }
 
@@ -144,6 +181,7 @@ namespace Neutron.Core
             {
                 byte[] buffer = new byte[0x5DC];
                 EndPoint endPoint = new UdpEndPoint(0, 0);
+                int multiplier = NeutronNetwork.Instance.platformSettings.recvMultiplier;
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
 #if NEUTRON_MULTI_THREADED
@@ -151,129 +189,134 @@ namespace Neutron.Core
 #endif
                     {
 #if !NEUTRON_MULTI_THREADED
-                        if (globalSocket.Available <= 0)
-                        {
-                            yield return null;
-                            continue;
-                        }
+                        for (int i = 0; i < multiplier; i++)
 #endif
-                        int length = globalSocket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
-                        if (length > 0)
                         {
-                            var remoteEndPoint = (UdpEndPoint)endPoint;
-                            ByteStream RECV_STREAM = ByteStream.Get();
-                            RECV_STREAM.Write(buffer, 0, length);
-                            RECV_STREAM.Position = 0;
-                            RECV_STREAM.isRawBytes = true;
-
-                            byte maskBit = RECV_STREAM.ReadByte();
-                            Channel bitChannel = (Channel)(maskBit & 0x3);
-                            Target bitTarget = (Target)((maskBit >> 2) & 0x3);
-                            if ((byte)bitTarget > 0x3 || (byte)bitChannel > 0x3)
-                            {
-                                Logger.PrintError($"{Name} - ReadData - Invalid target -> {bitTarget} or channel -> {bitChannel}");
-                                //*************************************************************************************************//
-                                RECV_STREAM.Release();
 #if !NEUTRON_MULTI_THREADED
+                            if (globalSocket.Available <= 0)
+                            {
                                 yield return null;
-#endif
-                                continue; // << skip
+                                continue;
                             }
-                            else
+#endif
+                            int length = globalSocket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
+                            if (length > 0)
                             {
-                                switch (bitChannel)
+                                var remoteEndPoint = (UdpEndPoint)endPoint;
+                                ByteStream RECV_STREAM = ByteStream.Get();
+                                RECV_STREAM.Write(buffer, 0, length);
+                                RECV_STREAM.Position = 0;
+                                RECV_STREAM.isRawBytes = true;
+
+                                byte maskBit = RECV_STREAM.ReadByte();
+                                Channel bitChannel = (Channel)(maskBit & 0x3);
+                                Target bitTarget = (Target)((maskBit >> 2) & 0x3);
+                                if ((byte)bitTarget > 0x3 || (byte)bitChannel > 0x3)
                                 {
-                                    case Channel.Unreliable:
-                                        {
-                                            MessageType msgType = RECV_STREAM.ReadPacket();
-                                            switch (msgType)
-                                            {
-                                                case MessageType.Acknowledgement:
-                                                    int acknowledgment = RECV_STREAM.ReadInt();
-                                                    UdpClient _client_ = GetClient(remoteEndPoint);
-                                                    _client_.SENT_WINDOW.Acknowledgement(acknowledgment);
-                                                    break;
-                                                default:
-                                                    OnMessage(RECV_STREAM, bitChannel, bitTarget, msgType, remoteEndPoint);
-                                                    break;
-                                            }
-                                        }
-                                        break;
-                                    case Channel.Reliable:
-                                        {
-                                            int sequence = RECV_STREAM.ReadInt();
-                                            UdpClient _client_ = GetClient(remoteEndPoint);
-                                            int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, RECV_STREAM, out RecvWindow.MessageRoute msgRoute);
-                                            if (acknowledgment > -1)
-                                            {
-                                                if (msgRoute == RecvWindow.MessageRoute.Unk)
-                                                {
-                                                    RECV_STREAM.Release();
+                                    Logger.PrintError($"{Name} - ReadData - Invalid target -> {bitTarget} or channel -> {bitChannel}");
+                                    //*************************************************************************************************//
+                                    RECV_STREAM.Release();
 #if !NEUTRON_MULTI_THREADED
-                                                    yield return null;
+                                    yield return null;
 #endif
-                                                    continue; // << skip
-                                                }
-
-                                                #region Send Acknowledgement
-                                                ByteStream windowStream = ByteStream.Get();
-                                                windowStream.WritePacket(MessageType.Acknowledgement);
-                                                windowStream.Write(acknowledgment);
-                                                SendUnreliable(windowStream, remoteEndPoint, Target.Me);
-                                                windowStream.Release();
-                                                #endregion
-
-                                                if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
-                                                {
-                                                    RECV_STREAM.Release();
-#if !NEUTRON_MULTI_THREADED
-                                                    yield return null;
-#endif
-                                                    continue; // << skip
-                                                }
-
+                                    continue; // << skip
+                                }
+                                else
+                                {
+                                    switch (bitChannel)
+                                    {
+                                        case Channel.Unreliable:
+                                            {
                                                 MessageType msgType = RECV_STREAM.ReadPacket();
                                                 switch (msgType)
                                                 {
+                                                    case MessageType.Acknowledgement:
+                                                        int acknowledgment = RECV_STREAM.ReadInt();
+                                                        UdpClient _client_ = GetClient(remoteEndPoint);
+                                                        _client_.SENT_WINDOW.Acknowledgement(acknowledgment);
+                                                        break;
                                                     default:
-                                                        {
-                                                            RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
-                                                            while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0)
-                                                            {
-                                                                OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
-                                                                if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)
-                                                                    RECV_WINDOW.ExpectedSequence++;
-                                                                // remove the references to make it eligible for the garbage collector.
-                                                                RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket] = null;
-                                                                RECV_WINDOW.LastProcessedPacket++;
-                                                            }
-
-                                                            if (RECV_WINDOW.LastProcessedPacket > (RECV_WINDOW.window.Length - 1))
-                                                                Logger.PrintWarning($"Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized. {RECV_WINDOW.LastProcessedPacket} : {RECV_WINDOW.window.Length}");
-                                                        }
+                                                        OnMessage(RECV_STREAM, bitChannel, bitTarget, msgType, remoteEndPoint);
                                                         break;
                                                 }
-                                                break;
                                             }
-                                            else
+                                            break;
+                                        case Channel.Reliable:
                                             {
-                                                RECV_STREAM.Release();
+                                                int sequence = RECV_STREAM.ReadInt();
+                                                UdpClient _client_ = GetClient(remoteEndPoint);
+                                                int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, RECV_STREAM, out RecvWindow.MessageRoute msgRoute);
+                                                if (acknowledgment > -1)
+                                                {
+                                                    if (msgRoute == RecvWindow.MessageRoute.Unk)
+                                                    {
+                                                        RECV_STREAM.Release();
 #if !NEUTRON_MULTI_THREADED
-                                                yield return null;
+                                                        yield return null;
 #endif
-                                                continue; // << skip
-                                            }
-                                        }
-                                    default:
-                                        Logger.PrintError($"Unknown channel {bitChannel} received from {remoteEndPoint}");
-                                        break;
-                                }
-                            }
+                                                        continue; // << skip
+                                                    }
 
-                            RECV_STREAM.Release();
+                                                    #region Send Acknowledgement
+                                                    ByteStream windowStream = ByteStream.Get();
+                                                    windowStream.WritePacket(MessageType.Acknowledgement);
+                                                    windowStream.Write(acknowledgment);
+                                                    SendUnreliable(windowStream, remoteEndPoint, Target.Me);
+                                                    windowStream.Release();
+                                                    #endregion
+
+                                                    if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
+                                                    {
+                                                        RECV_STREAM.Release();
+#if !NEUTRON_MULTI_THREADED
+                                                        yield return null;
+#endif
+                                                        continue; // << skip
+                                                    }
+
+                                                    MessageType msgType = RECV_STREAM.ReadPacket();
+                                                    switch (msgType)
+                                                    {
+                                                        default:
+                                                            {
+                                                                RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
+                                                                while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0)
+                                                                {
+                                                                    OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
+                                                                    if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)
+                                                                        RECV_WINDOW.ExpectedSequence++;
+                                                                    // remove the references to make it eligible for the garbage collector.
+                                                                    RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket] = null;
+                                                                    RECV_WINDOW.LastProcessedPacket++;
+                                                                }
+
+                                                                if (RECV_WINDOW.LastProcessedPacket > (RECV_WINDOW.window.Length - 1))
+                                                                    Logger.PrintWarning($"Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized. {RECV_WINDOW.LastProcessedPacket} : {RECV_WINDOW.window.Length}");
+                                                            }
+                                                            break;
+                                                    }
+                                                    break;
+                                                }
+                                                else
+                                                {
+                                                    RECV_STREAM.Release();
+#if !NEUTRON_MULTI_THREADED
+                                                    yield return null;
+#endif
+                                                    continue; // << skip
+                                                }
+                                            }
+                                        default:
+                                            Logger.PrintError($"Unknown channel {bitChannel} received from {remoteEndPoint}");
+                                            break;
+                                    }
+                                }
+
+                                RECV_STREAM.Release();
+                            }
+                            else
+                                Logger.PrintError($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
                         }
-                        else
-                            Logger.PrintError($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
                     }
 #if NEUTRON_MULTI_THREADED
                     catch (ThreadAbortException) { continue; }

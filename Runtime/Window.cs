@@ -25,15 +25,25 @@ namespace Neutron.Core
 {
     public class Window
     {
-        int lastIndex = 0;
-        internal ByteStream[] window = new ByteStream[NeutronNetwork.WINDOW_SIZE];
+        private int lastIndex = 0;
+        private int windowSize = 0;
+        internal ByteStream[] window;
 
-        public Window() => Resize(window.Length - 1);
+        internal void Initialize()
+        {
+            if (window == null)
+            {
+                windowSize = NeutronNetwork.Instance.windowSize;
+                window = new ByteStream[windowSize];
+                Resize(window.Length - 1);
+            }
+        }
+
         internal void Resize(int sequence)
         {
             if (!window.InBounds(sequence))
             {
-                int size = Math.Abs(sequence - window.Length) + NeutronNetwork.WINDOW_SIZE;
+                int size = Math.Abs(sequence - window.Length) + windowSize;
                 Array.Resize(ref window, window.Length + size);
             }
 
@@ -45,7 +55,9 @@ namespace Neutron.Core
     public class SentWindow : Window
     {
         #region Fields
+#pragma warning disable IDE0051
         private const int WINDOW_SIZE_COMPENSATION = 2;
+#pragma warning restore IDE0051
         private int sequence = -1;
 #if NEUTRON_MULTI_THREADED
         private readonly object window_resize_lock = new();
@@ -75,6 +87,7 @@ namespace Neutron.Core
                 return window[sequence];
             }
         }
+
 #if NEUTRON_MULTI_THREADED
         internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
 #else
