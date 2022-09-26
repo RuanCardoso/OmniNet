@@ -38,6 +38,8 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x64)]
     public class NeutronNetwork : MonoBehaviour
     {
+        private const byte SETTINGS_SIZE = 50;
+
         [Serializable]
         private class Host
         {
@@ -69,6 +71,8 @@ namespace Neutron.Core
         #region Fields
         [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
         [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64;
+        [SerializeField][Range(0, 5f)] internal double ackTimeout = 0.3f; // seconds
+        [SerializeField][Range(1, 1000)] internal int ackSweep = 15; // ms
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField] private bool multiThreaded = false;
         [SerializeField]
@@ -79,7 +83,7 @@ namespace Neutron.Core
         };
         #endregion
 
-        [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[50];
+        [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
         [SerializeField] internal LocalSettings platformSettings;
 
         public static IFormatterResolver Formatter { get; private set; }
@@ -261,7 +265,12 @@ namespace Neutron.Core
         private void RequestScriptCompilation()
         {
             for (int i = 0; i < allPlatformSettings.Length; i++)
-                allPlatformSettings[i].enabled = false;
+            {
+                if (allPlatformSettings[i] != null)
+                    allPlatformSettings[i].enabled = false;
+                else continue;
+            }
+
             CompilationPipeline.RequestScriptCompilation();
         }
 
@@ -274,18 +283,26 @@ namespace Neutron.Core
             BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
 #endif
             int index = (int)buildTarget;
-            if (allPlatformSettings.InBounds(index))
+            allPlatformSettings ??= new LocalSettings[SETTINGS_SIZE];
+            if (allPlatformSettings.Length == SETTINGS_SIZE)
             {
-                if (!allPlatformSettings[index].enabled)
+                if (allPlatformSettings.InBounds(index))
                 {
-                    string name = buildTarget.ToString();
+                    if (allPlatformSettings[index] != null)
+                    {
+                        if (!allPlatformSettings[index].enabled)
+                        {
+                            string name = buildTarget.ToString();
 #if UNITY_SERVER
-                    name = "Server";
+                            name = "Server";
 #endif
-                    allPlatformSettings[index].enabled = true;
-                    allPlatformSettings[index].name = name;
+                            allPlatformSettings[index].enabled = true;
+                            allPlatformSettings[index].name = name;
+                        }
+                        platformSettings = allPlatformSettings[index];
+                    }
+                    else RequestScriptCompilation();
                 }
-                platformSettings = allPlatformSettings[index];
             }
 
             #region Defines

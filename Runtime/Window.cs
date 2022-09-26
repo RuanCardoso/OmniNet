@@ -99,6 +99,8 @@ namespace Neutron.Core
 #endif
             {
                 int nextSequence = 0;
+                double timeout = NeutronNetwork.Instance.ackTimeout;
+                int sweep = NeutronNetwork.Instance.ackSweep;
                 while (!token.IsCancellationRequested)
                 {
 #if NEUTRON_AGRESSIVE_RELAY
@@ -138,7 +140,7 @@ namespace Neutron.Core
                                 else
                                 {
                                     double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
-                                    if (totalSeconds > 1d)
+                                    if (totalSeconds > timeout)
                                     {
                                         window.Position = 0;
                                         window.SetLastWriteTime();
@@ -161,9 +163,9 @@ namespace Neutron.Core
                     }
 
 #if NEUTRON_MULTI_THREADED
-                    await Task.Delay(100);
+                    await Task.Delay(sweep);
 #else
-                    yield return new WaitForSeconds(0.1f);
+                    yield return new WaitForSeconds(sweep / 1000f);
 #endif
                 }
             }
