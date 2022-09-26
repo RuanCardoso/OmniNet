@@ -20,7 +20,9 @@ namespace Neutron.Core
 {
     public sealed class ByteStream
     {
+        internal static ByteStreamPool streams;
         internal bool isRawBytes;
+
         private int position;
         private int bytesWritten;
         private bool isAcked;
@@ -217,7 +219,6 @@ namespace Neutron.Core
             return true;
         }
 
-        static readonly ByteStreamPool streams = new(128);
         public static ByteStream Get()
         {
             ByteStream _get_ = streams.Get();

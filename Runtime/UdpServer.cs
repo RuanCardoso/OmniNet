@@ -55,7 +55,7 @@ namespace Neutron.Core
                             UdpClient connectedClient = GetClient(remoteEndPoint);
                             connectedClient.Send(stream, channel, target);
                             stream.Release();
-                            //*********************//
+                            //********************
                             _client_.Close(true);
                         }
                     }

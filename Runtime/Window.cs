@@ -47,7 +47,7 @@ namespace Neutron.Core
                 Array.Resize(ref window, window.Length + size);
             }
 
-            for (int i = lastIndex; i < window.Length; i++) window[i] = new(128);
+            for (int i = lastIndex; i < window.Length; i++) window[i] = new(NeutronNetwork.Instance.udpPacketSize);
             if (lastIndex != window.Length) lastIndex = window.Length;
         }
     }
@@ -107,71 +107,58 @@ namespace Neutron.Core
 #else
                     int sequence = this.sequence + WINDOW_SIZE_COMPENSATION;
 #endif
-#if NEUTRON_MULTI_THREADED
-                    //lock (window_resize_lock)
+                    for (int i = nextSequence; i < sequence && window.InBounds(i); i++)
 #endif
                     {
-                        for (int i = nextSequence; i < sequence && window.InBounds(i); i++)
-#endif
+                        try
                         {
-                            try
-                            {
-#if !NEUTRON_AGRESSIVE_RELAY && NEUTRON_MULTI_THREADED
-                                //lock (window_resize_lock)
-#endif
-                                {
 #if NEUTRON_AGRESSIVE_RELAY
-                                    ByteStream window = this.window[i];
+                            ByteStream window = this.window[i];
 #else
-                                    ByteStream window = this.window[nextSequence];
+                            ByteStream window = this.window[nextSequence];
 #endif
-                                    if (window.BytesWritten > 0)
-                                    {
-                                        if (window.IsAcked == true)
-                                        {
+                            if (window.BytesWritten > 0)
+                            {
+                                if (window.IsAcked == true)
+                                {
 #if !NEUTRON_AGRESSIVE_RELAY
-                                            nextSequence++;
-                                            // remove the references to make it eligible for the garbage collector.
-                                            this.window[nextSequence - 1] = null;
+                                    nextSequence++;
+                                    // remove the references to make it eligible for the garbage collector.
+                                    this.window[nextSequence - 1] = null;
 #else
-                                            int confirmedSequence = i;
-                                            if (confirmedSequence == nextSequence)
-                                            {
-                                                nextSequence++;
-                                                // remove the references to make it eligible for the garbage collector.
-                                                this.window[i] = null;
-                                            }
+                                    int confirmedSequence = i;
+                                    if (confirmedSequence == nextSequence)
+                                    {
+                                        nextSequence++;
+                                        // remove the references to make it eligible for the garbage collector.
+                                        this.window[i] = null;
+                                    }
 #endif
-                                        }
-                                        else
-                                        {
-                                            double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
-                                            if (totalSeconds > 1d)
-                                            {
-                                                window.Position = 0;
-                                                window.SetLastWriteTime();
-                                                socket.Send(window, remoteEndPoint);
-                                                Logger.Print("Reenviando");
-                                            }
-                                            else { }
-                                        }
+                                }
+                                else
+                                {
+                                    double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
+                                    if (totalSeconds > 1d)
+                                    {
+                                        window.Position = 0;
+                                        window.SetLastWriteTime();
+                                        socket.Send(window, remoteEndPoint);
                                     }
                                     else { }
                                 }
                             }
-                            catch (Exception ex)
-                            {
-#if NEUTRON_AGRESSIVE_RELAY
-                                Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
-#else
-                                Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
-#endif
-                                continue;
-                            }
+                            else { }
                         }
+                        catch (Exception ex)
+                        {
 #if NEUTRON_AGRESSIVE_RELAY
-                    }
+                            Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
+#else
+                            Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
 #endif
+                            continue;
+                        }
+                    }
 
 #if NEUTRON_MULTI_THREADED
                     await Task.Delay(100);

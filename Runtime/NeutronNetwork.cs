@@ -68,7 +68,7 @@ namespace Neutron.Core
 
         #region Fields
         [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
-        [SerializeField][Range(1, 1500)] internal int udpPacketSize = byte.MaxValue;
+        [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64;
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField] private bool multiThreaded = false;
         [SerializeField]
@@ -102,6 +102,7 @@ namespace Neutron.Core
             Instance = this;
             AddResolver(null);
             DontDestroyOnLoad(this);
+            ByteStream.streams = new();
             #region Framerate
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = platformSettings.maxFramerate;
