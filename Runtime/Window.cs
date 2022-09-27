@@ -101,6 +101,7 @@ namespace Neutron.Core
                 int nextSequence = 0;
                 double timeout = NeutronNetwork.Instance.ackTimeout;
                 int sweep = NeutronNetwork.Instance.ackSweep;
+                var yieldSec = new WaitForSeconds(sweep / 1000f); // avoid gc alloc;
                 while (!token.IsCancellationRequested)
                 {
 #if NEUTRON_AGRESSIVE_RELAY
@@ -163,9 +164,9 @@ namespace Neutron.Core
                     }
 
 #if NEUTRON_MULTI_THREADED
-                    await Task.Delay(sweep);
+                    await Task.Delay(sweep); // gc alloc
 #else
-                    yield return new WaitForSeconds(sweep / 1000f);
+                    yield return yieldSec; // gc alloc
 #endif
                 }
             }

@@ -124,18 +124,19 @@ namespace Neutron.Core
 #endif
         }
 
-        private void Start()
-        {
-            Invoke(nameof(Main), 0.3f);
-            if (!GarbageCollector.isIncremental)
-                Logger.PrintWarning("Tip: Enable \"Incremental GC\" for maximum performance!");
-        }
-
+        private void Start() => Invoke(nameof(Main), 0.3f);
         private void Main()
         {
 #if UNITY_SERVER && !UNITY_EDITOR
             Console.Clear();
             StartCoroutine(GetKeyConsole());
+#endif
+            if (!GarbageCollector.isIncremental) Logger.PrintWarning("Tip: Enable \"Incremental GC\" for maximum performance!");
+#if !NETSTANDARD2_1
+            Logger.PrintWarning("Tip: Change API Mode to \".NET Standard 2.1\" for maximum performance!");
+#endif
+#if !ENABLE_IL2CPP && !UNITY_EDITOR
+            Logger.PrintWarning("Tip: Change API Mode to \"IL2CPP\" for maximum performance!");
 #endif
         }
 
@@ -355,7 +356,7 @@ namespace Neutron.Core
                 case MessageType.StressTest:
                     {
                         int indx = recvStream.ReadInt();
-                        Logger.PrintError($"Stress Test! -> {isServer}" + indx);
+                        //Logger.PrintError($"Stress Test! -> {isServer}" + indx);
                         if (!isServer)
                             return;
                         ByteStream stream = ByteStream.Get();
