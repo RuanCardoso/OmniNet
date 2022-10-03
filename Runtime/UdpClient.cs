@@ -56,6 +56,20 @@ namespace Neutron.Core
             }
         }
 
+        readonly WaitForSeconds yieldPing = new(1f);
+        private IEnumerator Ping()
+        {
+            while (IsConnected)
+            {
+                ByteStream stream = ByteStream.Get();
+                stream.WritePacket(MessageType.Ping);
+                stream.Write(NeutronTime.LocalTime);
+                Send(stream, Channel.Unreliable, Target.Me);
+                stream.Release();
+                yield return yieldPing;
+            }
+        }
+
         internal int Send(ByteStream byteStream) => Send(byteStream, remoteEndPoint, 0);
         internal int Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
         {
@@ -83,8 +97,17 @@ namespace Neutron.Core
                         {
                             Id = recvStream.ReadUShort();
                             IsConnected = true;
+                            NeutronNetwork.Instance.StartCoroutine(Ping());
                             NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
                         }
+                        else Logger.PrintError("The client is already connected!");
+                    }
+                    break;
+                case MessageType.Ping:
+                    {
+                        double timeOfClient = recvStream.ReadDouble();
+                        double timeOfServer = recvStream.ReadDouble();
+                        NeutronTime.SetTime(timeOfClient, timeOfServer);
                     }
                     break;
                 default:

@@ -12,7 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System.Collections;
 using System.Threading;
 using UnityEngine;
 
@@ -103,10 +102,18 @@ namespace Neutron.Core.Tests
 
         private void OnGUI()
         {
-            GUI.Label(new Rect(5, 180, 200, 25), "FPS: " + Mathf.Round(NeutronNetwork.framerate) + "Ms: " + NeutronNetwork.cpuMs);
+            var style = new GUIStyle
+            {
+                fontSize = 28,
+            };
+
+            style.normal.textColor = Color.white;
+            style.onFocused.textColor = Color.white;
+            style.onHover.textColor = Color.white;
+
+            GUI.Label(new Rect(5, 180, 500, 25), "FPS: " + Mathf.Round(NeutronNetwork.framerate) + "Ms: " + NeutronNetwork.cpuMs + " Time: " + NeutronTime.Time, style);
             Unreliable = GUI.Toggle(new Rect(10, 10, 100, 20), Unreliable, "Unreliable");
             Reliable = GUI.Toggle(new Rect(10, 30, 100, 20), Reliable, "Reliable");
-            //ReliableOrdered = GUI.Toggle(new Rect(10, 50, 110, 20), ReliableOrdered, "ReliableOrdered");
         }
     }
 }

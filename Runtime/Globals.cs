@@ -36,10 +36,12 @@ namespace Neutron.Core
         Acknowledgement = 2,
         Zone = 3,
         GlobalMessage = 4,
-        iRPCPlayer = 5,
-        iRPCInstantiated = 6,
-        iRPCScene = 7,
-        Instantiate = 8,
+        RemotePlayer = 5,
+        RemoteInstantiated = 6,
+        RemoteScene = 7,
+        RemoteStatic = 8,
+        Instantiate = 9,
+        Ping = 10,
         Connect = 254,
         Disconnect = 255,
     }
@@ -63,6 +65,7 @@ namespace Neutron.Core
         Player = 0,
         Instantiated = 1,
         Scene = 2,
+        Static = 3,
     }
 
     internal enum SizeUnits
@@ -171,6 +174,8 @@ namespace Neutron.Core
         [HideInInspector]
 #endif
         [Range(1, byte.MaxValue * 8)] public int recvMultiplier = 1;
+        [Range(0, 5f)] public double ackTimeout = 0.3f; // seconds
+        [Range(1, 1000)] public int ackSweep = 15; // ms
         [Min(128)] public int recvBufferSize = 8192;
         [Min(128)] public int sendBufferSize = 8192;
         [Min(0)][HideInInspector] public int recvTimeout = 0;

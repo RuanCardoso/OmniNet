@@ -16,11 +16,10 @@ using System;
 
 namespace Neutron.Core
 {
-    public class iRPCAttribute : Attribute
+    public class RemoteAttribute : Attribute
     {
         internal readonly byte id;
-
-        public iRPCAttribute(byte id)
+        public RemoteAttribute(byte id)
         {
             this.id = id;
         }

@@ -12,7 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using JetBrains.Annotations;
 using System;
 #if !NEUTRON_MULTI_THREADED
 using System.Collections;
@@ -280,7 +279,7 @@ namespace Neutron.Core
                                                         default:
                                                             {
                                                                 RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
-                                                                while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0)
+                                                                while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0) // Head-of-line blocking
                                                                 {
                                                                     OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
                                                                     if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)

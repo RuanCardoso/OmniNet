@@ -92,6 +92,19 @@ namespace Neutron.Core
             Write((byte)(value >> 8));
         }
 
+        public unsafe void Write(double value)
+        {
+            ulong TmpValue = *(ulong*)&value;
+            Write((byte)TmpValue);
+            Write((byte)(TmpValue >> 8));
+            Write((byte)(TmpValue >> 16));
+            Write((byte)(TmpValue >> 24));
+            Write((byte)(TmpValue >> 32));
+            Write((byte)(TmpValue >> 40));
+            Write((byte)(TmpValue >> 48));
+            Write((byte)(TmpValue >> 56));
+        }
+
         public void Write(long value)
         {
             Write((byte)value);
@@ -179,6 +192,18 @@ namespace Neutron.Core
             return value;
         }
 
+        public unsafe double ReadDouble()
+        {
+            uint lo = (uint)(ReadByte() | ReadByte() << 8 |
+               ReadByte() << 16 | ReadByte() << 24);
+
+            uint hi = (uint)(ReadByte() | ReadByte() << 8 |
+               ReadByte() << 16 | ReadByte() << 24);
+
+            ulong tmpBuffer = ((ulong)hi) << 32 | lo;
+            return *((double*)&tmpBuffer);
+        }
+
         public long ReadLong()
         {
             long value = ReadByte();
@@ -225,6 +250,16 @@ namespace Neutron.Core
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+            return _get_;
+        }
+
+        internal static ByteStream Get(MessageType msgType)
+        {
+            ByteStream _get_ = streams.Get();
+            _get_.isRelease = false;
+            if (_get_.position != 0 || _get_.bytesWritten != 0)
+                Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+            else _get_.WritePacket(msgType);
             return _get_;
         }
 

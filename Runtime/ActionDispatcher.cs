@@ -21,14 +21,7 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class ActionDispatcher : MonoBehaviour
     {
-        protected virtual int ActionsPerFrame
-        {
-            get
-            {
-                return 1;
-            }
-        }
-
+        [SerializeField][Min(1)] internal int actionsPerFrame = 1;
         private readonly object syncRoot = new();
         private readonly Queue<Action> actions = new();
 
@@ -36,7 +29,7 @@ namespace Neutron.Core
         {
             lock (syncRoot)
             {
-                for (int i = 0; i < ActionsPerFrame && actions.Count > 0; i++)
+                for (int i = 0; i < actionsPerFrame && actions.Count > 0; i++)
                     actions.Dequeue()();
             }
         }

@@ -18,15 +18,14 @@ using MessagePack.Unity;
 using MessagePack.Unity.Extension;
 using Neutron.Resolvers;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Compilation;
+using UnityEditor.SceneManagement;
 #endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -36,6 +35,7 @@ namespace Neutron.Core
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-0x64)]
+    [RequireComponent(typeof(ActionDispatcher))]
     public class NeutronNetwork : MonoBehaviour
     {
         private const byte SETTINGS_SIZE = 50;
@@ -66,16 +66,23 @@ namespace Neutron.Core
         #region Properties
         internal static NeutronNetwork Instance { get; private set; }
         public static int Id => udpClient.Id;
+        public static ActionDispatcher Dispatcher => Instance.dispatcher;
         #endregion
 
         #region Fields
         [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
         [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64;
-        [SerializeField][Range(0, 5f)] internal double ackTimeout = 0.3f; // seconds
-        [SerializeField][Range(1, 1000)] internal int ackSweep = 15; // ms
+        [SerializeField]
+#if !UNITY_SERVER
+        [HideInInspector]
+#endif
+        private bool consoleInput;
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField] private bool multiThreaded = false;
         [SerializeField]
+#if UNITY_SERVER
+        [HideInInspector]
+#endif
         private Host[] hosts = {
             new Host() { host = "127.0.0.1", name = "localhost" } ,
             new Host() { host = "0.0.0.0", name = "WSL" } ,
@@ -83,8 +90,13 @@ namespace Neutron.Core
         };
         #endregion
 
+        internal static double timeAsDouble;
+
         [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
         [SerializeField] internal LocalSettings platformSettings;
+
+        private ActionDispatcher dispatcher;
+        private readonly CancellationTokenSource tokenSource = new();
 
         public static IFormatterResolver Formatter { get; private set; }
         public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
@@ -104,6 +116,7 @@ namespace Neutron.Core
         private void Awake()
         {
             Instance = this;
+            dispatcher = GetComponent<ActionDispatcher>();
             AddResolver(null);
             DontDestroyOnLoad(this);
             ByteStream.streams = new();
@@ -129,7 +142,7 @@ namespace Neutron.Core
         {
 #if UNITY_SERVER && !UNITY_EDITOR
             Console.Clear();
-            StartCoroutine(GetKeyConsole());
+            NeutronConsole.Initialize(tokenSource.Token, this);
 #endif
             if (!GarbageCollector.isIncremental) Logger.PrintWarning("Tip: Enable \"Incremental GC\" for maximum performance!");
 #if !NETSTANDARD2_1
@@ -151,114 +164,7 @@ namespace Neutron.Core
                 deltaTime = 0f;
                 frameCount = 0;
             }
-        }
-
-        private IEnumerator GetKeyConsole()
-        {
-            Dictionary<string, string> dict = new();
-            //********************************************************
-            Logger.Print("Press 'Enter' to write a command!");
-            Logger.Print("Ex: Ban -user Ruan -days 300");
-            Logger.Print("Press 'ESC' to exit!");
-            //********************************************************
-            while (true)
-            {
-                if (Console.KeyAvailable)
-                {
-                    var key = Console.ReadKey(true).Key;
-                    switch (key)
-                    {
-                        case ConsoleKey.Enter:
-                            Logger.Print("Write the command:");
-                            //**********************************
-                            string command = Console.ReadLine();
-                            dict.Clear();
-                            switch (command)
-                            {
-                                case "Clear":
-                                case "clear":
-                                    Console.Clear();
-                                    break;
-                                case "GC Collect":
-                                case "gc collect":
-                                    GC.Collect();
-                                    Logger.Print("Collected");
-                                    break;
-                                case "Memory":
-                                case "memory":
-                                    long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
-                                    Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSize(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSize(SizeUnits.GB)} GB");
-                                    break;
-                                case "fps":
-                                case "FPS":
-                                    Logger.Print($"FPS: {framerate}");
-                                    break;
-                                default:
-                                    {
-                                        if (!string.IsNullOrEmpty(command))
-                                        {
-                                            int paramsCount = 0;
-                                            string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
-                                            if (parameters.Length <= 1) Logger.Print("Continuous execution without parameters!");
-                                            else
-                                            {
-                                                for (int i = 1; i < parameters.Length; i++)
-                                                {
-                                                    if (parameters[i].InBounds(0) && parameters[i].InBounds(1))
-                                                    {
-                                                        string parameter = parameters[i][0];
-                                                        string value = parameters[i][1];
-                                                        //*****************************************************************
-                                                        if (string.IsNullOrEmpty(parameter) || string.IsNullOrEmpty(value))
-                                                            Logger.Print("Continuous execution without parameters!");
-                                                        else
-                                                        {
-                                                            paramsCount++;
-                                                            if (!dict.TryAdd(parameter, value))
-                                                                dict[parameter] = value;
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        Logger.PrintError("Invalid parameters!");
-                                                        yield return null;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-
-                                            command = parameters[0][0];
-                                            //**************************************************************
-                                            Logger.Print($"Command executed: '{command}' | parameter count: {paramsCount}");
-                                        }
-                                        else
-                                        {
-                                            Logger.PrintError("There are no commands!");
-                                            yield return null;
-                                            continue;
-                                        }
-                                    }
-                                    break;
-                            }
-                            break;
-                        case ConsoleKey.Escape:
-                            Logger.Print("Exiting...");
-                            OnApplicationQuit();
-                            Application.Quit(0);
-                            break;
-                        default:
-                            Logger.Print($"There is no command for the '{key}' key");
-                            break;
-                    }
-                }
-                else
-                {
-                    yield return null;
-                    continue;
-                }
-
-                yield return null;
-            }
+            timeAsDouble = Time.timeAsDouble;
         }
 
 #if UNITY_EDITOR
@@ -272,7 +178,8 @@ namespace Neutron.Core
                 else continue;
             }
 
-            CompilationPipeline.RequestScriptCompilation();
+            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
+            else Logger.PrintError("RequestScriptCompilation -> Failed");
         }
 
         private void Reset() => OnValidate();
@@ -300,7 +207,9 @@ namespace Neutron.Core
                             allPlatformSettings[index].enabled = true;
                             allPlatformSettings[index].name = name;
                         }
-                        platformSettings = allPlatformSettings[index];
+
+                        if (platformSettings != allPlatformSettings[index])
+                            platformSettings = allPlatformSettings[index];
                     }
                     else RequestScriptCompilation();
                 }
@@ -353,6 +262,9 @@ namespace Neutron.Core
                         else Logger.PrintError($"Handler for {id} not found!");
                     }
                     break;
+                case MessageType.RemoteStatic:
+                    Logger.PrintError("receive remote static");
+                    break;
                 case MessageType.StressTest:
                     {
                         int indx = recvStream.ReadInt();
@@ -375,14 +287,13 @@ namespace Neutron.Core
             byteStream.Release();
         }
 
-        internal static void iRPC(ByteStream byteStream, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        internal static void Remote(ByteStream parameters, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
-            ByteStream iRPCStream = ByteStream.Get();
-            iRPCStream.WritePacket(msgType);
-            iRPCStream.Write(byteStream);
-            byteStream.Release();
-            Send(iRPCStream, playerId, channel, target);
-            iRPCStream.Release();
+            ByteStream remote = ByteStream.Get(msgType);
+            remote.Write(parameters);
+            parameters.Release();
+            Send(remote, playerId, channel, target);
+            remote.Release();
         }
 
         public static void Spawn(ByteStream byteStream, NeutronIdentity prefab, Vector3 position = default, Quaternion rotation = default, bool immediate = true, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
@@ -400,10 +311,14 @@ namespace Neutron.Core
             // instantiateStream.Release();
         }
 
-        private void OnApplicationQuit()
+        internal void OnApplicationQuit()
         {
-            udpClient.Close();
-            udpServer.Close();
+            tokenSource.Cancel();
+            using (tokenSource)
+            {
+                udpClient.Close();
+                udpServer.Close();
+            }
         }
     }
 }

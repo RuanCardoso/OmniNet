@@ -99,9 +99,11 @@ namespace Neutron.Core
 #endif
             {
                 int nextSequence = 0;
-                double timeout = NeutronNetwork.Instance.ackTimeout;
-                int sweep = NeutronNetwork.Instance.ackSweep;
+                double timeout = NeutronNetwork.Instance.platformSettings.ackTimeout;
+                int sweep = NeutronNetwork.Instance.platformSettings.ackSweep;
+#if !NEUTRON_MULTI_THREADED
                 var yieldSec = new WaitForSeconds(sweep / 1000f); // avoid gc alloc;
+#endif
                 while (!token.IsCancellationRequested)
                 {
 #if NEUTRON_AGRESSIVE_RELAY
@@ -205,7 +207,7 @@ namespace Neutron.Core
                 case MessageRoute.OutOfOrder:
                     {
                         Resize(sequence);
-                        //*****************************************
+                        //***************************************
                         ByteStream window = this.window[sequence];
                         if (window.BytesWritten <= 0)
                         {

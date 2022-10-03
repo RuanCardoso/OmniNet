@@ -40,25 +40,44 @@ namespace Neutron.Core
                         UdpClient _client_ = new(remoteEndPoint, globalSocket);
                         if (clients.TryAdd(uniqueId, _client_))
                         {
-                            ByteStream stream = ByteStream.Get();
-                            stream.WritePacket(MessageType.Connect);
+                            #region Response
+                            ByteStream stream = ByteStream.Get(messageType);
                             stream.Write((ushort)uniqueId);
                             _client_.Send(stream, channel, target);
                             stream.Release();
+                            #endregion
+
+                            #region Process Message
                             NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                            #endregion
                         }
                         else
                         {
-                            ByteStream stream = ByteStream.Get();
-                            stream.WritePacket(MessageType.Connect);
+                            Logger.Print("Unreliable -> Previous connection attempt failed, re-establishing connection.");
+                            #region Response
+                            ByteStream stream = ByteStream.Get(messageType);
                             stream.Write((ushort)uniqueId);
                             UdpClient connectedClient = GetClient(remoteEndPoint);
-                            connectedClient.Send(stream, channel, target);
+                            if (connectedClient != null) connectedClient.Send(stream, channel, target);
+                            else Logger.PrintError("Connect -> Client is null!");
                             stream.Release();
-                            //********************
+                            #endregion
                             _client_.Close(true);
                         }
                     }
+                    break;
+                case MessageType.Ping:
+                    UdpClient client = GetClient(remoteEndPoint);
+                    if (client != null)
+                    {
+                        double timeOfClient = recvStream.ReadDouble();
+                        ByteStream stream = ByteStream.Get(messageType);
+                        stream.Write(timeOfClient);
+                        stream.Write(NeutronTime.LocalTime);
+                        client.Send(stream, channel, target);
+                        stream.Release();
+                    }
+                    else Logger.PrintError("Ping -> Client is null!");
                     break;
                 default:
                     NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
