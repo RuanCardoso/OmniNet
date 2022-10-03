@@ -15,6 +15,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 
 namespace Neutron.Core
@@ -131,6 +132,21 @@ namespace Neutron.Core
                     }
                     else
                         Logger.PrintError($"Only {byte.MaxValue} NeutronObject are allowed in a NeutronIdentity!");
+                }
+            }
+        }
+
+        [ContextMenu("Re-order")]
+        private void Reorder()
+        {
+            if (!Application.isPlaying)
+            {
+                var neutronObjects = transform.root.GetComponentsInChildren<NeutronObject>(true);
+                for (int i = 0; i < neutronObjects.Length; i++)
+                {
+                    var nObject = neutronObjects[i];
+                    nObject.id = (byte)(i + 1);
+                    EditorUtility.SetDirty(nObject.gameObject);
                 }
             }
         }

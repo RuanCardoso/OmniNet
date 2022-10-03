@@ -39,7 +39,7 @@ namespace Neutron.Core
         [Header("[Editor]")]
         [SerializeField] private bool simulateServerObj = true;
         [SerializeField] private bool drawGizmos = true;
-        [SerializeField] private bool rootMode = true;
+        [SerializeField] internal bool rootMode = true;
 
         private bool isInRoot = false;
         private readonly Dictionary<(ushort, ushort, byte, byte, ObjectType), Action> remoteMethods = new(); // playerid, identityid, instance id, rpcId, type
@@ -151,13 +151,12 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
-                NeutronIdentity[] identities = FindObjectsOfType<NeutronIdentity>(true).Where(x => x.objectType == objectType).ToArray();
-                Array.Reverse(identities);
+                NeutronIdentity[] identities = FindObjectsOfType<NeutronIdentity>(true).Where(x => x.objectType == objectType).OrderBy(x => x.transform.GetSiblingIndex()).ToArray();
                 for (int i = 0; i < identities.Length; i++)
                 {
-                    ushort id = (ushort)(i + 1);
-                    identities[i].transform.SetSiblingIndex(i);
-                    identities[i].id = id;
+                    var identity = identities[i];
+                    identity.id = (ushort)(i + 1);
+                    EditorUtility.SetDirty(identity.gameObject);
                 }
             }
         }
