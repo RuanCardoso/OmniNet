@@ -31,7 +31,7 @@ namespace Neutron.Core
         private readonly SentWindow SENT_WINDOW = new();
 
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
-        protected abstract void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
+        protected abstract void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
 
         protected abstract bool IsServer { get; }
         protected abstract string Name { get; }

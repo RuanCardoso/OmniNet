@@ -30,7 +30,7 @@ namespace Neutron.Core
 #else
         private readonly Dictionary<int, UdpClient> clients = new();
 #endif
-        protected override void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             int uniqueId = remoteEndPoint.GetPort();
             switch (messageType)
@@ -48,7 +48,7 @@ namespace Neutron.Core
                             #endregion
 
                             #region Process Message
-                            NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
                             #endregion
                         }
                         else
@@ -70,7 +70,7 @@ namespace Neutron.Core
                     UdpClient client = GetClient(remoteEndPoint);
                     if (client != null)
                     {
-                        double timeOfClient = recvStream.ReadDouble();
+                        double timeOfClient = RECV_STREAM.ReadDouble();
                         ByteStream stream = ByteStream.Get(messageType);
                         stream.Write(timeOfClient);
                         stream.Write(NeutronTime.LocalTime);
@@ -80,7 +80,7 @@ namespace Neutron.Core
                     else Logger.PrintError("Ping -> Client is null!");
                     break;
                 default:
-                    NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
                     break;
             }
         }
@@ -92,9 +92,7 @@ namespace Neutron.Core
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, GetClient(remoteEndPoint));
         internal void Send(ByteStream byteStream, Channel channel, Target target, UdpClient sender)
         {
-            if (sender == null)
-                Logger.PrintError("Sender is null!");
-            else
+            if (sender != null)
             {
                 switch (target)
                 {
@@ -132,6 +130,7 @@ namespace Neutron.Core
                         break;
                 }
             }
+            else Logger.PrintError("Sender is null! -> Check that the client is not sending the data using the server socket?");
         }
 
         internal override void Close(bool fromServer = false)

@@ -87,7 +87,7 @@ namespace Neutron.Core
             return 0;
         }
 
-        protected override void OnMessage(ByteStream recvStream, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             switch (messageType)
             {
@@ -95,23 +95,23 @@ namespace Neutron.Core
                     {
                         if (!IsConnected)
                         {
-                            Id = recvStream.ReadUShort();
+                            Id = RECV_STREAM.ReadUShort();
                             IsConnected = true;
                             NeutronNetwork.Instance.StartCoroutine(Ping());
-                            NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
                         }
                         else Logger.PrintError("The client is already connected!");
                     }
                     break;
                 case MessageType.Ping:
                     {
-                        double timeOfClient = recvStream.ReadDouble();
-                        double timeOfServer = recvStream.ReadDouble();
+                        double timeOfClient = RECV_STREAM.ReadDouble();
+                        double timeOfServer = RECV_STREAM.ReadDouble();
                         NeutronTime.SetTime(timeOfClient, timeOfServer);
                     }
                     break;
                 default:
-                    NeutronNetwork.OnMessage(recvStream, messageType, channel, target, remoteEndPoint, IsServer);
+                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
                     break;
             }
         }

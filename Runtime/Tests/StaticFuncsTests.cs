@@ -26,11 +26,13 @@ namespace Neutron.Core.Tests
 
         protected override void Update()
         {
-            if (Input.GetKeyDown(KeyCode.M))
+            if (!IsItFromTheServer)
             {
-                ByteStream stream = ByteStream.Get();
-                Remote(stream, Channel.Unreliable, Target.All);
-                stream.Release();
+                if (Input.GetKeyDown(KeyCode.M))
+                {
+                    var stream = ByteStream.Get();
+                    Remote(1, stream, Channel.Unreliable, Target.All);
+                }
             }
         }
     }

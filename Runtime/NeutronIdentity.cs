@@ -28,9 +28,6 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x63)]
     public class NeutronIdentity : ActionDispatcher
     {
-        //internal static readonly Dictionary<(ushort, ObjectType, bool), NeutronIdentity> identities = new(); // identity, object type, server or client!
-        //internal static readonly Dictionary<(ushort, ushort, ObjectType, bool), NeutronIdentity> dynamicIdentities = new(); // playerid, identity, object type, server or client!
-
         [SerializeField] internal bool isRegistered;
         [SerializeField] internal ushort id;
         [SerializeField] internal ushort playerId;
@@ -40,65 +37,88 @@ namespace Neutron.Core
         [SerializeField] private bool simulateServerObj = true;
         [SerializeField] private bool drawGizmos = true;
         [SerializeField] internal bool rootMode = true;
+#if UNITY_EDITOR
+        [SerializeField][HideInInspector] private bool isCloned = false;
+#endif
 
         private bool isInRoot = false;
-        private readonly Dictionary<(ushort, ushort, byte, byte, ObjectType), Action> remoteMethods = new(); // playerid, identityid, instance id, rpcId, type
+        private readonly Dictionary<(byte rpcId, byte instanceId), Action> remoteMethods = new(); // [rpc id, instanceId]
 
-        protected virtual void Awake() => isInRoot = (transform == transform.root) || !rootMode;
-        protected virtual void Start()
+        protected virtual void Awake()
         {
-#if UNITY_EDITOR
-            if (isInRoot && !isItFromTheServer && simulateServerObj)
+#if UNITY_SERVER && !UNITY_EDITOR
+            isItFromTheServer = true;
+#endif
+
+            if (!NeutronNetwork.IsConnected)
             {
-                if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
+                Logger.PrintError("Neutron is not connected!");
+                Destroy(transform.root.gameObject);
+            }
+            else
+            {
+#if UNITY_EDITOR
+                Clone();
+#endif
+                Register();
+                isInRoot = (transform == transform.root) || !rootMode;
+            }
+        }
+
+#if UNITY_EDITOR
+        private void Clone()
+        {
+            if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
+            {
+                if (simulateServerObj)
                 {
-                    GameObject serverObject = Instantiate(gameObject);
-                    serverObject.name = $"{gameObject.name} -> [Server]";
-                    NeutronIdentity identity = serverObject.GetComponent<NeutronIdentity>();
-                    identity.isItFromTheServer = true;
-                    SceneManager.MoveGameObjectToScene(serverObject, SceneManager.GetSceneByName("Server"));
+                    if (!isCloned)
+                    {
+                        isCloned = true;
+                        Instantiate(gameObject);
+                        name = $"{gameObject.name} -> [Client]";
+                    }
+                    else
+                    {
+                        isItFromTheServer = true;
+                        name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
+                        SceneManager.MoveGameObjectToScene(gameObject, SceneManager.GetSceneByName("Server"));
+                    }
                 }
             }
-#endif
-            //if (isInRoot && isRegistered)
-            //{
-            //    switch (objectType)
-            //    {
-            //        case ObjectType.Player:
-            //        case ObjectType.Scene:
-            //            if (!identities.TryAdd((id, objectType, isItFromTheServer), this))
-            //                Logger.PrintError($"NeutronIdentity: {id} | {objectType} | {isItFromTheServer} already exists!");
-            //            break;
-            //        case ObjectType.Instantiated:
-            //            if (!dynamicIdentities.TryAdd((playerId, id, objectType, isItFromTheServer), this))
-            //                Logger.PrintError($"NeutronIdentity: {playerId} | {id} | {objectType} | {isItFromTheServer} already exists!");
-            //            break;
-            //    }
-            //}
         }
+#endif
 
         private void Register()
         {
-            if (isInRoot && !isRegistered && objectType != ObjectType.Scene)
+            if (!isRegistered)
             {
                 switch (objectType)
                 {
-                    case ObjectType.Player:
-                        playerId = id = (ushort)NeutronNetwork.Id;
-                        break;
-                    case ObjectType.Instantiated:
-                        playerId = (ushort)NeutronNetwork.Id;
+                    case ObjectType.Static:
+                    case ObjectType.Scene:
+                        isRegistered = true;
+                        playerId = isItFromTheServer ? NeutronNetwork.ServerId : (ushort)NeutronNetwork.Id;
                         break;
                 }
 
-                isRegistered = true;
+                NeutronNetwork.AddIdentity(this);
             }
+            else Logger.PrintError("This object is already registered!");
         }
 
         internal void AddRpc(byte instanceId, byte rpcId, Action method)
         {
-            if (!remoteMethods.TryAdd((playerId, id, instanceId, rpcId, objectType), method))
+            if (!remoteMethods.TryAdd((rpcId, instanceId), method))
                 Logger.PrintError($"The RPC {instanceId}:{rpcId} is already registered.");
+        }
+
+        internal Action GetRpc(byte instanceId, byte rpcId)
+        {
+            var key = (rpcId, instanceId);
+            if (!remoteMethods.TryGetValue(key, out Action value))
+                Logger.PrintWarning($"RPC does not exist! -> {key} -> [IsServer]={isItFromTheServer}");
+            return value;
         }
 
 #if UNITY_EDITOR

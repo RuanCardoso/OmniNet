@@ -1,0 +1,936 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2313533654074987156
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2313533654074987157}
+  - component: {fileID: 2313533654074987147}
+  - component: {fileID: 2313533654074987146}
+  m_Layer: 0
+  m_Name: Connection
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2313533654074987157
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2313533654074987156}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 642.0173, y: 213.84874, z: 9.10641}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2313533654074987147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2313533654074987156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 920a9de22650f9a42844f636cd1c3876, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  actionsPerFrame: 1
+--- !u!114 &2313533654074987146
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2313533654074987156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fef60896267743343a75ff1a9619179c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fpsUpdateRate: 4
+  windowSize: 255
+  udpPacketSize: 64
+  consoleInput: 0
+  dontDestroy: 0
+  agressiveRelay: 0
+  multiThreaded: 0
+  allPlatformSettings:
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: Android
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 1
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  platformSettings:
+    name: Android
+    hosts:
+    - name: localhost
+      host: 127.0.0.1
+    - name: WSL
+      host: 0.0.0.0
+    - name: Cloud Server
+      host: 0.0.0.0
+    enabled: 1
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0

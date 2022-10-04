@@ -55,17 +55,17 @@ namespace Neutron.Core.Tests
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                new NetPlayer()
-                {
-                    Name = "Ruan",
-                    Score = 100,
-                    Health = 100,
-                    Mana = 100,
-                    Level = 1,
-                }.Pack().Send();
-            }
+            //if (Input.GetKeyDown(KeyCode.Space))
+            //{
+            //    new NetPlayer()
+            //    {
+            //        Name = "Ruan",
+            //        Score = 100,
+            //        Health = 100,
+            //        Mana = 100,
+            //        Level = 1,
+            //    }.Pack().Send();
+            //}
         }
     }
 }

@@ -161,13 +161,28 @@ namespace Neutron.Core
             return MessagePackSerializer.Deserialize<T>(data[..value.BytesWritten], options);
         }
 
-        public static void Send(this ByteStream value, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0) => NeutronNetwork.Send(value, channel, target, playerId);
+        //public static void Send(this ByteStream value, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0) => NeutronNetwork.Send(value, channel, target, playerId);
     }
 
     [Serializable]
     internal class LocalSettings
     {
+        [Serializable]
+        public class Host
+        {
+            [SerializeField] internal string name;
+            [SerializeField] internal string host;
+        }
+
         public string name = "No Plataform!";
+#if UNITY_SERVER
+        [HideInInspector]
+#endif
+        public Host[] hosts = {
+            new Host() { host = "127.0.0.1", name = "localhost" } ,
+            new Host() { host = "0.0.0.0", name = "WSL" } ,
+            new Host() { host = "0.0.0.0", name = "Cloud Server" } ,
+        };
         public bool enabled;
         [Range(30, byte.MaxValue * 128)] public int maxFramerate = 60;
 #if NEUTRON_MULTI_THREADED

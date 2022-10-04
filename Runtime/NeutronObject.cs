@@ -80,7 +80,7 @@ namespace Neutron.Core
         }
 
 #pragma warning disable IDE1006
-        protected void Remote(ByteStream parameters, Channel channel, Target target)
+        protected void Remote(byte id, ByteStream parameters, Channel channel, Target target)
 #pragma warning restore IDE1006
         {
             if (hasIdentity && identity.isRegistered)
@@ -89,16 +89,16 @@ namespace Neutron.Core
                 switch (identity.objectType)
                 {
                     case ObjectType.Player:
-                        NeutronNetwork.Remote(parameters, MessageType.RemotePlayer, channel, target, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemotePlayer, channel, target, playerId);
                         break;
                     case ObjectType.Scene:
-                        NeutronNetwork.Remote(parameters, MessageType.RemoteScene, channel, target, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemoteScene, channel, target, playerId);
                         break;
                     case ObjectType.Instantiated:
-                        NeutronNetwork.Remote(parameters, MessageType.RemoteInstantiated, channel, target, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemoteInstantiated, channel, target, playerId);
                         break;
                     case ObjectType.Static:
-                        NeutronNetwork.Remote(parameters, MessageType.RemoteStatic, channel, target, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemoteStatic, channel, target, playerId);
                         break;
                 }
             }

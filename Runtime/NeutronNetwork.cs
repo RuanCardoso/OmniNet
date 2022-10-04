@@ -30,6 +30,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Scripting;
+using static Dapper.SqlMapper;
 
 namespace Neutron.Core
 {
@@ -40,13 +41,6 @@ namespace Neutron.Core
     {
         private const byte SETTINGS_SIZE = 50;
 
-        [Serializable]
-        private class Host
-        {
-            [SerializeField] internal string name;
-            [SerializeField] internal string host;
-        }
-
         #region Framerate
         [SerializeField][Range(0, 10)] private int fpsUpdateRate = 4;
         public static float framerate = 0f;
@@ -55,17 +49,20 @@ namespace Neutron.Core
         private static float deltaTime = 0f;
         #endregion
 
+        private static readonly Dictionary<(ushort, bool, ObjectType), NeutronIdentity> identities = new(); // [identity id, isServer bool, objectType id]
         private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static readonly UdpServer udpServer = new();
         private static readonly UdpClient udpClient = new();
 
         #region Events
-        public static event Action<bool> OnConnected;
+        public static event Action<bool, IPEndPoint, ByteStream> OnConnected;
         #endregion
 
         #region Properties
+        internal static ushort ServerId { get; } = ushort.MaxValue;
         internal static NeutronNetwork Instance { get; private set; }
         public static int Id => udpClient.Id;
+        public static bool IsConnected => udpClient.IsConnected;
         public static ActionDispatcher Dispatcher => Instance.dispatcher;
         #endregion
 
@@ -77,17 +74,10 @@ namespace Neutron.Core
         [HideInInspector]
 #endif
         private bool consoleInput;
+        [SerializeField] private bool dontDestroy = false;
+        [SerializeField] private bool loadNextScene = true;
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField] private bool multiThreaded = false;
-        [SerializeField]
-#if UNITY_SERVER
-        [HideInInspector]
-#endif
-        private Host[] hosts = {
-            new Host() { host = "127.0.0.1", name = "localhost" } ,
-            new Host() { host = "0.0.0.0", name = "WSL" } ,
-            new Host() { host = "0.0.0.0", name = "Cloud Server" } ,
-        };
         #endregion
 
         internal static double timeAsDouble;
@@ -118,23 +108,43 @@ namespace Neutron.Core
             Instance = this;
             dispatcher = GetComponent<ActionDispatcher>();
             AddResolver(null);
-            DontDestroyOnLoad(this);
+            if (dontDestroy) DontDestroyOnLoad(this);
             ByteStream.streams = new();
+
+            #region Registers
+            OnConnected += NeutronNetwork_OnConnected;
+            #endregion
+
             #region Framerate
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = platformSettings.maxFramerate;
             #endregion
+
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, 5055);
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, Helper.GetFreePort()));
-            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(hosts[0].host), remoteEndPoint.GetPort()));
+            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(platformSettings.hosts[0].host), remoteEndPoint.GetPort()));
 #endif
-#if UNITY_SERVER || UNITY_EDITOR
+#if UNITY_EDITOR
             SceneManager.CreateScene("Server", new CreateSceneParameters(LocalPhysicsMode.None));
 #endif
+        }
+
+        private void NeutronNetwork_OnConnected(bool isServer, IPEndPoint endPoint, ByteStream parameters)
+        {
+            if (loadNextScene)
+            {
+                int currentIndex = SceneManager.GetActiveScene().buildIndex;
+                int nextIndex = currentIndex + 1;
+#if UNITY_EDITOR
+                if (!isServer) SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
+#else
+                SceneManager.LoadScene(nextIndex);
+#endif
+            }
         }
 
         private void Start() => Invoke(nameof(Main), 0.3f);
@@ -142,7 +152,7 @@ namespace Neutron.Core
         {
 #if UNITY_SERVER && !UNITY_EDITOR
             Console.Clear();
-            NeutronConsole.Initialize(tokenSource.Token, this);
+            if (consoleInput) NeutronConsole.Initialize(tokenSource.Token, this);
 #endif
             if (!GarbageCollector.isIncremental) Logger.PrintWarning("Tip: Enable \"Incremental GC\" for maximum performance!");
 #if !NETSTANDARD2_1
@@ -226,6 +236,20 @@ namespace Neutron.Core
         }
 #endif
 
+        internal static void AddIdentity(NeutronIdentity identity)
+        {
+            var key = (identity.id, identity.isItFromTheServer, identity.objectType);
+            if (!identities.TryAdd(key, identity))
+                Logger.PrintError($"the identity already exists -> {key}");
+        }
+
+        internal static NeutronIdentity GetIdentity(ushort identityId, bool isServer, ObjectType objType)
+        {
+            if (!identities.TryGetValue((identityId, isServer, objType), out NeutronIdentity identity))
+                Logger.PrintWarning($"Indentity not found! -> [IsServer]={isServer}");
+            return identity;
+        }
+
         public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
         {
             T instance = new();
@@ -233,66 +257,55 @@ namespace Neutron.Core
                 Logger.PrintError($"Handler for {instance.Id} already exists!");
         }
 
-        private static void Send(ByteStream byteStream, int playerId, Channel channel, Target target)
+        private static void Intern_Send(ByteStream byteStream, int playerId, Channel channel, Target target)
         {
             if (playerId != 0) udpServer.Send(byteStream, channel, target, playerId);
             else udpClient.Send(byteStream, channel, target);
         }
 
-        internal static void OnMessage(ByteStream recvStream, MessageType messageType, Channel channel, Target target, UdpEndPoint remoteEndPoint, bool isServer)
+        private static void Intern_Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel, Target target)
+        {
+            if (remoteEndPoint != null) udpServer.Send(byteStream, channel, target, remoteEndPoint);
+            else udpClient.Send(byteStream, channel, target);
+        }
+
+        internal static void OnMessage(ByteStream RECV_STREAM, MessageType messageType, Channel channel, Target target, UdpEndPoint remoteEndPoint, bool isServer)
         {
             switch (messageType)
             {
                 case MessageType.Connect:
-                    OnConnected?.Invoke(isServer);
-                    break;
-                case MessageType.GlobalMessage:
-                    {
-                        int id = recvStream.ReadInt();
-                        if (handlers.TryGetValue(id, out Action<ByteStream, bool> handler))
-                        {
-                            ByteStream messageStream = ByteStream.Get();
-                            messageStream.Write(recvStream, recvStream.Position, recvStream.BytesWritten);
-                            handler(messageStream, isServer);
-                            messageStream.Release();
-                            if (!isServer)
-                                return;
-                            udpServer.Send(recvStream, channel, target, remoteEndPoint);
-                        }
-                        else Logger.PrintError($"Handler for {id} not found!");
-                    }
+                    OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), RECV_STREAM);
                     break;
                 case MessageType.RemoteStatic:
-                    Logger.PrintError("receive remote static");
-                    break;
-                case MessageType.StressTest:
                     {
-                        int indx = recvStream.ReadInt();
-                        //Logger.PrintError($"Stress Test! -> {isServer}" + indx);
-                        if (!isServer)
-                            return;
-                        ByteStream stream = ByteStream.Get();
-                        stream.WritePacket(MessageType.StressTest);
-                        stream.Write(indx);
-                        udpServer.Send(stream, channel, target, remoteEndPoint);
-                        stream.Release();
+                        ushort identityId = RECV_STREAM.ReadUShort();
+                        byte rpcId = RECV_STREAM.ReadByte();
+                        byte instanceId = RECV_STREAM.ReadByte();
+
+                        #region Process the RPC
+                        NeutronIdentity identity = GetIdentity(identityId, isServer, ObjectType.Static);
+                        if (identity != null)
+                        {
+                            Action rpc = identity.GetRpc(instanceId, rpcId);
+                            rpc?.Invoke();
+                        }
+                        else Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer}");
+                        #endregion
+                        if (isServer) Intern_Send(RECV_STREAM, remoteEndPoint, channel, target);
                     }
                     break;
             }
         }
 
-        public static void Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
-        {
-            Send(byteStream, playerId, channel, target);
-            byteStream.Release();
-        }
-
-        internal static void Remote(ByteStream parameters, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        internal static void Remote(byte id, ushort identity, byte instanceId, ByteStream parameters, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
         {
             ByteStream remote = ByteStream.Get(msgType);
+            remote.Write(identity);
+            remote.Write(id);
+            remote.Write(instanceId);
             remote.Write(parameters);
             parameters.Release();
-            Send(remote, playerId, channel, target);
+            Intern_Send(remote, playerId, channel, target);
             remote.Release();
         }
 
