@@ -60,7 +60,7 @@ namespace Neutron.Core
                 Clone();
 #endif
                 Register();
-                isInRoot = (transform == GetRootOr()) || !rootMode;
+                isInRoot = transform == GetRootOr();
             }
         }
 
@@ -132,8 +132,8 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
-                if (!(isInRoot = (transform == GetRootOr()) || !rootMode))
-                    Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
+                if (!(isInRoot = transform == GetRootOr()))
+                    Logger.PrintWarning($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
 
                 if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
                 {
@@ -153,7 +153,7 @@ namespace Neutron.Core
                             if (count > 1) id = 0;
                         }
                     }
-                    else Logger.PrintError($"{transform.name} -> [IsRoot]={isInRoot}");
+                    else Logger.PrintWarning($"{transform.name} -> [IsRoot]={isInRoot}");
                 }
                 else id = 0;
             }

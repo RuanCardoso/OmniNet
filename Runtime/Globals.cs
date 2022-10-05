@@ -84,12 +84,14 @@ namespace Neutron.Core
             return port;
         }
 
-        internal static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange)
+        internal static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange, int minRange = 0)
         {
             var ids = array.Select(predicate);
+#pragma warning disable IDE0046
             if (maxRange == ids.Count())
                 return maxRange;
-            return Enumerable.Range(0, maxRange).Except(ids).ToArray()[0];
+#pragma warning restore IDE0046
+            return Enumerable.Range(minRange, maxRange).Except(ids).ToArray()[0];
         }
 
 #if UNITY_EDITOR
