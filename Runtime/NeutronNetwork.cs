@@ -277,13 +277,27 @@ namespace Neutron.Core
                     OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), RECV_STREAM);
                     break;
                 case MessageType.RemoteStatic:
+                case MessageType.RemoteScene:
                     {
                         ushort identityId = RECV_STREAM.ReadUShort();
                         byte rpcId = RECV_STREAM.ReadByte();
                         byte instanceId = RECV_STREAM.ReadByte();
 
+                        #region Convert the Types
+                        ObjectType objectType = default;
+                        switch (messageType)
+                        {
+                            case MessageType.RemoteStatic:
+                                objectType = ObjectType.Static;
+                                break;
+                            case MessageType.RemoteScene:
+                                objectType = ObjectType.Scene;
+                                break;
+                        }
+                        #endregion
+
                         #region Process the RPC
-                        NeutronIdentity identity = GetIdentity(identityId, isServer, ObjectType.Static);
+                        NeutronIdentity identity = GetIdentity(identityId, isServer, objectType);
                         if (identity != null)
                         {
                             Action rpc = identity.GetRpc(instanceId, rpcId);

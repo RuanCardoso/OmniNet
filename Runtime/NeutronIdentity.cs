@@ -20,7 +20,6 @@ using UnityEditor;
 #endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using static Dapper.SqlMapper;
 
 namespace Neutron.Core
 {
@@ -44,24 +43,24 @@ namespace Neutron.Core
         private bool isInRoot = false;
         private readonly Dictionary<(byte rpcId, byte instanceId), Action> remoteMethods = new(); // [rpc id, instanceId]
 
+        private Transform GetRootOr() => rootMode ? transform.root : transform;
         protected virtual void Awake()
         {
-#if UNITY_SERVER && !UNITY_EDITOR
-            isItFromTheServer = true;
-#endif
-
             if (!NeutronNetwork.IsConnected)
             {
                 Logger.PrintError("Neutron is not connected!");
-                Destroy(transform.root.gameObject);
+                Destroy(GetRootOr().gameObject);
             }
             else
             {
+#if UNITY_SERVER && !UNITY_EDITOR
+            isItFromTheServer = true;
+#endif
 #if UNITY_EDITOR
                 Clone();
 #endif
                 Register();
-                isInRoot = (transform == transform.root) || !rootMode;
+                isInRoot = (transform == GetRootOr()) || !rootMode;
             }
         }
 
@@ -125,13 +124,7 @@ namespace Neutron.Core
         private ObjectType VAL_OBJ_TYPE;
         private void Reset()
         {
-            var nObjects = transform.GetComponentsInChildren<NeutronObject>();
-            for (int i = 0; i < nObjects.Length; i++)
-            {
-                var nObject = nObjects[i];
-                nObject.OnValidate();
-            }
-
+            OnValidate();
             VAL_OBJ_TYPE = objectType;
         }
 
@@ -139,7 +132,7 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
-                if (!(isInRoot = (transform == transform.root) || !rootMode))
+                if (!(isInRoot = (transform == GetRootOr()) || !rootMode))
                     Logger.PrintError($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
 
                 if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
@@ -166,8 +159,8 @@ namespace Neutron.Core
             }
         }
 
-        [ContextMenu("Re-order by object type")]
-        private void Reorder()
+        [ContextMenu("Re-order Identities")]
+        private void IReorder()
         {
             if (!Application.isPlaying)
             {
@@ -177,6 +170,22 @@ namespace Neutron.Core
                     var identity = identities[i];
                     identity.id = (ushort)(i + 1);
                     EditorUtility.SetDirty(identity.gameObject);
+                }
+            }
+        }
+
+        [ContextMenu("Register Neutron Objects")]
+        private void AddNeutronObjects()
+        {
+            if (!Application.isPlaying)
+            {
+                var neutronObjects = GetRootOr().GetComponentsInChildren<NeutronObject>(true);
+                for (int i = 0; i < neutronObjects.Length; i++)
+                {
+                    var nObject = neutronObjects[i];
+                    nObject.id = (byte)(i + 1);
+                    nObject.identity = this;
+                    EditorUtility.SetDirty(nObject.gameObject);
                 }
             }
         }

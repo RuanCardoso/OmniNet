@@ -13,9 +13,7 @@
     ===========================================================*/
 
 using System;
-using System.Linq;
 using System.Reflection;
-using UnityEditor;
 using UnityEngine;
 
 namespace Neutron.Core
@@ -23,29 +21,24 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class NeutronObject : ActionDispatcher
     {
-        private bool hasIdentity;
-        [SerializeField] private NeutronIdentity identity;
-        [SerializeField] private byte id;
+        [SerializeField] internal NeutronIdentity identity;
+        [SerializeField] internal byte id;
 
         internal byte Id => id;
         protected bool IsItFromTheServer { get; private set; }
 
         protected virtual void Awake()
         {
-            void Init()
+            if (identity == null)
             {
-                hasIdentity = true;
+                Logger.PrintError("Does this object not have an identity? Did you register the objects?");
+                Destroy(gameObject);
+            }
+            else
+            {
                 IsItFromTheServer = identity.isItFromTheServer;
                 GetAttributes();
             }
-
-            if (identity == null)
-            {
-                if (!transform.root.TryGetComponent(out identity))
-                    Logger.PrintError($"{gameObject.name} -> The NeutronIdentity component is missing.");
-                else Init();
-            }
-            else Init();
         }
 
         private void GetAttributes()
@@ -83,7 +76,7 @@ namespace Neutron.Core
         protected void Remote(byte id, ByteStream parameters, Channel channel, Target target)
 #pragma warning restore IDE1006
         {
-            if (hasIdentity && identity.isRegistered)
+            if (identity.isRegistered)
             {
                 int playerId = IsItFromTheServer ? identity.playerId : 0;
                 switch (identity.objectType)
@@ -108,48 +101,5 @@ namespace Neutron.Core
                 Logger.PrintError("This object has no identity or is not registered.");
             }
         }
-
-#if UNITY_EDITOR
-        protected virtual void Reset() => OnValidate();
-        protected internal virtual void OnValidate()
-        {
-            if (!Application.isPlaying)
-            {
-                identity = transform.root.GetComponent<NeutronIdentity>();
-                if (!(hasIdentity = identity != null))
-                    Logger.PrintError($"The root object of {gameObject.name} must have a NeutronIdentity component.");
-                if (hasIdentity)
-                {
-                    var neutronObjects = transform.root.GetComponentsInChildren<NeutronObject>(true);
-                    if (neutronObjects.Length <= byte.MaxValue)
-                    {
-                        if (id == 0) id = (byte)Helper.GetAvailableId(neutronObjects, x => x.Id, byte.MaxValue);
-                        else
-                        {
-                            int countIds = neutronObjects.Count(x => x.Id == id);
-                            if (countIds > 1) id = 0;
-                        }
-                    }
-                    else
-                        Logger.PrintError($"Only {byte.MaxValue} NeutronObject are allowed in a NeutronIdentity!");
-                }
-            }
-        }
-
-        [ContextMenu("Re-order")]
-        private void Reorder()
-        {
-            if (!Application.isPlaying)
-            {
-                var neutronObjects = transform.root.GetComponentsInChildren<NeutronObject>(true);
-                for (int i = 0; i < neutronObjects.Length; i++)
-                {
-                    var nObject = neutronObjects[i];
-                    nObject.id = (byte)(i + 1);
-                    EditorUtility.SetDirty(nObject.gameObject);
-                }
-            }
-        }
-#endif
     }
 }
