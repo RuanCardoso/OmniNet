@@ -40,8 +40,7 @@ namespace Neutron.Core
         RemoteInstantiated = 6,
         RemoteScene = 7,
         RemoteStatic = 8,
-        Instantiate = 9,
-        Ping = 10,
+        Ping = 9,
         Connect = 254,
         Disconnect = 255,
     }
@@ -58,6 +57,12 @@ namespace Neutron.Core
         All = 1,
         Others = 2,
         Me = 3,
+    }
+
+    public enum SubTarget : byte
+    {
+        None,
+        Server
     }
 
     internal enum ObjectType : byte
@@ -174,6 +179,7 @@ namespace Neutron.Core
         {
             [SerializeField] internal string name;
             [SerializeField] internal string host;
+            [SerializeField] internal int port;
         }
 
         public string name = "No Plataform!";
@@ -181,9 +187,9 @@ namespace Neutron.Core
         [HideInInspector]
 #endif
         public Host[] hosts = {
-            new Host() { host = "127.0.0.1", name = "localhost" } ,
-            new Host() { host = "0.0.0.0", name = "WSL" } ,
-            new Host() { host = "0.0.0.0", name = "Cloud Server" } ,
+            new Host() { host = "127.0.0.1", name = "localhost", port = 5055 } ,
+            new Host() { host = "0.0.0.0", name = "WSL", port = 5055 } ,
+            new Host() { host = "0.0.0.0", name = "Cloud Server", port = 5055 } ,
         };
         public bool enabled;
         [Range(30, byte.MaxValue * 128)] public int maxFramerate = 60;

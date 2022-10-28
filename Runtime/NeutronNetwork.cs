@@ -49,7 +49,7 @@ namespace Neutron.Core
         private static float deltaTime = 0f;
         #endregion
 
-        private static readonly Dictionary<(ushort, bool, ObjectType), NeutronIdentity> identities = new(); // [identity id, isServer bool, objectType id]
+        private static readonly Dictionary<(ushort, ushort, bool, ObjectType), NeutronIdentity> identities = new(); // [identity id, playerId, isServer bool, objectType id]
         private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static readonly UdpServer udpServer = new();
         private static readonly UdpClient udpClient = new();
@@ -59,6 +59,10 @@ namespace Neutron.Core
         #endregion
 
         #region Properties
+#if UNITY_EDITOR
+        internal static Scene ServerScene { get; private set; }
+#endif
+        internal static int Port { get; private set; }
         internal static ushort ServerId { get; } = ushort.MaxValue;
         internal static NeutronNetwork Instance { get; private set; }
         public static int Id => udpClient.Id;
@@ -120,16 +124,19 @@ namespace Neutron.Core
             Application.targetFrameRate = platformSettings.maxFramerate;
             #endregion
 
-            var remoteEndPoint = new UdpEndPoint(IPAddress.Any, 5055);
+            LocalSettings.Host lHost = platformSettings.hosts[0];
+            Port = lHost.port;
+            var remoteEndPoint = new UdpEndPoint(IPAddress.Any, Port);
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
+            udpServer.CreateServerPlayer(ServerId);
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, Helper.GetFreePort()));
-            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(platformSettings.hosts[0].host), remoteEndPoint.GetPort()));
+            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(lHost.host), remoteEndPoint.GetPort()));
 #endif
 #if UNITY_EDITOR
-            SceneManager.CreateScene("Server", new CreateSceneParameters(LocalPhysicsMode.None));
+            ServerScene = SceneManager.CreateScene("Server", new CreateSceneParameters(LocalPhysicsMode.None));
 #endif
         }
 
@@ -140,7 +147,8 @@ namespace Neutron.Core
                 int currentIndex = SceneManager.GetActiveScene().buildIndex;
                 int nextIndex = currentIndex + 1;
 #if UNITY_EDITOR
-                if (!isServer) SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
+                if (!isServer)
+                    SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
 #else
                 SceneManager.LoadScene(nextIndex);
 #endif
@@ -238,14 +246,14 @@ namespace Neutron.Core
 
         internal static void AddIdentity(NeutronIdentity identity)
         {
-            var key = (identity.id, identity.isItFromTheServer, identity.objectType);
+            var key = (identity.id, identity.playerId, identity.isItFromTheServer, identity.objectType);
             if (!identities.TryAdd(key, identity))
                 Logger.PrintError($"the identity already exists -> {key}");
         }
 
-        internal static NeutronIdentity GetIdentity(ushort identityId, bool isServer, ObjectType objType)
+        internal static NeutronIdentity GetIdentity(ushort identityId, ushort playerId, bool isServer, ObjectType objType)
         {
-            if (!identities.TryGetValue((identityId, isServer, objType), out NeutronIdentity identity))
+            if (!identities.TryGetValue((identityId, playerId, isServer, objType), out NeutronIdentity identity))
                 Logger.PrintWarning($"Indentity not found! -> [IsServer]={isServer}");
             return identity;
         }
@@ -257,15 +265,15 @@ namespace Neutron.Core
                 Logger.PrintError($"Handler for {instance.Id} already exists!");
         }
 
-        private static void Intern_Send(ByteStream byteStream, int playerId, Channel channel, Target target)
+        private static void Intern_Send(ByteStream byteStream, ushort playerId, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
         {
-            if (playerId != 0) udpServer.Send(byteStream, channel, target, playerId);
+            if (playerId != 0) udpServer.Send(byteStream, channel, target, subTarget, playerId);
             else udpClient.Send(byteStream, channel, target);
         }
 
-        private static void Intern_Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel, Target target)
+        private static void Intern_Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
         {
-            if (remoteEndPoint != null) udpServer.Send(byteStream, channel, target, remoteEndPoint);
+            if (remoteEndPoint != null) udpServer.Send(byteStream, channel, target, subTarget, remoteEndPoint);
             else udpClient.Send(byteStream, channel, target);
         }
 
@@ -278,10 +286,17 @@ namespace Neutron.Core
                     break;
                 case MessageType.RemoteStatic:
                 case MessageType.RemoteScene:
+                case MessageType.RemotePlayer:
+                case MessageType.RemoteInstantiated:
                     {
+                        ushort playerId = RECV_STREAM.ReadUShort();
                         ushort identityId = RECV_STREAM.ReadUShort();
                         byte rpcId = RECV_STREAM.ReadByte();
                         byte instanceId = RECV_STREAM.ReadByte();
+
+                        ByteStream parameters = ByteStream.Get();
+                        parameters.Write(RECV_STREAM, RECV_STREAM.Position, RECV_STREAM.BytesWritten);
+                        ushort PLAYER_ID = playerId;
 
                         #region Convert the Types
                         ObjectType objectType = default;
@@ -289,53 +304,53 @@ namespace Neutron.Core
                         {
                             case MessageType.RemoteStatic:
                                 objectType = ObjectType.Static;
+                                PLAYER_ID = isServer ? ServerId : (ushort)Id;
                                 break;
                             case MessageType.RemoteScene:
                                 objectType = ObjectType.Scene;
+                                PLAYER_ID = isServer ? ServerId : (ushort)Id;
+                                break;
+                            case MessageType.RemotePlayer:
+                                objectType = ObjectType.Player;
+                                break;
+                            case MessageType.RemoteInstantiated:
+                                objectType = ObjectType.Instantiated;
                                 break;
                         }
                         #endregion
 
                         #region Process the RPC
-                        NeutronIdentity identity = GetIdentity(identityId, isServer, objectType);
+                        NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID, isServer, objectType);
                         if (identity != null)
                         {
-                            Action rpc = identity.GetRpc(instanceId, rpcId);
-                            rpc?.Invoke();
+                            Action<ByteStream, bool, ushort> rpc = identity.GetRpc(instanceId, rpcId);
+                            rpc?.Invoke(RECV_STREAM, isServer, playerId);
                         }
-                        else Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer}");
+                        else
+                            Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID}, {isServer}, {objectType}]");
                         #endregion
-                        if (isServer) Intern_Send(RECV_STREAM, remoteEndPoint, channel, target);
+
+                        #region Send
+                        playerId = (ushort)remoteEndPoint.GetPort();
+                        if (isServer && playerId != Port)
+                            Remote(rpcId, identityId, instanceId, parameters, messageType, channel, target, SubTarget.None, playerId);
+                        #endregion
                     }
                     break;
             }
         }
 
-        internal static void Remote(byte id, ushort identity, byte instanceId, ByteStream parameters, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
+        internal static void Remote(byte id, ushort identity, byte instanceId, ByteStream parameters, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, ushort playerId = 0)
         {
             ByteStream remote = ByteStream.Get(msgType);
+            remote.Write(playerId);
             remote.Write(identity);
             remote.Write(id);
             remote.Write(instanceId);
             remote.Write(parameters);
             parameters.Release();
-            Intern_Send(remote, playerId, channel, target);
+            Intern_Send(remote, playerId, channel, target, subTarget);
             remote.Release();
-        }
-
-        public static void Spawn(ByteStream byteStream, NeutronIdentity prefab, Vector3 position = default, Quaternion rotation = default, bool immediate = true, Channel channel = Channel.Unreliable, Target target = Target.Me, int playerId = 0)
-        {
-            // if (immediate)
-            // {
-            //     NeutronIdentity go = Instantiate(prefab, position, rotation);
-            // }
-
-            // ByteStream instantiateStream = ByteStream.Get();
-            // instantiateStream.WritePacket(MessageType.Instantiate);
-            // instantiateStream.Write(byteStream);
-            // byteStream.Release();
-            // Send(instantiateStream, playerId, channel, target);
-            // instantiateStream.Release();
         }
 
         internal void OnApplicationQuit()

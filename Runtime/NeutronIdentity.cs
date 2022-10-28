@@ -37,11 +37,11 @@ namespace Neutron.Core
         [SerializeField] private bool drawGizmos = true;
         [SerializeField] internal bool rootMode = true;
 #if UNITY_EDITOR
-        [SerializeField][HideInInspector] private bool isCloned = false;
+        [SerializeField][HideInInspector] private bool avoidCloneLoop = false;
 #endif
 
         private bool isInRoot = false;
-        private readonly Dictionary<(byte rpcId, byte instanceId), Action> remoteMethods = new(); // [rpc id, instanceId]
+        private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, bool, ushort>> remoteMethods = new(); // [rpc id, instanceId]
 
         private Transform GetRootOr() => rootMode ? transform.root : transform;
         protected virtual void Awake()
@@ -64,16 +64,16 @@ namespace Neutron.Core
             }
         }
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR // Visuale
         private void Clone()
         {
             if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
             {
                 if (simulateServerObj)
                 {
-                    if (!isCloned)
+                    if (!avoidCloneLoop)
                     {
-                        isCloned = true;
+                        avoidCloneLoop = true;
                         Instantiate(gameObject);
                         name = $"{gameObject.name} -> [Client]";
                     }
@@ -81,7 +81,7 @@ namespace Neutron.Core
                     {
                         isItFromTheServer = true;
                         name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
-                        SceneManager.MoveGameObjectToScene(gameObject, SceneManager.GetSceneByName("Server"));
+                        SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.ServerScene);
                     }
                 }
             }
@@ -90,32 +90,66 @@ namespace Neutron.Core
 
         private void Register()
         {
-            if (!isRegistered)
+            if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
             {
-                switch (objectType)
+                if (!isRegistered)
                 {
-                    case ObjectType.Static:
-                    case ObjectType.Scene:
-                        isRegistered = true;
-                        playerId = isItFromTheServer ? NeutronNetwork.ServerId : (ushort)NeutronNetwork.Id;
-                        break;
+                    isRegistered = true;
+                    playerId = isItFromTheServer ? NeutronNetwork.ServerId : (ushort)NeutronNetwork.Id;
+                    NeutronNetwork.AddIdentity(this);
                 }
-
-                NeutronNetwork.AddIdentity(this);
+                else Logger.PrintError("This object is already registered!");
             }
-            else Logger.PrintError("This object is already registered!");
+#if UNITY_EDITOR
+            else Logger.PrintWarning("Dynamically networked object!");
+#endif
         }
 
-        internal void AddRpc(byte instanceId, byte rpcId, Action method)
+        public void Register(bool isServer, ushort playerId, ushort id = 0)
+        {
+            if (objectType == ObjectType.Player || objectType == ObjectType.Instantiated)
+            {
+                if (objectType == ObjectType.Instantiated && id == 0)
+                {
+                    Debug.LogError("it is necessary to register a unique id for the dynamically instantiated object!");
+                    Destroy(gameObject);
+                }
+                else
+                {
+                    isItFromTheServer = isServer;
+                    if (!isRegistered)
+                    {
+                        isRegistered = true;
+                        this.playerId = playerId;
+                        this.id = objectType == ObjectType.Player ? playerId : id;
+                        #region Visuale
+#if UNITY_EDITOR
+                        if (isServer)
+                        {
+                            name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
+                            SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.ServerScene);
+                        }
+                        else name = $"{gameObject.name.Replace("(Clone)", "")} -> [Client]";
+#endif
+                        #endregion
+                        NeutronNetwork.AddIdentity(this);
+                    }
+                    else Logger.PrintError("This object is already registered!");
+                }
+            }
+            else Logger.PrintError("Scene or Static object does not support dynamic registration.");
+        }
+
+        internal void AddRpc(byte instanceId, byte rpcId, Action<ByteStream, bool, ushort> method)
         {
             if (!remoteMethods.TryAdd((rpcId, instanceId), method))
                 Logger.PrintError($"The RPC {instanceId}:{rpcId} is already registered.");
         }
 
-        internal Action GetRpc(byte instanceId, byte rpcId)
+        internal Action<ByteStream, bool, ushort> GetRpc(byte instanceId, byte rpcId)
         {
             var key = (rpcId, instanceId);
-            if (!remoteMethods.TryGetValue(key, out Action value))
+            if (!remoteMethods.TryGetValue(key, out Action<ByteStream, bool, ushort> value))
                 Logger.PrintWarning($"RPC does not exist! -> {key} -> [IsServer]={isItFromTheServer}");
             return value;
         }
