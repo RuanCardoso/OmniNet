@@ -265,15 +265,15 @@ namespace Neutron.Core
                 Logger.PrintError($"Handler for {instance.Id} already exists!");
         }
 
-        private static void Intern_Send(ByteStream byteStream, ushort playerId, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        private static void Intern_Send(ByteStream byteStream, ushort id, bool fromServer, Channel channel, Target target, SubTarget subTarget)
         {
-            if (playerId != 0) udpServer.Send(byteStream, channel, target, subTarget, playerId);
+            if (fromServer) udpServer.Send(byteStream, channel, target, subTarget, id);
             else udpClient.Send(byteStream, channel, target);
         }
 
-        private static void Intern_Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        private static void Intern_Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, bool fromServer, Channel channel, Target target, SubTarget subTarget)
         {
-            if (remoteEndPoint != null) udpServer.Send(byteStream, channel, target, subTarget, remoteEndPoint);
+            if (fromServer) udpServer.Send(byteStream, channel, target, subTarget, remoteEndPoint);
             else udpClient.Send(byteStream, channel, target);
         }
 
@@ -282,6 +282,7 @@ namespace Neutron.Core
             switch (messageType)
             {
                 case MessageType.Connect:
+                    Logger.Print("Connected!");
                     OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), RECV_STREAM);
                     break;
                 case MessageType.RemoteStatic:
@@ -289,14 +290,15 @@ namespace Neutron.Core
                 case MessageType.RemotePlayer:
                 case MessageType.RemoteInstantiated:
                     {
-                        ushort playerId = RECV_STREAM.ReadUShort();
+                        ushort fromId = RECV_STREAM.ReadUShort();
+                        ushort toId = RECV_STREAM.ReadUShort();
                         ushort identityId = RECV_STREAM.ReadUShort();
                         byte rpcId = RECV_STREAM.ReadByte();
                         byte instanceId = RECV_STREAM.ReadByte();
 
                         ByteStream parameters = ByteStream.Get();
                         parameters.Write(RECV_STREAM, RECV_STREAM.Position, RECV_STREAM.BytesWritten);
-                        ushort PLAYER_ID = playerId;
+                        ushort resolved_id = toId;
 
                         #region Convert the Types
                         ObjectType objectType = default;
@@ -304,11 +306,11 @@ namespace Neutron.Core
                         {
                             case MessageType.RemoteStatic:
                                 objectType = ObjectType.Static;
-                                PLAYER_ID = isServer ? ServerId : (ushort)Id;
+                                resolved_id = isServer ? ServerId : (ushort)Id;
                                 break;
                             case MessageType.RemoteScene:
                                 objectType = ObjectType.Scene;
-                                PLAYER_ID = isServer ? ServerId : (ushort)Id;
+                                resolved_id = isServer ? ServerId : (ushort)Id;
                                 break;
                             case MessageType.RemotePlayer:
                                 objectType = ObjectType.Player;
@@ -320,36 +322,37 @@ namespace Neutron.Core
                         #endregion
 
                         #region Process the RPC
-                        NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID, isServer, objectType);
+                        NeutronIdentity identity = GetIdentity(identityId, resolved_id, isServer, objectType);
                         if (identity != null)
                         {
-                            Action<ByteStream, bool, ushort> rpc = identity.GetRpc(instanceId, rpcId);
-                            rpc?.Invoke(RECV_STREAM, isServer, playerId);
+                            Action<ByteStream, bool, ushort, ushort> rpc = identity.GetRpc(instanceId, rpcId);
+                            rpc?.Invoke(RECV_STREAM, isServer, fromId, toId);
                         }
                         else
-                            Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID}, {isServer}, {objectType}]");
+                            Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {resolved_id}, {isServer}, {objectType}]");
                         #endregion
 
                         #region Send
-                        playerId = (ushort)remoteEndPoint.GetPort();
-                        if (isServer && playerId != Port)
-                            Remote(rpcId, identityId, instanceId, parameters, messageType, channel, target, SubTarget.None, playerId);
+                        ushort fromPort = (ushort)remoteEndPoint.GetPort();
+                        if (isServer && fromPort != Port)
+                            Remote(rpcId, identityId, instanceId, fromId, toId, isServer, parameters, messageType, channel, target, SubTarget.None);
                         #endregion
                     }
                     break;
             }
         }
 
-        internal static void Remote(byte id, ushort identity, byte instanceId, ByteStream parameters, MessageType msgType, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, ushort playerId = 0)
+        internal static void Remote(byte id, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream parameters, MessageType msgType, Channel channel, Target target, SubTarget subTarget)
         {
             ByteStream remote = ByteStream.Get(msgType);
-            remote.Write(playerId);
+            remote.Write(fromId);
+            remote.Write(toId);
             remote.Write(identity);
             remote.Write(id);
             remote.Write(instanceId);
             remote.Write(parameters);
             parameters.Release();
-            Intern_Send(remote, playerId, channel, target, subTarget);
+            Intern_Send(remote, toId, fromServer, channel, target, subTarget);
             remote.Release();
         }
 

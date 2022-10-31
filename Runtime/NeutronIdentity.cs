@@ -41,7 +41,7 @@ namespace Neutron.Core
 #endif
 
         private bool isInRoot = false;
-        private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, bool, ushort>> remoteMethods = new(); // [rpc id, instanceId]
+        private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, bool, ushort, ushort>> remoteMethods = new(); // [rpc id, instanceId]
 
         private Transform GetRootOr() => rootMode ? transform.root : transform;
         protected virtual void Awake()
@@ -140,16 +140,16 @@ namespace Neutron.Core
             else Logger.PrintError("Scene or Static object does not support dynamic registration.");
         }
 
-        internal void AddRpc(byte instanceId, byte rpcId, Action<ByteStream, bool, ushort> method)
+        internal void AddRpc(byte instanceId, byte rpcId, Action<ByteStream, bool, ushort, ushort> method)
         {
             if (!remoteMethods.TryAdd((rpcId, instanceId), method))
                 Logger.PrintError($"The RPC {instanceId}:{rpcId} is already registered.");
         }
 
-        internal Action<ByteStream, bool, ushort> GetRpc(byte instanceId, byte rpcId)
+        internal Action<ByteStream, bool, ushort, ushort> GetRpc(byte instanceId, byte rpcId)
         {
             var key = (rpcId, instanceId);
-            if (!remoteMethods.TryGetValue(key, out Action<ByteStream, bool, ushort> value))
+            if (!remoteMethods.TryGetValue(key, out Action<ByteStream, bool, ushort, ushort> value))
                 Logger.PrintWarning($"RPC does not exist! -> {key} -> [IsServer]={isItFromTheServer}");
             return value;
         }

@@ -47,8 +47,8 @@ namespace Neutron.Core
         private void GetAttributes()
         {
             #region Signature
-            static MethodBase MethodSignature(ByteStream parameters, bool isServer, ushort playerId) => MethodBase.GetCurrentMethod();
-            MethodBase methodSignature = MethodSignature(default, default, default);
+            static MethodBase MethodSignature(ByteStream parameters, bool isServer, ushort fromId, ushort toId) => MethodBase.GetCurrentMethod();
+            MethodBase methodSignature = MethodSignature(default, default, default, default);
             ParameterInfo[] parametersSignature = methodSignature.GetParameters();
             int parametersCount = parametersSignature.Length;
 
@@ -75,7 +75,7 @@ namespace Neutron.Core
                         {
                             try
                             {
-                                var remote = method.CreateDelegate(typeof(Action<ByteStream, bool, ushort>), this) as Action<ByteStream, bool, ushort>;
+                                var remote = method.CreateDelegate(typeof(Action<ByteStream, bool, ushort, ushort>), this) as Action<ByteStream, bool, ushort, ushort>;
                                 identity.AddRpc(id, attr.id, remote);
                             }
                             catch (ArgumentException)
@@ -95,28 +95,50 @@ namespace Neutron.Core
 
         }
 
-#pragma warning disable IDE1006
-        protected void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None, ushort playerId = default)
-#pragma warning restore IDE1006
+        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
         {
             if (identity.isRegistered)
             {
-                if (playerId == default && IsItFromTheServer)
-                    playerId = identity.playerId;
-
                 switch (identity.objectType)
                 {
                     case ObjectType.Player:
-                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemotePlayer, channel, target, subTarget, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
                         break;
                     case ObjectType.Scene:
-                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemoteScene, channel, target, subTarget, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
                         break;
                     case ObjectType.Instantiated:
-                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemoteInstantiated, channel, target, subTarget, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
                         break;
                     case ObjectType.Static:
-                        NeutronNetwork.Remote(id, identity.id, this.id, parameters, MessageType.RemoteStatic, channel, target, subTarget, playerId);
+                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
+                        break;
+                }
+            }
+            else
+            {
+                parameters.Release();
+                Logger.PrintError("This object has no identity or is not registered.");
+            }
+        }
+
+        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        {
+            if (identity.isRegistered)
+            {
+                switch (identity.objectType)
+                {
+                    case ObjectType.Player:
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
+                        break;
+                    case ObjectType.Scene:
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
+                        break;
+                    case ObjectType.Instantiated:
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
+                        break;
+                    case ObjectType.Static:
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
                         break;
                 }
             }
