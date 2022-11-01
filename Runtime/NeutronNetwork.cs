@@ -136,7 +136,7 @@ namespace Neutron.Core
             udpClient.Connect(new UdpEndPoint(IPAddress.Parse(lHost.host), remoteEndPoint.GetPort()));
 #endif
 #if UNITY_EDITOR
-            ServerScene = SceneManager.CreateScene("Server", new CreateSceneParameters(LocalPhysicsMode.None));
+            ServerScene = SceneManager.CreateScene("Server[Only Editor]", new CreateSceneParameters(LocalPhysicsMode.Physics3D));
 #endif
         }
 
@@ -147,10 +147,9 @@ namespace Neutron.Core
                 int currentIndex = SceneManager.GetActiveScene().buildIndex;
                 int nextIndex = currentIndex + 1;
 #if UNITY_EDITOR
-                if (!isServer)
-                    SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
+                if (!isServer) SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
 #else
-                SceneManager.LoadScene(nextIndex);
+                SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
 #endif
             }
         }
@@ -168,6 +167,13 @@ namespace Neutron.Core
 #endif
 #if !ENABLE_IL2CPP && !UNITY_EDITOR
             Logger.PrintWarning("Tip: Change API Mode to \"IL2CPP\" for maximum performance!");
+#endif
+        }
+
+        private void FixedUpdate()
+        {
+#if UNITY_EDITOR
+            ServerScene.GetPhysicsScene().Simulate(Time.fixedDeltaTime);
 #endif
         }
 
@@ -325,8 +331,8 @@ namespace Neutron.Core
                         NeutronIdentity identity = GetIdentity(identityId, resolved_id, isServer, objectType);
                         if (identity != null)
                         {
-                            Action<ByteStream, bool, ushort, ushort> rpc = identity.GetRpc(instanceId, rpcId);
-                            rpc?.Invoke(RECV_STREAM, isServer, fromId, toId);
+                            Action<ByteStream, ushort, ushort, RemoteStats> rpc = identity.GetRpc(instanceId, rpcId);
+                            rpc?.Invoke(RECV_STREAM, fromId, toId, new RemoteStats(NeutronTime.LocalTime, NeutronTime.Time, 0));
                         }
                         else
                             Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {resolved_id}, {isServer}, {objectType}]");

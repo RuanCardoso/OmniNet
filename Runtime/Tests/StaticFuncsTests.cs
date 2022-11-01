@@ -21,15 +21,9 @@ namespace Neutron.Core.Tests
         public NeutronIdentity Player;
 
         [Remote(1)]
-        public void SpawnPlayer(ByteStream parameters, bool isServer, ushort fromId, ushort toId)
+        public void SpawnPlayer(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
         {
-            Logger.Print($"Instantiate Player! Server={isServer}");
-            //ushort uniqueId = parameters.ReadUShort();
-            //NeutronIdentity identity = Instantiate(Player);
-            //identity.Register(isServer, playerId, uniqueId);
-
-
-            //Logger.LogError("Recebido RPC de: " + playerId);
+            Logger.Print($"Instantiate Player! Server={IsServer} {fromId} | {toId} | {IsServer}");
         }
 
         ushort dynamicId = 1;
@@ -46,9 +40,10 @@ namespace Neutron.Core.Tests
 
         private void SpawnPlayer(int id)
         {
-            var stream = ByteStream.Get();
+            var stream = Get;
             stream.Write(dynamicId++);
-            Remote(1, stream, Channel.Unreliable, Target.All, SubTarget.Server);
+            Remote(1, (ushort)20, (ushort)id, stream, Channel.Unreliable, Target.All, SubTarget.Server);
+            stream.Release();
         }
     }
 }

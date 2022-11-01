@@ -21,7 +21,7 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class ActionDispatcher : MonoBehaviour
     {
-        [SerializeField][Range(1, byte.MaxValue)] public int actionsPerFrame = 1;
+        [Range(1, byte.MaxValue)] public int actionsPerFrame = 1;
         private readonly object syncRoot = new();
         private readonly Queue<Action> actions = new();
 

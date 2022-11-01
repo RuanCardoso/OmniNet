@@ -17,7 +17,10 @@ using Mono.Cecil;
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using UnityEngine;
+using static Dapper.SqlMapper;
+using static UnityEngine.GraphicsBuffer;
 
 namespace Neutron.Core
 {
@@ -28,6 +31,8 @@ namespace Neutron.Core
         [SerializeField] internal byte id;
 
         internal byte Id => id;
+        protected ByteStream Get => ByteStream.Get();
+        protected NeutronIdentity Identity => identity;
         protected bool IsItFromTheServer => identity.isRegistered && identity.isItFromTheServer;
         protected bool IsMine => identity.isRegistered && (identity.playerId == NeutronNetwork.Id) && !identity.isItFromTheServer;
         protected bool IsServer => identity.isRegistered && identity.isItFromTheServer;
@@ -47,7 +52,7 @@ namespace Neutron.Core
         private void GetAttributes()
         {
             #region Signature
-            static MethodBase MethodSignature(ByteStream parameters, bool isServer, ushort fromId, ushort toId) => MethodBase.GetCurrentMethod();
+            static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats) => MethodBase.GetCurrentMethod();
             MethodBase methodSignature = MethodSignature(default, default, default, default);
             ParameterInfo[] parametersSignature = methodSignature.GetParameters();
             int parametersCount = parametersSignature.Length;
@@ -75,7 +80,7 @@ namespace Neutron.Core
                         {
                             try
                             {
-                                var remote = method.CreateDelegate(typeof(Action<ByteStream, bool, ushort, ushort>), this) as Action<ByteStream, bool, ushort, ushort>;
+                                var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, RemoteStats>), this) as Action<ByteStream, ushort, ushort, RemoteStats>;
                                 identity.AddRpc(id, attr.id, remote);
                             }
                             catch (ArgumentException)
@@ -90,28 +95,23 @@ namespace Neutron.Core
             }
         }
 
-        private void GetSyncValues()
-        {
-
-        }
-
-        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        private void Intern_Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget)
         {
             if (identity.isRegistered)
             {
                 switch (identity.objectType)
                 {
                     case ObjectType.Player:
-                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
                         break;
                     case ObjectType.Scene:
-                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
                         break;
                     case ObjectType.Instantiated:
-                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
                         break;
                     case ObjectType.Static:
-                        NeutronNetwork.Remote(id, identity.id, this.id, identity.playerId, identity.playerId, identity.isItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
+                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
                         break;
                 }
             }
@@ -122,31 +122,12 @@ namespace Neutron.Core
             }
         }
 
-        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
-        {
-            if (identity.isRegistered)
-            {
-                switch (identity.objectType)
-                {
-                    case ObjectType.Player:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
-                        break;
-                    case ObjectType.Scene:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
-                        break;
-                    case ObjectType.Instantiated:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
-                        break;
-                    case ObjectType.Static:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromIdentity.playerId, identity.playerId, IsItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
-                        break;
-                }
-            }
-            else
-            {
-                parameters.Release();
-                Logger.PrintError("This object has no identity or is not registered.");
-            }
-        }
+        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.playerId, identity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromIdentity.playerId, identity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, NeutronIdentity toIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromIdentity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, NeutronIdentity toIdentity, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, ushort toId, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.playerId, toId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ushort fromId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromId, identity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromId, toId, parameters, channel, target, subTarget);
     }
 }

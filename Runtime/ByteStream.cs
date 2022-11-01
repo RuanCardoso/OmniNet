@@ -11,7 +11,9 @@
     -
     License: Open Source (MIT)
     ===========================================================*/
+using MessagePack;
 using System;
+using UnityEngine;
 #if UNITY_SERVER && !UNITY_EDITOR
 using System.Threading;
 #endif
@@ -56,12 +58,70 @@ namespace Neutron.Core
             }
         }
 
+        public void Write7BitEncodedInt(int value)
+        {
+            // Write out an int 7 bits at a time.  The high bit of the byte,
+            // when on, tells reader to continue reading more bytes.
+            uint v = (uint)value;   // support negative numbers
+            while (v >= 0x80)
+            {
+                Write((byte)(v | 0x80));
+                v >>= 7;
+            }
+            Write((byte)v);
+        }
+
         internal void WritePacket(MessageType value)
         {
             if (position != 0 || bytesWritten != 0)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
             else
                 Write((byte)value);
+        }
+
+        public void Write(Vector3 vector)
+        {
+            Write(vector.x);
+            Write(vector.y);
+            Write(vector.z);
+        }
+
+        public void Write(Vector2 vector)
+        {
+            Write(vector.x);
+            Write(vector.y);
+        }
+
+        public void Write(Quaternion quaternion)
+        {
+            Write(quaternion.x);
+            Write(quaternion.y);
+            Write(quaternion.z);
+            Write(quaternion.w);
+        }
+
+        public void Write(Color color)
+        {
+            Write(color.r);
+            Write(color.g);
+            Write(color.b);
+            Write(color.a);
+        }
+
+        public void Write(Color32 color)
+        {
+            Write(color.r);
+            Write(color.g);
+            Write(color.b);
+            Write(color.a);
+        }
+
+        public void Serialize<T>(T data, MessagePackSerializerOptions options = null)
+        {
+            byte[] _data_ = MessagePackSerializer.Serialize(data, options);
+            int length = _data_.Length;
+            Write7BitEncodedInt(length);
+            Write(_data_, 0, length);
         }
 
         public void Write(int value)
@@ -103,6 +163,15 @@ namespace Neutron.Core
             Write((byte)(TmpValue >> 40));
             Write((byte)(TmpValue >> 48));
             Write((byte)(TmpValue >> 56));
+        }
+
+        public unsafe void Write(float value)
+        {
+            uint TmpValue = *(uint*)&value;
+            Write((byte)TmpValue);
+            Write((byte)(TmpValue >> 8));
+            Write((byte)(TmpValue >> 16));
+            Write((byte)(TmpValue >> 24));
         }
 
         public void Write(long value)
@@ -148,16 +217,82 @@ namespace Neutron.Core
             bytesWritten = 0;
         }
 
-        public byte ReadByte()
-        {
-            if (ThrowIfNotEnoughData(sizeof(byte)))
-                return buffer[position++];
-            else return 0;
-        }
-
+        public byte ReadByte() => ThrowIfNotEnoughData(sizeof(byte)) ? buffer[position++] : default;
         internal MessageType ReadPacket()
         {
             return (MessageType)ReadByte();
+        }
+
+        public int Read7BitEncodedInt()
+        {
+            // Read out an Int32 7 bits at a time.  The high bit
+            // of the byte when on means to continue reading more bytes.
+            int count = 0;
+            int shift = 0;
+            byte b;
+            do
+            {
+                // Check for a corrupted stream.  Read a max of 5 bytes.
+                // In a future version, add a DataFormatException.
+                if (shift == 5 * 7)  // 5 bytes max per Int32, shift += 7
+                    throw new FormatException("Format_Bad7BitInt32");
+
+                // ReadByte handles end of stream cases for us.
+                b = ReadByte();
+                count |= (b & 0x7F) << shift;
+                shift += 7;
+            } while ((b & 0x80) != 0);
+            return count;
+        }
+
+        public Vector3 ReadVector3()
+        {
+            float x = ReadFloat();
+            float y = ReadFloat();
+            float z = ReadFloat();
+            return new Vector3(x, y, z);
+        }
+
+        public Vector3 ReadVector2()
+        {
+            float x = ReadFloat();
+            float y = ReadFloat();
+            return new Vector2(x, y);
+        }
+
+        public Quaternion ReadQuaternion()
+        {
+            float x = ReadFloat();
+            float y = ReadFloat();
+            float z = ReadFloat();
+            float w = ReadFloat();
+            return new Quaternion(x, y, z, w);
+        }
+
+        public Color ReadColor()
+        {
+            float r = ReadFloat();
+            float g = ReadFloat();
+            float b = ReadFloat();
+            float a = ReadFloat();
+            return new Color(r, g, b, a);
+        }
+
+        public Color ReadColor32()
+        {
+            byte r = ReadByte();
+            byte g = ReadByte();
+            byte b = ReadByte();
+            byte a = ReadByte();
+            return new Color32(r, g, b, a);
+        }
+
+        public T Deserialize<T>(MessagePackSerializerOptions options = null)
+        {
+            int length = Read7BitEncodedInt();
+            byte[] _data_ = new byte[length];
+            Read(_data_, 0, length);
+            return MessagePackSerializer.Deserialize<T>(_data_, options);
         }
 
         public int ReadInt()
@@ -172,9 +307,9 @@ namespace Neutron.Core
         public uint ReadUInt()
         {
             uint value = ReadByte();
-            value |= (uint)ReadByte() << 8;
-            value |= (uint)ReadByte() << 16;
-            value |= (uint)ReadByte() << 24;
+            value |= (uint)(ReadByte() << 8);
+            value |= (uint)(ReadByte() << 16);
+            value |= (uint)(ReadByte() << 24);
             return value;
         }
 
@@ -201,19 +336,28 @@ namespace Neutron.Core
                ReadByte() << 16 | ReadByte() << 24);
 
             ulong tmpBuffer = ((ulong)hi) << 32 | lo;
-            return *((double*)&tmpBuffer);
+            return *(double*)&tmpBuffer;
+        }
+
+        public unsafe float ReadFloat()
+        {
+            uint tmpBuffer = ReadByte();
+            tmpBuffer |= (uint)(ReadByte() << 8);
+            tmpBuffer |= (uint)(ReadByte() << 16);
+            tmpBuffer |= (uint)(ReadByte() << 24);
+            return *(float*)&tmpBuffer;
         }
 
         public long ReadLong()
         {
             long value = ReadByte();
-            value |= (long)ReadByte() << 8;
-            value |= (long)ReadByte() << 16;
-            value |= (long)ReadByte() << 24;
-            value |= (long)ReadByte() << 32;
-            value |= (long)ReadByte() << 40;
-            value |= (long)ReadByte() << 48;
-            value |= (long)ReadByte() << 56;
+            value |= (long)(ReadByte() << 8);
+            value |= (long)(ReadByte() << 16);
+            value |= (long)(ReadByte() << 24);
+            value |= (long)(ReadByte() << 32);
+            value |= (long)(ReadByte() << 40);
+            value |= (long)(ReadByte() << 48);
+            value |= (long)(ReadByte() << 56);
             return value;
         }
 
