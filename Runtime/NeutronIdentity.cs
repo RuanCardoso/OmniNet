@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using NaughtyAttributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,12 +28,13 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x63)]
     public class NeutronIdentity : ActionDispatcher
     {
-        [SerializeField] internal bool isRegistered;
-        [SerializeField] internal ushort id;
-        [SerializeField] internal ushort playerId;
+        [SerializeField][HideInInspector] internal bool isRegistered;
+        [SerializeField][ReadOnly] internal ushort id;
+        [SerializeField][ReadOnly] internal ushort playerId;
         [SerializeField] internal ObjectType objectType = ObjectType.Player;
-        [SerializeField] internal bool isItFromTheServer;
+        [SerializeField][HideInInspector] internal bool isItFromTheServer;
         [Header("[Editor]")]
+        [InfoBox("These properties are only valid for the Editor.")]
         [SerializeField] private bool simulateServerObj = true;
         [SerializeField] private bool drawGizmos = true;
         [SerializeField] internal bool rootMode = true;
@@ -81,7 +83,7 @@ namespace Neutron.Core
                     {
                         isItFromTheServer = true;
                         name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
-                        SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.ServerScene);
+                        SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
                     }
                 }
             }
@@ -127,7 +129,7 @@ namespace Neutron.Core
                         if (isServer)
                         {
                             name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
-                            SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.ServerScene);
+                            SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
                         }
                         else name = $"{gameObject.name.Replace("(Clone)", "")} -> [Client]";
 #endif
@@ -193,7 +195,8 @@ namespace Neutron.Core
             }
         }
 
-        [ContextMenu("Re-order Identities")]
+        [ContextMenu("Neutron/Re-order Identities")]
+        [Button("Global: Re-order Identities", EButtonEnableMode.Editor)]
         private void IReorder()
         {
             if (!Application.isPlaying)
@@ -208,7 +211,8 @@ namespace Neutron.Core
             }
         }
 
-        [ContextMenu("Register Neutron Objects")]
+        [ContextMenu("Neutron/Register Neutron Objects")]
+        [Button("Register Neutron Objects", EButtonEnableMode.Editor)]
         private void AddNeutronObjects()
         {
             if (!Application.isPlaying)

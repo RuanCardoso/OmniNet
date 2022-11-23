@@ -1,13 +1,11 @@
 public struct RemoteStats
 {
-    public double LocalTime;
-    public double NetworkTime;
-    public double BatchedTime;
+    public double Time;
+    public int Length;
 
-    public RemoteStats(double localTime, double networkTime, double batchedTime)
+    public RemoteStats(double time, int length)
     {
-        LocalTime = localTime;
-        NetworkTime = networkTime;
-        BatchedTime = batchedTime;
+        Time = time;
+        Length = length;
     }
 }

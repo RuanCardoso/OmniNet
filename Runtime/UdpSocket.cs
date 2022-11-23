@@ -183,6 +183,13 @@ namespace Neutron.Core
                 int multiplier = NeutronNetwork.Instance.platformSettings.recvMultiplier;
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
+#if !NEUTRON_MULTI_THREADED
+                    if (globalSocket.Available <= 0) // prevents blocking of the main thread.
+                    {
+                        yield return null;
+                        continue; // If there is no data we will just skip the execution.
+                    }
+#endif
 #if NEUTRON_MULTI_THREADED
                     try
 #endif
@@ -192,10 +199,10 @@ namespace Neutron.Core
 #endif
                         {
 #if !NEUTRON_MULTI_THREADED
-                            if (globalSocket.Available <= 0)
+                            if (globalSocket.Available <= 0) // prevents blocking of the main thread.
                             {
                                 yield return null;
-                                continue;
+                                break; // Let's prevent our loop from spending unnecessary processing(CPU).
                             }
 #endif
                             int length = globalSocket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);

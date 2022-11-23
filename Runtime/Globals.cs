@@ -18,6 +18,8 @@ using System.Linq;
 using System.Net;
 using MessagePack;
 using UnityEngine;
+using System.Collections.Generic;
+using NaughtyAttributes;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -78,6 +80,12 @@ namespace Neutron.Core
         Byte, KB, MB, GB, TB, PB, EB, ZB, YB
     }
 
+    internal enum LocalPhysicsMode
+    {
+        Physics2D = 0x1,
+        Physics3D = 0x2
+    }
+
     internal static class Helper
     {
         internal static int GetFreePort()
@@ -100,34 +108,37 @@ namespace Neutron.Core
         }
 
 #if UNITY_EDITOR
-        internal static void SetDefine(bool remove = false, string except = "", params string[] defines)
+        internal static List<string> GetDefines(out BuildTargetGroup targetGroup)
         {
             BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
-            BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget);
+            targetGroup = BuildPipeline.GetBuildTargetGroup(buildTarget);
 #if UNITY_SERVER
-            var definedSymbols = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Server).Split(';').ToList();
+            var symbols = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Server).Split(';').ToList();
 #else
-            var definedSymbols = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(targetGroup)).Split(';').ToList();
+            var symbols = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(targetGroup)).Split(';').ToList();
 #endif
+            return symbols;
+        }
 
-            if (!string.IsNullOrEmpty(except))
-            {
-                var _except = except.Split(';').ToList();
-                definedSymbols.RemoveAll(x => _except.Contains(x));
-            }
-
+        internal static void SetDefines(params NeutronDefine[] defines)
+        {
+            List<string> definedSymbols = GetDefines(out var targetGroup);
             for (int i = 0; i < defines.Length; i++)
             {
-                string def = defines[i];
-                if (remove) definedSymbols.Remove(def);
-                else if (!definedSymbols.Contains(def))
+                NeutronDefine define = defines[i];
+                if (define.enabled)
                 {
-                    if (def.ToUpper().Contains("_REMOVED")) definedSymbols.Remove(def.Replace("_REMOVED", "").Replace("_removed", ""));
-                    else definedSymbols.Add(def);
+                    if (!definedSymbols.Contains(define.define)) definedSymbols.Add(define.define);
+                    else { /* the symbol has already been defined */ }
+                }
+                else
+                {
+                    if (definedSymbols.Contains(define.define)) definedSymbols.Remove(define.define);
+                    else { /* the symbol has already been removed */ }
                 }
             }
 
-            string symbols = string.Join(";", definedSymbols.ToArray());
+            string symbols = string.Join(';', definedSymbols);
 #if UNITY_SERVER
             PlayerSettings.SetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Server, symbols);
 #else
@@ -182,7 +193,7 @@ namespace Neutron.Core
             [SerializeField] internal int port;
         }
 
-        public string name = "No Plataform!";
+        [ReadOnly][AllowNesting] public string name = "No Plataform!";
 #if UNITY_SERVER
         [HideInInspector]
 #endif
@@ -191,7 +202,8 @@ namespace Neutron.Core
             new Host() { host = "0.0.0.0", name = "WSL", port = 5055 } ,
             new Host() { host = "0.0.0.0", name = "Cloud Server", port = 5055 } ,
         };
-        public bool enabled;
+
+        [HideInInspector] public bool enabled;
         [Range(30, byte.MaxValue * 128)] public int maxFramerate = 60;
 #if NEUTRON_MULTI_THREADED
         [HideInInspector]

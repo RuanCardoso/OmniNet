@@ -1,6 +1,7 @@
 using Neutron.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Logger = Neutron.Core.Logger;
 
 public class NeutronServerObject : MonoBehaviour
 {
@@ -10,12 +11,19 @@ public class NeutronServerObject : MonoBehaviour
 #if UNITY_EDITOR
     private void Awake()
     {
-        if (!avoidCloneLoop)
+        try
         {
-            avoidCloneLoop = true;
-            Instantiate(gameObject);
+            if (!avoidCloneLoop)
+            {
+                avoidCloneLoop = true;
+                Instantiate(gameObject);
+            }
+            else SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
         }
-        else SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.ServerScene);
+        catch
+        {
+            Logger.PrintWarning("Unable to move object to target scene -> Server.");
+        }
     }
 #endif
 }

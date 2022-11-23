@@ -11,15 +11,18 @@ public class MoveCube : NeutronObject
         [Key(0)] public Vector3 Position;
         [Key(1)] public Vector3 Velocity;
         [Key(2)] public Vector3 AngularVelocity;
+        [Key(3)] public Quaternion Rotation;
     }
 
 
     float force = 300;
     Rigidbody rb;
     // Start is called before the first frame update
+    MessagePackSerializerOptions serializerOptions;
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        serializerOptions = MessagePackSerializer.DefaultOptions.WithCompression(MessagePackCompression.None);
     }
 
     // Update is called once per frame
@@ -41,7 +44,7 @@ public class MoveCube : NeutronObject
                 };
 
                 var netStream = Get;
-                netStream.Serialize(netMove);
+                netStream.Serialize(netMove, serializerOptions);
                 Remote(1, netStream, Channel.Unreliable, Target.Others);
             }
         }
@@ -53,10 +56,13 @@ public class MoveCube : NeutronObject
     {
         if (!IsMine)
         {
-            NetMove netMove = parameters.Deserialize<NetMove>();
+            NetMove netMove = parameters.Deserialize<NetMove>(serializerOptions);
             transform.position = netMove.Position;
+            transform.rotation = netMove.Rotation;
             rb.velocity = netMove.Velocity;
             rb.angularVelocity = netMove.AngularVelocity;
+
+            Logger.Print($"{stats.Length}");
         }
     }
 }

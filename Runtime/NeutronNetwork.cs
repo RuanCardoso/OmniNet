@@ -16,6 +16,7 @@ using MessagePack;
 using MessagePack.Resolvers;
 using MessagePack.Unity;
 using MessagePack.Unity.Extension;
+using NaughtyAttributes;
 using Neutron.Resolvers;
 using System;
 using System.Collections.Generic;
@@ -30,7 +31,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Scripting;
-using static Dapper.SqlMapper;
 
 namespace Neutron.Core
 {
@@ -42,6 +42,8 @@ namespace Neutron.Core
         private const byte SETTINGS_SIZE = 50;
 
         #region Framerate
+        [Header("[SETTINGS]")]
+        [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
         [SerializeField][Range(0, 10)] private int fpsUpdateRate = 4;
         public static float framerate = 0f;
         public static float cpuMs = 0f;
@@ -60,7 +62,9 @@ namespace Neutron.Core
 
         #region Properties
 #if UNITY_EDITOR
-        internal static Scene ServerScene { get; private set; }
+        internal static Scene Scene { get; private set; }
+        internal static PhysicsScene PhysicsScene { get; private set; }
+        internal static PhysicsScene2D PhysicsScene2D { get; private set; }
 #endif
         internal static int Port { get; private set; }
         internal static ushort ServerId { get; } = ushort.MaxValue;
@@ -80,14 +84,17 @@ namespace Neutron.Core
         private bool consoleInput;
         [SerializeField] private bool dontDestroy = false;
         [SerializeField] private bool loadNextScene = true;
+        // defines
+        [Header("[DEFINES]")]
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField] private bool multiThreaded = false;
+        [SerializeField][ReadOnly] private string[] defined;
         #endregion
 
         internal static double timeAsDouble;
 
         [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
-        [SerializeField] internal LocalSettings platformSettings;
+        [Header("[PLATFORMS]")][SerializeField] internal LocalSettings platformSettings;
 
         private ActionDispatcher dispatcher;
         private readonly CancellationTokenSource tokenSource = new();
@@ -112,7 +119,7 @@ namespace Neutron.Core
             Instance = this;
             dispatcher = GetComponent<ActionDispatcher>();
             AddResolver(null);
-            if (dontDestroy) DontDestroyOnLoad(this);
+            if (dontDestroy) DontDestroyOnLoad(gameObject);
             ByteStream.streams = new();
 
             #region Registers
@@ -136,7 +143,9 @@ namespace Neutron.Core
             udpClient.Connect(new UdpEndPoint(IPAddress.Parse(lHost.host), remoteEndPoint.GetPort()));
 #endif
 #if UNITY_EDITOR
-            ServerScene = SceneManager.CreateScene("Server[Only Editor]", new CreateSceneParameters(LocalPhysicsMode.Physics3D));
+            Scene = SceneManager.CreateScene("Server[Only Editor]", new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
+            PhysicsScene = Scene.GetPhysicsScene();
+            PhysicsScene2D = Scene.GetPhysicsScene2D();
 #endif
         }
 
@@ -170,12 +179,20 @@ namespace Neutron.Core
 #endif
         }
 
+#if UNITY_EDITOR
         private void FixedUpdate()
         {
-#if UNITY_EDITOR
-            ServerScene.GetPhysicsScene().Simulate(Time.fixedDeltaTime);
-#endif
+            switch (physicsMode)
+            {
+                case LocalPhysicsMode.Physics3D:
+                    PhysicsScene.Simulate(Time.fixedDeltaTime);
+                    break;
+                case LocalPhysicsMode.Physics2D:
+                    PhysicsScene2D.Simulate(Time.fixedDeltaTime);
+                    break;
+            }
         }
+#endif
 
         private void Update()
         {
@@ -192,7 +209,8 @@ namespace Neutron.Core
         }
 
 #if UNITY_EDITOR
-        [ContextMenu("Request Script Compilation")]
+        [ContextMenu("Neutron/Reload Scripts", false)]
+        [Button("Reload Scripts", EButtonEnableMode.Editor)]
         private void RequestScriptCompilation()
         {
             for (int i = 0; i < allPlatformSettings.Length; i++)
@@ -206,9 +224,29 @@ namespace Neutron.Core
             else Logger.PrintError("RequestScriptCompilation -> Failed");
         }
 
+        [ContextMenu("Neutron/Set Defines", false)]
+        [Button("Set Defines", EButtonEnableMode.Editor)]
+        private void SetDefines()
+        {
+            NeutronDefine MULTI_THREADED_DEFINE = new()
+            {
+                define = "NEUTRON_MULTI_THREADED",
+                enabled = multiThreaded
+            };
+
+            NeutronDefine AGRESSIVE_RELAY_DEFINE = new()
+            {
+                define = "NEUTRON_AGRESSIVE_RELAY",
+                enabled = agressiveRelay
+            };
+
+            Helper.SetDefines(MULTI_THREADED_DEFINE, AGRESSIVE_RELAY_DEFINE);
+        }
+
         private void Reset() => OnValidate();
         private void OnValidate()
         {
+            defined = Helper.GetDefines(out _).ToArray();
 #if UNITY_SERVER
             BuildTarget buildTarget = BuildTarget.LinuxHeadlessSimulation;
 #else
@@ -238,15 +276,6 @@ namespace Neutron.Core
                     else RequestScriptCompilation();
                 }
             }
-
-            #region Defines
-            List<string> defs = new();
-            if (!multiThreaded) defs.Add("NEUTRON_MULTI_THREADED_REMOVED");
-            else defs.Add("NEUTRON_MULTI_THREADED");
-            if (!agressiveRelay) defs.Add("NEUTRON_AGRESSIVE_RELAY_REMOVED");
-            else defs.Add("NEUTRON_AGRESSIVE_RELAY");
-            Helper.SetDefine(defines: defs.ToArray());
-            #endregion
         }
 #endif
 
@@ -332,7 +361,7 @@ namespace Neutron.Core
                         if (identity != null)
                         {
                             Action<ByteStream, ushort, ushort, RemoteStats> rpc = identity.GetRpc(instanceId, rpcId);
-                            rpc?.Invoke(RECV_STREAM, fromId, toId, new RemoteStats(NeutronTime.LocalTime, NeutronTime.Time, 0));
+                            rpc?.Invoke(RECV_STREAM, fromId, toId, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
                         }
                         else
                             Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {resolved_id}, {isServer}, {objectType}]");

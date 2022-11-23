@@ -12,23 +12,19 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using JetBrains.Annotations;
-using Mono.Cecil;
+using NaughtyAttributes;
 using System;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
 using UnityEngine;
-using static Dapper.SqlMapper;
-using static UnityEngine.GraphicsBuffer;
 
 namespace Neutron.Core
 {
     [AddComponentMenu("")]
     public class NeutronObject : ActionDispatcher
     {
-        [SerializeField] internal NeutronIdentity identity;
-        [SerializeField] internal byte id;
+        [SerializeField][ReadOnly][Required("It is necessary to register neutron objects on the identity.")] internal NeutronIdentity identity;
+        [SerializeField][ReadOnly] internal byte id;
 
         internal byte Id => id;
         protected ByteStream Get => ByteStream.Get();

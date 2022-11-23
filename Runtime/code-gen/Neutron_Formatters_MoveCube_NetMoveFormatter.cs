@@ -22,10 +22,11 @@ namespace Neutron.Formatters
         public void Serialize(ref global::MessagePack.MessagePackWriter writer, global::MoveCube.NetMove value, global::MessagePack.MessagePackSerializerOptions options)
         {
             global::MessagePack.IFormatterResolver formatterResolver = options.Resolver;
-            writer.WriteArrayHeader(3);
+            writer.WriteArrayHeader(4);
             global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Vector3>(formatterResolver).Serialize(ref writer, value.Position, options);
             global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Vector3>(formatterResolver).Serialize(ref writer, value.Velocity, options);
             global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Vector3>(formatterResolver).Serialize(ref writer, value.AngularVelocity, options);
+            global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Quaternion>(formatterResolver).Serialize(ref writer, value.Rotation, options);
         }
 
         public global::MoveCube.NetMove Deserialize(ref global::MessagePack.MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
@@ -52,6 +53,9 @@ namespace Neutron.Formatters
                         break;
                     case 2:
                         ____result.AngularVelocity = global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Vector3>(formatterResolver).Deserialize(ref reader, options);
+                        break;
+                    case 3:
+                        ____result.Rotation = global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Quaternion>(formatterResolver).Deserialize(ref reader, options);
                         break;
                     default:
                         reader.Skip();
