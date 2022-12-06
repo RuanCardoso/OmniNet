@@ -12,7 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using NaughtyAttributes;
 using UnityEngine;
 
 namespace Neutron.Core.Tests

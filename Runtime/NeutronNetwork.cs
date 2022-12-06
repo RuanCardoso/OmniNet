@@ -75,6 +75,9 @@ namespace Neutron.Core
         #endregion
 
         #region Fields
+        [InfoBox("The ping time directly influences the synchronization of the clock between the client and the server.", EInfoBoxType.Warning)]
+        [SerializeField][Range(0.01f, 5)] private float pingTime = 1f;
+        [SerializeField][Range(0.1f, 5)] private float connectionTime = 1f;
         [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
         [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64;
         [SerializeField]
@@ -99,6 +102,9 @@ namespace Neutron.Core
         private ActionDispatcher dispatcher;
         private readonly CancellationTokenSource tokenSource = new();
 
+        internal static WaitForSeconds WAIT_FOR_CONNECT;
+        internal static WaitForSeconds WAIT_FOR_PING;
+
         public static IFormatterResolver Formatter { get; private set; }
         public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
         {
@@ -121,7 +127,10 @@ namespace Neutron.Core
             AddResolver(null);
             if (dontDestroy) DontDestroyOnLoad(gameObject);
             ByteStream.streams = new();
-
+            //***************************************************
+            WAIT_FOR_CONNECT = new(connectionTime);
+            WAIT_FOR_PING = new(pingTime);
+            //***************************************************
             #region Registers
             OnConnected += NeutronNetwork_OnConnected;
             #endregion

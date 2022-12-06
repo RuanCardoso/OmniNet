@@ -57,7 +57,6 @@ namespace Neutron.Core
             NeutronNetwork.Instance.StartCoroutine(Connect());
         }
 
-        readonly WaitForSeconds yieldConnect = new(1f);
         private IEnumerator Connect()
         {
             while (!IsConnected)
@@ -66,11 +65,10 @@ namespace Neutron.Core
                 stream.WritePacket(MessageType.Connect);
                 Send(stream, Channel.Unreliable, Target.Me);
                 stream.Release();
-                yield return yieldConnect;
+                yield return NeutronNetwork.WAIT_FOR_CONNECT;
             }
         }
 
-        readonly WaitForSeconds yieldPing = new(1f);
         private IEnumerator Ping()
         {
             while (IsConnected)
@@ -80,7 +78,7 @@ namespace Neutron.Core
                 stream.Write(NeutronTime.LocalTime);
                 Send(stream, Channel.Unreliable, Target.Me);
                 stream.Release();
-                yield return yieldPing;
+                yield return NeutronNetwork.WAIT_FOR_PING;
             }
         }
 
