@@ -170,6 +170,7 @@ namespace Neutron.Core
                         }
                         break;
                     case Target.Server:
+                        break;
                     default:
                         Logger.PrintError($"Invalid target -> {target}");
                         break;

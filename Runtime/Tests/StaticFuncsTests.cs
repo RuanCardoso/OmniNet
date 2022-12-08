@@ -16,34 +16,16 @@ using UnityEngine;
 
 namespace Neutron.Core.Tests
 {
-    public class StaticFuncsTests : NeutronObject
+    public class StaticFuncsTests : MonoBehaviour
     {
-        public NeutronIdentity Player;
+        byte[] data = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
-        [Remote(1)]
-        public void SpawnPlayer(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        private void Start()
         {
-            Logger.Print($"Instantiate Player! Server={IsServer} {fromId} | {toId} | {IsServer}");
-        }
+            Logger.PrintError(data.Length);
 
-        ushort dynamicId = 1;
-        protected override void Update()
-        {
-            if (IsItFromTheServer)
-            {
-                if (Input.GetKeyDown(KeyCode.P))
-                {
-                    SpawnPlayer(NeutronNetwork.Id);
-                }
-            }
-        }
-
-        private void SpawnPlayer(int id)
-        {
-            var stream = Get;
-            stream.Write(dynamicId++);
-            Remote(1, (ushort)20, (ushort)id, stream, Channel.Unreliable, Target.All, SubTarget.Server);
-            stream.Release();
+            var dd = ByteStream.Get();
+            dd.Write(data);
         }
     }
 }

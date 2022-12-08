@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -41,15 +42,15 @@ namespace Neutron.Core
     {
         private const byte SETTINGS_SIZE = 50;
 
-        #region Framerate
         [Header("[SETTINGS]")]
         [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
         [SerializeField][Range(0, 10)] private int fpsUpdateRate = 4;
+        [SerializeField] private Encoding encoding = Encoding.ASCII;
+
         public static float framerate = 0f;
         public static float cpuMs = 0f;
         private static int frameCount = 0;
         private static float deltaTime = 0f;
-        #endregion
 
         private static readonly Dictionary<(ushort, ushort, bool, ObjectType), NeutronIdentity> identities = new(); // [identity id, playerId, isServer bool, objectType id]
         private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();
@@ -60,7 +61,10 @@ namespace Neutron.Core
         public static event Action<bool, IPEndPoint, ByteStream> OnConnected;
         #endregion
 
+        internal static NeutronNetwork Instance { get; private set; }
+
         #region Properties
+        internal Encoding Encoding => encoding;
 #if UNITY_EDITOR
         internal static Scene Scene { get; private set; }
         internal static PhysicsScene PhysicsScene { get; private set; }
@@ -68,7 +72,7 @@ namespace Neutron.Core
 #endif
         internal static int Port { get; private set; }
         internal static ushort ServerId { get; } = ushort.MaxValue;
-        internal static NeutronNetwork Instance { get; private set; }
+
         public static int Id => udpClient.Id;
         public static bool IsConnected => udpClient.IsConnected;
         public static ActionDispatcher Dispatcher => Instance.dispatcher;
@@ -86,7 +90,7 @@ namespace Neutron.Core
 #endif
         private bool consoleInput;
         [SerializeField] private bool dontDestroy = false;
-        [SerializeField] private bool loadNextScene = true;
+        [SerializeField] private bool loadNextScene = false;
         // defines
         [Header("[DEFINES]")]
         [SerializeField] private bool agressiveRelay = false;

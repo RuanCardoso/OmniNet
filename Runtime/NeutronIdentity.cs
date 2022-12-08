@@ -29,6 +29,7 @@ namespace Neutron.Core
     public class NeutronIdentity : ActionDispatcher
     {
         [SerializeField][HideInInspector] internal bool isRegistered;
+        [ValidateInput("WarnIfNotRoot", "Root mode is enabled, but the identity is not on the root object.")]
         [SerializeField][ReadOnly] internal ushort id;
         [SerializeField][ReadOnly] internal ushort playerId;
         [SerializeField] internal ObjectType objectType = ObjectType.Player;
@@ -45,13 +46,16 @@ namespace Neutron.Core
         private bool isInRoot = false;
         private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, ushort, ushort, RemoteStats>> remoteMethods = new(); // [rpc id, instanceId]
 
-        private Transform GetRootOr() => rootMode ? transform.root : transform;
+        private Transform RootOr() => rootMode ? transform.root : transform;
+#pragma warning disable IDE0051
+        private bool WarnIfNotRoot() => !rootMode || transform == transform.root;
+#pragma warning restore IDE0051
         protected virtual void Awake()
         {
             if (!NeutronNetwork.IsConnected)
             {
                 Logger.PrintError("Neutron is not connected!");
-                Destroy(GetRootOr().gameObject);
+                Destroy(RootOr().gameObject);
             }
             else
             {
@@ -62,7 +66,7 @@ namespace Neutron.Core
                 Clone();
 #endif
                 Register();
-                isInRoot = transform == GetRootOr();
+                isInRoot = transform == RootOr();
             }
         }
 
@@ -168,7 +172,7 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
-                if (!(isInRoot = transform == GetRootOr()))
+                if (!(isInRoot = transform == RootOr()))
                     Logger.PrintWarning($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
 
                 if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
@@ -217,7 +221,7 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
-                var neutronObjects = GetRootOr().GetComponentsInChildren<NeutronObject>(true);
+                var neutronObjects = RootOr().GetComponentsInChildren<NeutronObject>(true);
                 for (int i = 0; i < neutronObjects.Length; i++)
                 {
                     var nObject = neutronObjects[i];

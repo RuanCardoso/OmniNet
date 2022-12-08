@@ -13,6 +13,7 @@
     ===========================================================*/
 using MessagePack;
 using System;
+using System.Text;
 using UnityEngine;
 #if UNITY_SERVER && !UNITY_EDITOR
 using System.Threading;
@@ -186,7 +187,24 @@ namespace Neutron.Core
             Write((byte)(value >> 56));
         }
 
+        public void Write(string value)
+        {
+            var encoding = NeutronNetwork.Instance.Encoding;
+            int length = encoding.GetByteCount(value);
+            byte[] encoded = encoding.GetBytes(value);
+            // write the length of string.
+            Write7BitEncodedInt(length);
+            // write the string.
+            Write(encoded, 0, length);
+        }
+
         public void Write(Span<byte> value)
+        {
+            for (int i = 0; i < value.Length; i++)
+                Write(value[i]);
+        }
+
+        public void Write(byte[] value)
         {
             for (int i = 0; i < value.Length; i++)
                 Write(value[i]);
@@ -359,6 +377,18 @@ namespace Neutron.Core
             value |= (long)(ReadByte() << 48);
             value |= (long)(ReadByte() << 56);
             return value;
+        }
+
+        public string ReadString()
+        {
+            var encoding = NeutronNetwork.Instance.Encoding;
+            // Read the length of string.
+            int length = Read7BitEncodedInt();
+            // Initialize new Matrix with the specified length.
+            byte[] encoded = new byte[length];
+            Read(encoded, 0, length);
+            // Create new string with the readed bytes.
+            return new string(encoding.GetString(encoded));
         }
 
         public void Read(byte[] value, int offset, int size)
