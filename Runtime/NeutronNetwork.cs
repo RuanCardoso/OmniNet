@@ -45,7 +45,8 @@ namespace Neutron.Core
         [Header("[SETTINGS]")]
         [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
         [SerializeField][Range(0, 10)] private int fpsUpdateRate = 4;
-        [SerializeField] private Encoding encoding = Encoding.ASCII;
+        [SerializeField] private EncodingType encoding = EncodingType.ASCII;
+        private Encoding _encoding = Encoding.ASCII;
 
         public static float framerate = 0f;
         public static float cpuMs = 0f;
@@ -64,7 +65,7 @@ namespace Neutron.Core
         internal static NeutronNetwork Instance { get; private set; }
 
         #region Properties
-        internal Encoding Encoding => encoding;
+        internal Encoding Encoding => _encoding;
 #if UNITY_EDITOR
         internal static Scene Scene { get; private set; }
         internal static PhysicsScene PhysicsScene { get; private set; }
@@ -160,6 +161,27 @@ namespace Neutron.Core
             PhysicsScene = Scene.GetPhysicsScene();
             PhysicsScene2D = Scene.GetPhysicsScene2D();
 #endif
+
+            #region Define Encoding
+            switch (encoding)
+            {
+                case EncodingType.ASCII:
+                    _encoding = Encoding.ASCII;
+                    break;
+                case EncodingType.Unicode:
+                    _encoding = Encoding.Unicode;
+                    break;
+                case EncodingType.UTF32:
+                    _encoding = Encoding.UTF32;
+                    break;
+                case EncodingType.UTF7:
+                    _encoding = Encoding.UTF7;
+                    break;
+                case EncodingType.UTF8:
+                    _encoding = Encoding.UTF8;
+                    break;
+            }
+            #endregion
         }
 
         private void NeutronNetwork_OnConnected(bool isServer, IPEndPoint endPoint, ByteStream parameters)

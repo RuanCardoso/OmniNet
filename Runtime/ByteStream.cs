@@ -402,7 +402,7 @@ namespace Neutron.Core
         {
             if (position + size > buffer.Length)
             {
-                Logger.PrintError($"Byte Stream: Not enough space to write!");
+                Logger.PrintError($"Byte Stream: Not enough space to write! you are writing {size} bytes -> pos: {position + size}");
                 return false;
             }
             return true;

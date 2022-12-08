@@ -86,6 +86,15 @@ namespace Neutron.Core
         Physics3D = 0x2
     }
 
+    internal enum EncodingType : int
+    {
+        UTF8,
+        UTF7,
+        UTF32,
+        ASCII,
+        Unicode,
+    }
+
     internal static class Helper
     {
         internal static int GetFreePort()
