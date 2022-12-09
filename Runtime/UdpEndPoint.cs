@@ -99,7 +99,7 @@ namespace Neutron.Core
         }
 
         public override int GetHashCode() => socketAddress.GetHashCode();
-        public override string ToString() => $"{GetIPAddress()}:{GetPort()}";
+        public override string ToString() => $"{Helper.ToAddress(GetIPAddress())}:{GetPort()}";
         public override bool Equals(object obj) => obj is UdpEndPoint other && GetIPAddress() == other.GetIPAddress() && GetPort() == other.GetPort();
     }
 }

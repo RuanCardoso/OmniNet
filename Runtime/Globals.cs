@@ -106,6 +106,15 @@ namespace Neutron.Core
             return port;
         }
 
+        internal static string ToAddress(long address)
+        {
+            long n1 = address % 256;
+            long n2 = address / 256 % 256;
+            long n3 = address / 256 / 256 % 256;
+            long n4 = address / 256 / 256 / 256;
+            return string.Format("{0}.{1}.{2}.{3}", n1, n2, n3, n4);
+        }
+
         internal static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange, int minRange = 0)
         {
             var ids = array.Select(predicate);

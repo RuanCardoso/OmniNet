@@ -241,6 +241,12 @@ namespace Neutron.Core
                 frameCount = 0;
             }
             timeAsDouble = Time.timeAsDouble;
+
+            if (Input.GetKeyDown(KeyCode.D))
+            {
+                Logger.Print("sent disconnect");
+                udpClient.Disconnect();
+            }
         }
 
 #if UNITY_EDITOR
@@ -352,7 +358,7 @@ namespace Neutron.Core
             switch (messageType)
             {
                 case MessageType.Connect:
-                    Logger.Print("Connected!");
+                    if (isServer) Logger.Print($"The endpoint {remoteEndPoint} has been established.");
                     OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), RECV_STREAM);
                     break;
                 case MessageType.RemoteStatic:

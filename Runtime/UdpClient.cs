@@ -47,24 +47,31 @@ namespace Neutron.Core
             globalSocket = socket;
             Id = remoteEndPoint.GetPort();
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), Id); // copy endpoint to avoid reference problems!
-            MessageRelay(this.remoteEndPoint);
+            WINDOW(this.remoteEndPoint);
         }
 
         internal void Connect(UdpEndPoint remoteEndPoint)
         {
             this.remoteEndPoint = remoteEndPoint;
-            MessageRelay(this.remoteEndPoint);
+            WINDOW(this.remoteEndPoint);
             NeutronNetwork.Instance.StartCoroutine(Connect());
+        }
+
+        internal void Disconnect()
+        {
+            ByteStream message = ByteStream.Get(MessageType.Disconnect, true);
+            Send(message, Channel.Reliable, Target.Me);
+            message.Release();
         }
 
         private IEnumerator Connect()
         {
             while (!IsConnected)
             {
-                ByteStream stream = ByteStream.Get();
-                stream.WritePacket(MessageType.Connect);
-                Send(stream, Channel.Unreliable, Target.Me);
-                stream.Release();
+                ByteStream message = ByteStream.Get();
+                message.WritePacket(MessageType.Connect);
+                Send(message, Channel.Unreliable, Target.Me);
+                message.Release();
                 yield return NeutronNetwork.WAIT_FOR_CONNECT;
             }
         }
@@ -73,11 +80,11 @@ namespace Neutron.Core
         {
             while (IsConnected)
             {
-                ByteStream stream = ByteStream.Get();
-                stream.WritePacket(MessageType.Ping);
-                stream.Write(NeutronTime.LocalTime);
-                Send(stream, Channel.Unreliable, Target.Me);
-                stream.Release();
+                ByteStream message = ByteStream.Get();
+                message.WritePacket(MessageType.Ping);
+                message.Write(NeutronTime.LocalTime);
+                Send(message, Channel.Unreliable, Target.Me);
+                message.Release();
                 yield return NeutronNetwork.WAIT_FOR_PING;
             }
         }

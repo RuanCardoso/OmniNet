@@ -437,6 +437,22 @@ namespace Neutron.Core
             return _get_;
         }
 
+#pragma warning disable IDE0060
+        internal static ByteStream Get(MessageType msgType, bool isEmpty)
+#pragma warning restore IDE0060
+        {
+            ByteStream _get_ = streams.Get();
+            _get_.isRelease = false;
+            if (_get_.position != 0 || _get_.bytesWritten != 0)
+                Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+            else
+            {
+                _get_.WritePacket(msgType);
+                _get_.Write((byte)1);
+            }
+            return _get_;
+        }
+
         internal bool isRelease = false;
         internal void Release()
         {

@@ -44,6 +44,16 @@ namespace Neutron.Core
             ushort uniqueId = (ushort)remoteEndPoint.GetPort();
             switch (messageType)
             {
+                case MessageType.Disconnect:
+                    {
+                        if (clients.Remove(uniqueId, out UdpClient disconnected))
+                        {
+                            disconnected.Close(true);
+                            Logger.Print($"The endpoint {remoteEndPoint} has been disconnected.");
+                        }
+                        else Logger.PrintError("Failed to disconnect client!");
+                    }
+                    break;
                 case MessageType.Connect:
                     {
                         if (uniqueId == NeutronNetwork.Port)
@@ -82,17 +92,19 @@ namespace Neutron.Core
                     }
                     break;
                 case MessageType.Ping:
-                    UdpClient client = GetClient(remoteEndPoint);
-                    if (client != null)
                     {
-                        double timeOfClient = RECV_STREAM.ReadDouble();
-                        ByteStream stream = ByteStream.Get(messageType);
-                        stream.Write(timeOfClient);
-                        stream.Write(NeutronTime.LocalTime);
-                        client.Send(stream, channel, target);
-                        stream.Release();
+                        UdpClient client = GetClient(remoteEndPoint);
+                        if (client != null)
+                        {
+                            double timeOfClient = RECV_STREAM.ReadDouble();
+                            ByteStream stream = ByteStream.Get(messageType);
+                            stream.Write(timeOfClient);
+                            stream.Write(NeutronTime.LocalTime);
+                            client.Send(stream, channel, target);
+                            stream.Release();
+                        }
+                        else Logger.PrintError("A ping attempt on a disconnected client!");
                     }
-                    else Logger.PrintError("Ping -> Client is null!");
                     break;
                 default:
                     NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);

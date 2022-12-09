@@ -22,6 +22,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
+using static Neutron.Core.NeutronNetwork;
 
 namespace Neutron.Core
 {
@@ -39,6 +40,8 @@ namespace Neutron.Core
         internal Socket globalSocket;
         internal readonly CancellationTokenSource cancellationTokenSource = new();
 
+        private Coroutine WINDOW_COROUTINE;
+
         protected void Initialize()
         {
             RECV_WINDOW.Initialize();
@@ -49,8 +52,8 @@ namespace Neutron.Core
         {
             globalSocket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
             {
-                ReceiveBufferSize = NeutronNetwork.Instance.platformSettings.recvBufferSize,
-                SendBufferSize = NeutronNetwork.Instance.platformSettings.sendBufferSize,
+                ReceiveBufferSize = Instance.platformSettings.recvBufferSize,
+                SendBufferSize = Instance.platformSettings.sendBufferSize,
             };
 
             try
@@ -76,9 +79,9 @@ namespace Neutron.Core
                 globalSocket.ExclusiveAddressUse = true;
                 globalSocket.Bind(localEndPoint);
 #if NEUTRON_MULTI_THREADED
-                ReadData();
+                ReadData(); // Globally, used for all clients, not dispose or cancel this!
 #else
-                NeutronNetwork.Instance.StartCoroutine(ReadData());
+                Instance.StartCoroutine(ReadData()); // Globally, used for all clients, do not dispose or cancel this!
 #endif
             }
             catch (SocketException ex)
@@ -95,9 +98,9 @@ namespace Neutron.Core
         }
 
 #if NEUTRON_MULTI_THREADED
-        protected void MessageRelay(UdpEndPoint remoteEndPoint) => SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
+        protected void WINDOW(UdpEndPoint remoteEndPoint) => SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
 #else
-        protected void MessageRelay(UdpEndPoint remoteEndPoint) => NeutronNetwork.Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
+        protected void WINDOW(UdpEndPoint remoteEndPoint) => WINDOW_COROUTINE = Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
 #endif
         protected int SendUnreliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me)
         {
@@ -180,7 +183,7 @@ namespace Neutron.Core
             {
                 byte[] buffer = new byte[0x5DC];
                 EndPoint endPoint = new UdpEndPoint(0, 0);
-                int multiplier = NeutronNetwork.Instance.platformSettings.recvMultiplier;
+                int multiplier = Instance.platformSettings.recvMultiplier;
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
 #if !NEUTRON_MULTI_THREADED
@@ -357,19 +360,22 @@ namespace Neutron.Core
 #endif
         }
 
-        internal virtual void Close(bool fromServer = false)
+        internal virtual void Close(bool dispose = false)
         {
             try
             {
+#if !NEUTRON_MULTI_THREADED
+                Instance.StopCoroutine(WINDOW_COROUTINE);
+#endif
                 cancellationTokenSource.Cancel();
-                if (!fromServer)
+                if (!dispose)
                     globalSocket.Close();
             }
             catch { }
             finally
             {
                 cancellationTokenSource.Dispose();
-                if (globalSocket != null && !fromServer)
+                if (globalSocket != null && !dispose)
                     globalSocket.Dispose();
             }
         }
