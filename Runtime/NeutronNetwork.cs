@@ -27,6 +27,7 @@ using System.Threading;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Compilation;
+using UnityEditor.PackageManager;
 using UnityEditor.SceneManagement;
 #endif
 using UnityEngine;
@@ -71,6 +72,7 @@ namespace Neutron.Core
         internal static PhysicsScene PhysicsScene { get; private set; }
         internal static PhysicsScene2D PhysicsScene2D { get; private set; }
 #endif
+        public static Player Player => udpClient.Player;
         internal static int Port { get; private set; }
         internal static ushort ServerId { get; } = ushort.MaxValue;
 
@@ -241,12 +243,9 @@ namespace Neutron.Core
                 frameCount = 0;
             }
             timeAsDouble = Time.timeAsDouble;
-
-            if (Input.GetKeyDown(KeyCode.D))
-            {
-                Logger.Print("sent disconnect");
-                udpClient.Disconnect();
-            }
+#if UNITY_EDITOR
+            if (Input.GetKeyDown(KeyCode.B)) udpClient.Disconnect();
+#endif
         }
 
 #if UNITY_EDITOR
@@ -431,6 +430,8 @@ namespace Neutron.Core
             Intern_Send(remote, toId, fromServer, channel, target, subTarget);
             remote.Release();
         }
+
+        public static Player GetPlayer(ushort playerId, bool isServer = true) => isServer ? udpServer.GetClient(playerId).Player : udpClient.Player;
 
         internal void OnApplicationQuit()
         {

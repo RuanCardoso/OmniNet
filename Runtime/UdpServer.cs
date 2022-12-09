@@ -137,6 +137,7 @@ namespace Neutron.Core
                                 else
                                     sender.Send(byteStream);
                             }
+                            else if (subTarget != SubTarget.Server) Logger.PrintError("Are you trying to run the instruction on yourself? Use SubTarget.Server");
                         }
                         break;
                     case Target.All:

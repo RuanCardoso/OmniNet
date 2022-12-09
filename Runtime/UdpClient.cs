@@ -12,18 +12,18 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
 using System.Collections;
 using System.Net;
 using System.Net.Sockets;
-using UnityEngine;
 
 namespace Neutron.Core
 {
     internal sealed class UdpClient : UdpSocket
     {
+        public Player Player { get; }
         internal int Id { get; private set; }
         internal bool IsConnected { get; private set; }
+
         protected override string Name => "Neutron_Client";
         protected override bool IsServer => false;
 
@@ -36,6 +36,7 @@ namespace Neutron.Core
             {
                 Id = NeutronNetwork.ServerId;
                 remoteEndPoint = new UdpEndPoint(IPAddress.Loopback, NeutronNetwork.Port);
+                Player = new(Id, remoteEndPoint);
             }
             else { /*Client Player*/ }
         }
@@ -46,6 +47,7 @@ namespace Neutron.Core
             IsConnected = true;
             globalSocket = socket;
             Id = remoteEndPoint.GetPort();
+            Player = new(Id, remoteEndPoint);
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), Id); // copy endpoint to avoid reference problems!
             WINDOW(this.remoteEndPoint);
         }
