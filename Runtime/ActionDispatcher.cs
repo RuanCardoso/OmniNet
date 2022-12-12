@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using NaughtyAttributes;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -21,7 +22,11 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class ActionDispatcher : MonoBehaviour
     {
-        [Range(1, byte.MaxValue)] public int actionsPerFrame = 1;
+        [Header("Client & Editor")]
+        [Range(1, byte.MaxValue)][Label("Actions Per Frame")] public int CLIENT_APF = 1; // Client
+        [Header("Server")]
+        [Range(1, byte.MaxValue)][Label("Actions Per Frame")] public int SERVER_APF = 1; // Server
+
         private readonly object syncRoot = new();
         private readonly Queue<Action> actions = new();
 
@@ -29,7 +34,14 @@ namespace Neutron.Core
         {
             lock (syncRoot)
             {
-                for (int i = 0; i < actionsPerFrame && actions.Count > 0; i++)
+#if UNITY_EDITOR
+                int apf = CLIENT_APF; // client
+#elif !UNITY_SERVER
+                int apf = CLIENT_APF; // client
+#else
+                int apf = SERVER_APF; // server
+#endif
+                for (int i = 0; i < apf && actions.Count > 0; i++)
                     actions.Dequeue()();
             }
         }

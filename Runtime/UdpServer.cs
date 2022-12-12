@@ -16,8 +16,6 @@
 using System.Collections.Concurrent;
 #else
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Net;
 #endif
 
 namespace Neutron.Core
@@ -46,7 +44,11 @@ namespace Neutron.Core
             {
                 case MessageType.Disconnect:
                     {
+#if !NEUTRON_MULTI_THREADED
                         if (clients.Remove(uniqueId, out UdpClient disconnected))
+#else
+                        if (clients.TryRemove(uniqueId, out UdpClient disconnected))
+#endif
                         {
                             disconnected.Close(true);
                             Logger.Print($"The endpoint {remoteEndPoint} has been disconnected.");

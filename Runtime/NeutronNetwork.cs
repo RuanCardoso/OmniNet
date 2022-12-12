@@ -27,7 +27,6 @@ using System.Threading;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Compilation;
-using UnityEditor.PackageManager;
 using UnityEditor.SceneManagement;
 #endif
 using UnityEngine;
@@ -43,10 +42,19 @@ namespace Neutron.Core
     {
         private const byte SETTINGS_SIZE = 50;
 
-        [Header("[SETTINGS]")]
+        [Header("Enums")]
         [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
-        [SerializeField][Range(0, 10)] private int fpsUpdateRate = 4;
         [SerializeField] private EncodingType encoding = EncodingType.ASCII;
+
+        [Header("Others")]
+        [SerializeField][Range(0, 10)][Label("FPS Update Rate")] private int fpsUpdateRate = 4;
+        [SerializeField]
+#if !UNITY_SERVER
+        [HideInInspector]
+#endif
+        private bool consoleInput;
+        [SerializeField] private bool dontDestroy = false;
+        [SerializeField] private bool loadNextScene = false;
         private Encoding _encoding = Encoding.ASCII;
 
         public static float framerate = 0f;
@@ -82,20 +90,15 @@ namespace Neutron.Core
         #endregion
 
         #region Fields
+        [Header("Timers")]
         [InfoBox("The ping time directly influences the synchronization of the clock between the client and the server.", EInfoBoxType.Warning)]
         [SerializeField][Range(0.01f, 5)] private float pingTime = 1f;
         [SerializeField][Range(0.1f, 5)] private float connectionTime = 1f;
+        [Header("Socket")]
         [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
         [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64;
-        [SerializeField]
-#if !UNITY_SERVER
-        [HideInInspector]
-#endif
-        private bool consoleInput;
-        [SerializeField] private bool dontDestroy = false;
-        [SerializeField] private bool loadNextScene = false;
         // defines
-        [Header("[DEFINES]")]
+        [Header("Pre-Processor's")]
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField] private bool multiThreaded = false;
         [SerializeField][ReadOnly] private string[] defined;
@@ -104,7 +107,7 @@ namespace Neutron.Core
         internal static double timeAsDouble;
 
         [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
-        [Header("[PLATFORMS]")][SerializeField] internal LocalSettings platformSettings;
+        [Header("Plataforms")][SerializeField] internal LocalSettings platformSettings;
 
         private ActionDispatcher dispatcher;
         private readonly CancellationTokenSource tokenSource = new();
@@ -264,8 +267,8 @@ namespace Neutron.Core
             else Logger.PrintError("RequestScriptCompilation -> Failed");
         }
 
-        [ContextMenu("Neutron/Set Defines", false)]
-        [Button("Set Defines", EButtonEnableMode.Editor)]
+        [ContextMenu("Neutron/Set Preprocessor", false)]
+        [Button("Set Pre-Processor's", EButtonEnableMode.Editor)]
         private void SetDefines()
         {
             NeutronDefine MULTI_THREADED_DEFINE = new()

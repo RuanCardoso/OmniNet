@@ -1,4 +1,8 @@
+#if NEUTRON_MULTI_THREADED
+using System.Collections.Concurrent;
+#else
 using System.Collections.Generic;
+#endif
 using System.Net;
 
 namespace Neutron.Core
@@ -6,6 +10,7 @@ namespace Neutron.Core
     public class Player
     {
         public int Id { get; }
+        public string Name { get; private set; }
         public IPEndPoint IPEndPoint { get; }
         public int DatabaseId { get; private set; }
 #if NEUTRON_MULTI_THREADED
@@ -20,6 +25,7 @@ namespace Neutron.Core
             IPEndPoint = new(endPoint.GetIPAddress(), endPoint.GetPort());
         }
 
-        public void SetDatabaseId(int databaseId) => DatabaseId = databaseId;
+        public void SetDbId(int databaseId) => DatabaseId = databaseId;
+        public void SetName(string name) => Name = name;
     }
 }
