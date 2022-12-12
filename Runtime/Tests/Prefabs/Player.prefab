@@ -111,16 +111,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a87f8b42ef9e8aa49a457b210004a35f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  actionsPerFrame: 1
+  CLIENT_APF: 1
+  SERVER_APF: 1
   isRegistered: 0
   id: 0
   playerId: 0
-  objectType: 1
+  sceneId: 255
+  objectType: 0
   isItFromTheServer: 0
   simulateServerObj: 1
   drawGizmos: 1
   rootMode: 1
-  isCloned: 0
+  loop: 0
 --- !u!114 &6510642901042831988
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -133,6 +135,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b5b9f1c86cf3dab409362db662ba6d1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  actionsPerFrame: 1
+  CLIENT_APF: 1
+  SERVER_APF: 1
   identity: {fileID: 980387093}
   id: 1

@@ -1,11 +1,14 @@
-public struct RemoteStats
+namespace Neutron.Core
 {
-    public double Time;
-    public int Length;
-
-    public RemoteStats(double time, int length)
+    public struct RemoteStats
     {
-        Time = time;
-        Length = length;
+        public double Time;
+        public int Length;
+
+        public RemoteStats(double time, int length)
+        {
+            Time = time;
+            Length = length;
+        }
     }
 }

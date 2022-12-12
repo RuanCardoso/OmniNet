@@ -1,5 +1,8 @@
-public class NeutronDefine
+namespace Neutron.Core
 {
-    public string define;
-    public bool enabled;
+    internal class NeutronDefine
+    {
+        internal string define;
+        internal bool enabled;
+    }
 }

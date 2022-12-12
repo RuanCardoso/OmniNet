@@ -62,7 +62,7 @@ namespace Neutron.Core
         private static int frameCount = 0;
         private static float deltaTime = 0f;
 
-        private static readonly Dictionary<(ushort, ushort, bool, ObjectType), NeutronIdentity> identities = new(); // [identity id, playerId, isServer bool, objectType id]
+        private static readonly Dictionary<(ushort, ushort, bool, byte, ObjectType), NeutronIdentity> identities = new(); // [identity id, playerId, isServer bool, sceneId, objectType id]
         private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();
         private static readonly UdpServer udpServer = new();
         private static readonly UdpClient udpClient = new();
@@ -91,12 +91,14 @@ namespace Neutron.Core
 
         #region Fields
         [Header("Timers")]
-        [InfoBox("The ping time directly influences the synchronization of the clock between the client and the server.", EInfoBoxType.Warning)]
+        [InfoBox("Ping Time impacts clock sync between client and server.", EInfoBoxType.Warning)]
         [SerializeField][Range(0.01f, 5)] private float pingTime = 1f;
         [SerializeField][Range(0.1f, 5)] private float connectionTime = 1f;
         [Header("Socket")]
+        [SerializeField] private int port = 5055;
+        [SerializeField][Range(1, ushort.MaxValue)] private int byteStreams = 128;
         [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
-        [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64;
+        [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64 * 2;
         // defines
         [Header("Pre-Processor's")]
         [SerializeField] private bool agressiveRelay = false;
@@ -136,7 +138,7 @@ namespace Neutron.Core
             dispatcher = GetComponent<ActionDispatcher>();
             AddResolver(null);
             if (dontDestroy) DontDestroyOnLoad(gameObject);
-            ByteStream.streams = new();
+            ByteStream.streams = new(byteStreams);
             //***************************************************
             WAIT_FOR_CONNECT = new(connectionTime);
             WAIT_FOR_PING = new(pingTime);
@@ -151,7 +153,7 @@ namespace Neutron.Core
             #endregion
 
             LocalSettings.Host lHost = platformSettings.hosts[0];
-            Port = lHost.port;
+            Port = port;
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, Port);
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
@@ -159,7 +161,7 @@ namespace Neutron.Core
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, Helper.GetFreePort()));
-            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(lHost.host), remoteEndPoint.GetPort()));
+            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(lHost.Ip), remoteEndPoint.GetPort()));
 #endif
 #if UNITY_EDITOR
             Scene = SceneManager.CreateScene("Server[Only Editor]", new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
@@ -324,14 +326,14 @@ namespace Neutron.Core
 
         internal static void AddIdentity(NeutronIdentity identity)
         {
-            var key = (identity.id, identity.playerId, identity.isItFromTheServer, identity.objectType);
+            var key = (identity.id, identity.playerId, identity.isItFromTheServer, identity.sceneId, identity.objectType);
             if (!identities.TryAdd(key, identity))
                 Logger.PrintError($"the identity already exists -> {key}");
         }
 
-        internal static NeutronIdentity GetIdentity(ushort identityId, ushort playerId, bool isServer, ObjectType objType)
+        internal static NeutronIdentity GetIdentity(ushort identityId, ushort playerId, bool isServer, byte sceneId, ObjectType objType)
         {
-            if (!identities.TryGetValue((identityId, playerId, isServer, objType), out NeutronIdentity identity))
+            if (!identities.TryGetValue((identityId, playerId, isServer, sceneId, objType), out NeutronIdentity identity))
                 Logger.PrintWarning($"Indentity not found! -> [IsServer]={isServer}");
             return identity;
         }
@@ -370,6 +372,7 @@ namespace Neutron.Core
                     {
                         ushort fromId = RECV_STREAM.ReadUShort();
                         ushort toId = RECV_STREAM.ReadUShort();
+                        byte sceneId = RECV_STREAM.ReadByte();
                         ushort identityId = RECV_STREAM.ReadUShort();
                         byte rpcId = RECV_STREAM.ReadByte();
                         byte instanceId = RECV_STREAM.ReadByte();
@@ -394,13 +397,13 @@ namespace Neutron.Core
                                 objectType = ObjectType.Player;
                                 break;
                             case MessageType.RemoteInstantiated:
-                                objectType = ObjectType.Instantiated;
+                                objectType = ObjectType.Dynamic;
                                 break;
                         }
                         #endregion
 
                         #region Process the RPC
-                        NeutronIdentity identity = GetIdentity(identityId, resolved_id, isServer, objectType);
+                        NeutronIdentity identity = GetIdentity(identityId, resolved_id, isServer, sceneId, objectType);
                         if (identity != null)
                         {
                             Action<ByteStream, ushort, ushort, RemoteStats> rpc = identity.GetRpc(instanceId, rpcId);
@@ -413,18 +416,19 @@ namespace Neutron.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            Remote(rpcId, identityId, instanceId, fromId, toId, isServer, parameters, messageType, channel, target, SubTarget.None);
+                            Remote(rpcId, sceneId, identityId, instanceId, fromId, toId, isServer, parameters, messageType, channel, target, SubTarget.None);
                         #endregion
                     }
                     break;
             }
         }
 
-        internal static void Remote(byte id, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream parameters, MessageType msgType, Channel channel, Target target, SubTarget subTarget)
+        internal static void Remote(byte id, byte sceneId, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream parameters, MessageType msgType, Channel channel, Target target, SubTarget subTarget)
         {
             ByteStream remote = ByteStream.Get(msgType);
             remote.Write(fromId);
             remote.Write(toId);
+            remote.Write(sceneId);
             remote.Write(identity);
             remote.Write(id);
             remote.Write(instanceId);

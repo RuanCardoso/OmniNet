@@ -23,6 +23,7 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class NeutronObject : ActionDispatcher
     {
+        [Header("Registration")]
         [SerializeField][ReadOnly][Required("It is necessary to register neutron objects on the identity.")] internal NeutronIdentity identity;
         [SerializeField][ReadOnly] internal byte id;
 
@@ -91,23 +92,23 @@ namespace Neutron.Core
             }
         }
 
-        private void Intern_Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget)
+        private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget)
         {
             if (identity.isRegistered)
             {
                 switch (identity.objectType)
                 {
                     case ObjectType.Player:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
+                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
                         break;
                     case ObjectType.Scene:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
+                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
                         break;
-                    case ObjectType.Instantiated:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
+                    case ObjectType.Dynamic:
+                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
                         break;
                     case ObjectType.Static:
-                        NeutronNetwork.Remote(id, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
+                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
                         break;
                 }
             }
@@ -118,12 +119,14 @@ namespace Neutron.Core
             }
         }
 
-        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.playerId, identity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromIdentity.playerId, identity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, NeutronIdentity toIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromIdentity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, NeutronIdentity toIdentity, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, ushort toId, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.playerId, toId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ushort fromId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromId, identity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, fromId, toId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromIdentity.playerId, identity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, NeutronIdentity toIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, toIdentity.sceneId, fromIdentity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, NeutronIdentity toIdentity, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, toIdentity.sceneId, identity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, ushort toId, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, identity.playerId, toId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ByteStream parameters, byte sceneId, ushort toId, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, sceneId, identity.playerId, toId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ushort fromId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromId, identity.playerId, parameters, channel, target, subTarget);
+        public void Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromId, toId, parameters, channel, target, subTarget);
+        public void Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, sceneId, fromId, toId, parameters, channel, target, subTarget);
     }
 }

@@ -70,7 +70,7 @@ namespace Neutron.Core
     internal enum ObjectType : byte
     {
         Player = 0,
-        Instantiated = 1,
+        Dynamic = 1,
         Scene = 2,
         Static = 3,
     }
@@ -207,8 +207,7 @@ namespace Neutron.Core
         public class Host
         {
             [SerializeField] internal string name;
-            [SerializeField] internal string host;
-            [SerializeField] internal int port;
+            [SerializeField] internal string Ip;
         }
 
         [InfoBox("In case the platform name does not match the platform chosen in the build settings.\r\nClick \"Reload scripts\"", EInfoBoxType.Warning)]
@@ -217,9 +216,9 @@ namespace Neutron.Core
         [HideInInspector]
 #endif
         public Host[] hosts = {
-            new Host() { host = "127.0.0.1", name = "localhost", port = 5055 } ,
-            new Host() { host = "0.0.0.0", name = "WSL", port = 5055 } ,
-            new Host() { host = "0.0.0.0", name = "Cloud Server", port = 5055 } ,
+            new Host() { Ip = "127.0.0.1", name = "localhost" },
+            new Host() { Ip = "0.0.0.0", name = "WSL" },
+            new Host() { Ip = "0.0.0.0", name = "Cloud Server" },
         };
 
         [HideInInspector] public bool enabled;

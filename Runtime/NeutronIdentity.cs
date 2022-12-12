@@ -30,17 +30,19 @@ namespace Neutron.Core
     {
         [SerializeField][HideInInspector] internal bool isRegistered;
         [ValidateInput("WarnIfNotRoot", "Root mode is enabled, but the identity is not on the root object.")]
+        [Header("Registration")]
         [SerializeField][ReadOnly] internal ushort id;
         [SerializeField][ReadOnly] internal ushort playerId;
-        [SerializeField] internal ObjectType objectType = ObjectType.Player;
+        [SerializeField][ReadOnly][ShowIf("objectType", ObjectType.Scene)] internal byte sceneId;
+        [SerializeField][Label("Mode")] internal ObjectType objectType = ObjectType.Player;
         [SerializeField][HideInInspector] internal bool isItFromTheServer;
-        [Header("[Editor]")]
+        [Header("Editor")]
         [InfoBox("These properties are only valid for the Editor.")]
         [SerializeField] private bool simulateServerObj = true;
         [SerializeField] private bool drawGizmos = true;
         [SerializeField] internal bool rootMode = true;
 #if UNITY_EDITOR
-        [SerializeField][HideInInspector] private bool avoidCloneLoop = false;
+        [SerializeField][HideInInspector] private bool loop = false;
 #endif
 
         private bool isInRoot = false;
@@ -77,9 +79,9 @@ namespace Neutron.Core
             {
                 if (simulateServerObj)
                 {
-                    if (!avoidCloneLoop)
+                    if (!loop)
                     {
-                        avoidCloneLoop = true;
+                        loop = true;
                         Instantiate(gameObject);
                         name = $"{gameObject.name} -> [Client]";
                     }
@@ -113,9 +115,9 @@ namespace Neutron.Core
 
         public void Register(bool isServer, ushort playerId, ushort id = 0)
         {
-            if (objectType == ObjectType.Player || objectType == ObjectType.Instantiated)
+            if (objectType == ObjectType.Player || objectType == ObjectType.Dynamic)
             {
-                if (objectType == ObjectType.Instantiated && id == 0)
+                if (objectType == ObjectType.Dynamic && id == 0)
                 {
                     Debug.LogError("it is necessary to register a unique id for the dynamically instantiated object!");
                     Destroy(gameObject);
@@ -175,6 +177,8 @@ namespace Neutron.Core
                 if (!(isInRoot = transform == RootOr()))
                     Logger.PrintWarning($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
 
+                byte sceneId = (byte)SceneManager.GetActiveScene().buildIndex;
+                this.sceneId = objectType == ObjectType.Scene ? sceneId : (byte)255;
                 if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
                 {
                     if (VAL_OBJ_TYPE != objectType)

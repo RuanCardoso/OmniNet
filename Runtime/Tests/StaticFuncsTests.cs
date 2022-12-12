@@ -13,11 +13,16 @@
     ===========================================================*/
 
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Neutron.Core.Tests
 {
-    public class StaticFuncsTests : MonoBehaviour
+    [AddComponentMenu("")]
+    public class StaticFuncsTests : NeutronObject
     {
-        
+        private void Start()
+        {
+            if (IsMine) SceneManager.LoadScene("Lobby 2", LoadSceneMode.Additive);
+        }
     }
 }

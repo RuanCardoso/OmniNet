@@ -14,12 +14,12 @@
 #pragma warning disable SA1403 // File may only contain a single namespace
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace Neutron.Formatters
+namespace Neutron.Formatters.Neutron.Core.Tests
 {
-    public sealed class MoveCube_NetMoveFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::MoveCube.NetMove>
+    public sealed class MoveCube_NetMoveFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::Neutron.Core.Tests.MoveCube.NetMove>
     {
 
-        public void Serialize(ref global::MessagePack.MessagePackWriter writer, global::MoveCube.NetMove value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref global::MessagePack.MessagePackWriter writer, global::Neutron.Core.Tests.MoveCube.NetMove value, global::MessagePack.MessagePackSerializerOptions options)
         {
             global::MessagePack.IFormatterResolver formatterResolver = options.Resolver;
             writer.WriteArrayHeader(4);
@@ -29,7 +29,7 @@ namespace Neutron.Formatters
             global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Quaternion>(formatterResolver).Serialize(ref writer, value.Rotation, options);
         }
 
-        public global::MoveCube.NetMove Deserialize(ref global::MessagePack.MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::Neutron.Core.Tests.MoveCube.NetMove Deserialize(ref global::MessagePack.MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
         {
             if (reader.TryReadNil())
             {
@@ -39,7 +39,7 @@ namespace Neutron.Formatters
             options.Security.DepthStep(ref reader);
             global::MessagePack.IFormatterResolver formatterResolver = options.Resolver;
             var length = reader.ReadArrayHeader();
-            var ____result = new global::MoveCube.NetMove();
+            var ____result = new global::Neutron.Core.Tests.MoveCube.NetMove();
 
             for (int i = 0; i < length; i++)
             {

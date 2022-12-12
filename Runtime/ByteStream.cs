@@ -13,7 +13,6 @@
     ===========================================================*/
 using MessagePack;
 using System;
-using System.Text;
 using UnityEngine;
 #if UNITY_SERVER && !UNITY_EDITOR
 using System.Threading;
