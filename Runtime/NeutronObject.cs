@@ -14,6 +14,7 @@
 
 using NaughtyAttributes;
 using System;
+using System.Collections;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
@@ -23,6 +24,8 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class NeutronObject : ActionDispatcher
     {
+        private MessageType REMOTE_MSG_TYPE = MessageType.None;
+
         [Header("Registration")]
         [SerializeField][ReadOnly][Required("It is necessary to register neutron objects on the identity.")] internal NeutronIdentity identity;
         [SerializeField][ReadOnly] internal byte id;
@@ -36,6 +39,13 @@ namespace Neutron.Core
         protected bool IsClient => identity.isRegistered && !identity.isItFromTheServer;
         protected bool IsFree => identity.isRegistered;
 
+        #region OnSerializeView
+        protected virtual bool OnSerializeViewAuthority => IsMine;
+        protected virtual Channel OnSerializeViewChannel => Channel.Unreliable;
+        protected virtual Target OnSerializeViewTarget => Target.Others;
+        protected virtual SubTarget OnSerializeViewSubTarget => SubTarget.None;
+        #endregion
+
         protected virtual void Awake()
         {
             if (identity == null)
@@ -43,9 +53,14 @@ namespace Neutron.Core
                 Logger.PrintError("Does this object not have an identity? Did you register the objects?");
                 Destroy(gameObject);
             }
-            else GetAttributes();
+            else
+            {
+                REMOTE_MSG_TYPE = Helper.GetMessageTypeToRemote(identity.objectType);
+                GetAttributes();
+            }
         }
 
+        protected void OnSerializeView(WaitForSeconds seconds) => StartCoroutine(SentOnSerializeView(seconds));
         private void GetAttributes()
         {
             #region Signature
@@ -95,28 +110,8 @@ namespace Neutron.Core
         private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget)
         {
             if (identity.isRegistered)
-            {
-                switch (identity.objectType)
-                {
-                    case ObjectType.Player:
-                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemotePlayer, channel, target, subTarget);
-                        break;
-                    case ObjectType.Scene:
-                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteScene, channel, target, subTarget);
-                        break;
-                    case ObjectType.Dynamic:
-                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteInstantiated, channel, target, subTarget);
-                        break;
-                    case ObjectType.Static:
-                        NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, MessageType.RemoteStatic, channel, target, subTarget);
-                        break;
-                }
-            }
-            else
-            {
-                parameters.Release();
-                Logger.PrintError("This object has no identity or is not registered.");
-            }
+                NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget);
+            else parameters.Release();
         }
 
         public void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget);
@@ -128,5 +123,60 @@ namespace Neutron.Core
         public void Remote(byte id, ushort fromId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromId, identity.playerId, parameters, channel, target, subTarget);
         public void Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromId, toId, parameters, channel, target, subTarget);
         public void Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, sceneId, fromId, toId, parameters, channel, target, subTarget);
+
+        #region Intern Network Methods
+        private const byte SPAWN = 75;
+        protected void SpawnRemote(Vector3 position, Quaternion rotation, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        {
+            ByteStream message = ByteStream.Get();
+            message.Write(position);
+            message.Write(rotation);
+            Remote(SPAWN, message, channel, target, subTarget);
+        }
+
+        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        {
+            ByteStream message = ByteStream.Get();
+            message.Write(position);
+            message.Write(rotation);
+            Remote(SPAWN, message, toId, channel, target, subTarget);
+        }
+
+        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        {
+            ByteStream message = ByteStream.Get();
+            message.Write(position);
+            message.Write(rotation);
+            Remote(SPAWN, fromId, toId, message, channel, target, subTarget);
+        }
+
+        [Remote(SPAWN)]
+        protected virtual void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        {
+            throw new NotImplementedException("Override the SpawnRemote method!");
+        }
+
+        protected internal virtual void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
+        {
+            throw new NotImplementedException("Override the OnSerializeView method!");
+        }
+
+        private IEnumerator SentOnSerializeView(WaitForSeconds seconds)
+        {
+            MessageType msgType = Helper.GetMessageTypeToOnSerialize(identity.objectType);
+            while (OnSerializeViewAuthority)
+            {
+                if (OnSerializeViewAuthority)
+                {
+                    ByteStream message = ByteStream.Get();
+                    OnSerializeView(message, true, default);
+                    NeutronNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget);
+                }
+                else
+                    break;
+                yield return seconds;
+            }
+        }
+        #endregion
     }
 }

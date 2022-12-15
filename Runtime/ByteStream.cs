@@ -13,6 +13,7 @@
     ===========================================================*/
 using MessagePack;
 using System;
+using System.Security.Cryptography;
 using UnityEngine;
 #if UNITY_SERVER && !UNITY_EDITOR
 using System.Threading;
@@ -58,6 +59,7 @@ namespace Neutron.Core
             }
         }
 
+        public void Write(bool value) => Write(value ? (byte)1 : (byte)0);
         public void Write7BitEncodedInt(int value)
         {
             // Write out an int 7 bits at a time.  The high bit of the byte,
@@ -221,6 +223,11 @@ namespace Neutron.Core
             Write(value.buffer, 0, value.bytesWritten);
         }
 
+        public void WriteRemainingBytes(ByteStream parameters)
+        {
+            Write(parameters, parameters.position, parameters.bytesWritten);
+        }
+
         public void Write(ByteStream value, int offset, int size)
         {
             Write(value.buffer, offset, size);
@@ -240,6 +247,7 @@ namespace Neutron.Core
             return (MessageType)ReadByte();
         }
 
+        public bool ReadBool() => ReadByte() == 1;
         public int Read7BitEncodedInt()
         {
             // Read out an Int32 7 bits at a time.  The high bit

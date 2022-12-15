@@ -39,10 +39,14 @@ namespace Neutron.Core
         Zone = 3,
         GlobalMessage = 4,
         RemotePlayer = 5,
-        RemoteInstantiated = 6,
+        RemoteDynamic = 6,
         RemoteScene = 7,
         RemoteStatic = 8,
         Ping = 9,
+        OnSerializeStatic = 10,
+        OnSerializePlayer = 11,
+        OnSerializeDynamic = 12,
+        OnSerializeScene = 13,
         Connect = 254,
         Disconnect = 255,
     }
@@ -113,6 +117,47 @@ namespace Neutron.Core
             long n3 = address / 256 / 256 % 256;
             long n4 = address / 256 / 256 / 256;
             return string.Format("{0}.{1}.{2}.{3}", n1, n2, n3, n4);
+        }
+
+        internal static ObjectType GetObjectType(MessageType messageType)
+        {
+            return messageType switch
+            {
+                MessageType.RemoteStatic => ObjectType.Static,
+                MessageType.RemoteScene => ObjectType.Scene,
+                MessageType.RemotePlayer => ObjectType.Player,
+                MessageType.RemoteDynamic => ObjectType.Dynamic,
+                //*************************************************
+                MessageType.OnSerializeStatic => ObjectType.Static,
+                MessageType.OnSerializeScene => ObjectType.Scene,
+                MessageType.OnSerializePlayer => ObjectType.Player,
+                MessageType.OnSerializeDynamic => ObjectType.Dynamic,
+                _ => default,
+            };
+        }
+
+        internal static MessageType GetMessageTypeToRemote(ObjectType messageType)
+        {
+            return messageType switch
+            {
+                ObjectType.Static => MessageType.RemoteStatic,
+                ObjectType.Scene => MessageType.RemoteScene,
+                ObjectType.Player => MessageType.RemotePlayer,
+                ObjectType.Dynamic => MessageType.RemoteDynamic,
+                _ => default,
+            };
+        }
+
+        internal static MessageType GetMessageTypeToOnSerialize(ObjectType messageType)
+        {
+            return messageType switch
+            {
+                ObjectType.Static => MessageType.OnSerializeStatic,
+                ObjectType.Scene => MessageType.OnSerializeScene,
+                ObjectType.Player => MessageType.OnSerializePlayer,
+                ObjectType.Dynamic => MessageType.OnSerializeDynamic,
+                _ => default,
+            };
         }
 
         internal static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange, int minRange = 0)

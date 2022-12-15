@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 #if UNITY_EDITOR
@@ -102,7 +103,7 @@ namespace Neutron.Core
         // defines
         [Header("Pre-Processor's")]
         [SerializeField] private bool agressiveRelay = false;
-        [SerializeField] private bool multiThreaded = false;
+        [SerializeField][ReadOnly] private bool multiThreaded = false;
         [SerializeField][ReadOnly] private string[] defined;
         #endregion
 
@@ -368,7 +369,7 @@ namespace Neutron.Core
                 case MessageType.RemoteStatic:
                 case MessageType.RemoteScene:
                 case MessageType.RemotePlayer:
-                case MessageType.RemoteInstantiated:
+                case MessageType.RemoteDynamic:
                     {
                         ushort fromId = RECV_STREAM.ReadUShort();
                         ushort toId = RECV_STREAM.ReadUShort();
@@ -378,39 +379,18 @@ namespace Neutron.Core
                         byte instanceId = RECV_STREAM.ReadByte();
 
                         ByteStream parameters = ByteStream.Get();
-                        parameters.Write(RECV_STREAM, RECV_STREAM.Position, RECV_STREAM.BytesWritten);
-                        ushort resolved_id = toId;
-
-                        #region Convert the Types
-                        ObjectType objectType = default;
-                        switch (messageType)
-                        {
-                            case MessageType.RemoteStatic:
-                                objectType = ObjectType.Static;
-                                resolved_id = isServer ? ServerId : (ushort)Id;
-                                break;
-                            case MessageType.RemoteScene:
-                                objectType = ObjectType.Scene;
-                                resolved_id = isServer ? ServerId : (ushort)Id;
-                                break;
-                            case MessageType.RemotePlayer:
-                                objectType = ObjectType.Player;
-                                break;
-                            case MessageType.RemoteInstantiated:
-                                objectType = ObjectType.Dynamic;
-                                break;
-                        }
-                        #endregion
+                        parameters.WriteRemainingBytes(RECV_STREAM);
+                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? isServer ? ServerId : (ushort)Id : toId;
 
                         #region Process the RPC
-                        NeutronIdentity identity = GetIdentity(identityId, resolved_id, isServer, sceneId, objectType);
+                        NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, Helper.GetObjectType(messageType));
                         if (identity != null)
                         {
                             Action<ByteStream, ushort, ushort, RemoteStats> rpc = identity.GetRpc(instanceId, rpcId);
                             rpc?.Invoke(RECV_STREAM, fromId, toId, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
                         }
                         else
-                            Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {resolved_id}, {isServer}, {objectType}]");
+                            Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
                         #endregion
 
                         #region Send
@@ -420,22 +400,54 @@ namespace Neutron.Core
                         #endregion
                     }
                     break;
+                case MessageType.OnSerializeStatic:
+                case MessageType.OnSerializeScene:
+                case MessageType.OnSerializePlayer:
+                case MessageType.OnSerializeDynamic:
+                    {
+                        ushort identityId = RECV_STREAM.ReadUShort();
+                        byte instanceId = RECV_STREAM.ReadByte();
+                        byte sceneId = RECV_STREAM.ReadByte();
+
+                        ByteStream parameters = ByteStream.Get();
+                        parameters.WriteRemainingBytes(RECV_STREAM);
+                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? isServer ? ServerId : (ushort)Id : (ushort)remoteEndPoint.GetPort();
+
+                        #region Process de OnSerializeView
+                        NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, Helper.GetObjectType(messageType));
+                        if (identity != null)
+                            identity.GetNeutronObject(instanceId).OnSerializeView(parameters, false, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
+                        else
+                            Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                        #endregion
+                    }
+                    break;
             }
         }
 
-        internal static void Remote(byte id, byte sceneId, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream parameters, MessageType msgType, Channel channel, Target target, SubTarget subTarget)
+        internal static void Remote(byte id, byte sceneId, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, MessageType msgType, Channel channel, Target target, SubTarget subTarget)
         {
-            ByteStream remote = ByteStream.Get(msgType);
-            remote.Write(fromId);
-            remote.Write(toId);
-            remote.Write(sceneId);
-            remote.Write(identity);
-            remote.Write(id);
-            remote.Write(instanceId);
-            remote.Write(parameters);
-            parameters.Release();
-            Intern_Send(remote, toId, fromServer, channel, target, subTarget);
-            remote.Release();
+            ByteStream message = ByteStream.Get(msgType);
+            message.Write(fromId);
+            message.Write(toId);
+            message.Write(sceneId);
+            message.Write(identity);
+            message.Write(id);
+            message.Write(instanceId);
+            message.Write(msg);
+            msg.Release();
+            Intern_Send(message, toId, fromServer, channel, target, subTarget);
+            message.Release();
+        }
+
+        internal static void OnSerializeView(ByteStream parameters, ushort identity, byte instanceId, ushort id, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget)
+        {
+            ByteStream message = ByteStream.Get(msgType);
+            message.Write(identity);
+            message.Write(instanceId);
+            message.Write(sceneId);
+            message.Write(parameters);
+            Intern_Send(message, id, fromServer, channel, target, subTarget);
         }
 
         public static Player GetPlayer(ushort playerId, bool isServer = true) => isServer ? udpServer.GetClient(playerId).Player : udpClient.Player;

@@ -35,6 +35,7 @@ namespace Neutron.Core
         [SerializeField][ReadOnly] internal ushort playerId;
         [SerializeField][ReadOnly][ShowIf("objectType", ObjectType.Scene)] internal byte sceneId;
         [SerializeField][Label("Mode")] internal ObjectType objectType = ObjectType.Player;
+        [SerializeField][ReadOnly] private NeutronObject[] networks;
         [SerializeField][HideInInspector] internal bool isItFromTheServer;
         [Header("Editor")]
         [InfoBox("These properties are only valid for the Editor.")]
@@ -47,6 +48,7 @@ namespace Neutron.Core
 
         private bool isInRoot = false;
         private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, ushort, ushort, RemoteStats>> remoteMethods = new(); // [rpc id, instanceId]
+        private Dictionary<byte, NeutronObject> neutronObjects;
 
         private Transform RootOr() => rootMode ? transform.root : transform;
 #pragma warning disable IDE0051
@@ -61,6 +63,7 @@ namespace Neutron.Core
             }
             else
             {
+                neutronObjects = networks.ToDictionary(k => k.id, v => v);
 #if UNITY_SERVER && !UNITY_EDITOR
             isItFromTheServer = true;
 #endif
@@ -96,6 +99,7 @@ namespace Neutron.Core
         }
 #endif
 
+        public NeutronObject GetNeutronObject(byte id) => neutronObjects[id];
         private void Register()
         {
             if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
@@ -174,6 +178,7 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
+                networks = transform.GetComponentsInChildren<NeutronObject>();
                 if (!(isInRoot = transform == RootOr()))
                     Logger.PrintWarning($"{gameObject.name} -> Only root objects can have a NeutronIdentity component.");
 
