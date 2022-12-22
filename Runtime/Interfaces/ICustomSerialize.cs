@@ -14,9 +14,9 @@
 
 namespace Neutron.Core
 {
-    internal class NeutronDefine
+    public interface ISerializeValueType
     {
-        internal string define;
-        internal bool enabled;
+        void Serialize(ByteStream parameters);
+        void Deserialize(ByteStream parameters);
     }
 }

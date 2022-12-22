@@ -36,21 +36,22 @@ namespace Neutron.Core.Tests
             NeutronNetwork.AddHandler<NetPlayer>(OnNetPlayer);
         }
 
+
         private void OnNetPlayer(ByteStream netStream, bool isServer)
         {
-            NetPlayer netPlayer = netStream.Unpack<NetPlayer>();
-            if (isServer)
-            {
-#if UNITY_SERVER || UNITY_EDITOR
-                Logger.Print($"Servidor! {netPlayer.Health}");
-#endif
-            }
-            else
-            {
-#if !UNITY_SERVER || UNITY_EDITOR
-                Logger.Print($"Client! {netPlayer.Health}");
-#endif
-            }
+            //            NetPlayer netPlayer = netStream.Unpack<NetPlayer>();
+            //            if (isServer)
+            //            {
+            //#if UNITY_SERVER || UNITY_EDITOR
+            //                Logger.Print($"Servidor! {netPlayer.Health}");
+            //#endif
+            //            }
+            //            else
+            //            {
+            //#if !UNITY_SERVER || UNITY_EDITOR
+            //                Logger.Print($"Client! {netPlayer.Health}");
+            //#endif
+            //            }
         }
 
         private void Update()

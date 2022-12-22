@@ -14,7 +14,6 @@
     Thanks: https://github.com/vis2k/Mirror/blob/master/Assets/Mirror/Runtime/NetworkTime.cs
     ===========================================================*/
 
-#if UNITY_2021_3_OR_NEWER
 using System;
 
 namespace Neutron.Core
@@ -65,4 +64,3 @@ namespace Neutron.Core
         public static void AddReceived() => _recMsgs++;
     }
 }
-#endif

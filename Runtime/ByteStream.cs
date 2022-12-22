@@ -11,13 +11,14 @@
     -
     License: Open Source (MIT)
     ===========================================================*/
-using MessagePack;
-using System;
-using System.Security.Cryptography;
-using UnityEngine;
+
 #if UNITY_SERVER && !UNITY_EDITOR
 using System.Threading;
 #endif
+using MessagePack;
+using System;
+using UnityEngine;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
@@ -57,6 +58,13 @@ namespace Neutron.Core
                 buffer[position++] = value;
                 bytesWritten += sizeof(byte);
             }
+        }
+
+        internal void WritePaylod(Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        {
+            // Packed to optimize bandwidth!
+            byte payload = (byte)((byte)channel | (byte)target << 1 | (byte)subTarget << 3 | (byte)cacheMode << 4);
+            Write(payload);
         }
 
         public void Write(bool value) => Write(value ? (byte)1 : (byte)0);
@@ -205,6 +213,24 @@ namespace Neutron.Core
                 Write(value[i]);
         }
 
+        public void Write(Memory<byte> value)
+        {
+            for (int i = 0; i < value.Length; i++)
+                Write(value.Span[i]);
+        }
+
+        public void Write(ReadOnlySpan<byte> value)
+        {
+            for (int i = 0; i < value.Length; i++)
+                Write(value[i]);
+        }
+
+        public void Write(ReadOnlyMemory<byte> value)
+        {
+            for (int i = 0; i < value.Length; i++)
+                Write(value.Span[i]);
+        }
+
         public void Write(byte[] value)
         {
             for (int i = 0; i < value.Length; i++)
@@ -242,6 +268,16 @@ namespace Neutron.Core
         }
 
         public byte ReadByte() => ThrowIfNotEnoughData(sizeof(byte)) ? buffer[position++] : default;
+        internal void ReadPaylod(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode)
+        {
+            byte payload = ReadByte();
+            // Unpack..........................
+            channel = (Channel)(payload & 0x1);
+            target = (Target)((payload >> 1) & 0x3);
+            subTarget = (SubTarget)((payload >> 3) & 0x1);
+            cacheMode = (CacheMode)((payload >> 4) & 0x3);
+        }
+
         internal MessageType ReadPacket()
         {
             return (MessageType)ReadByte();

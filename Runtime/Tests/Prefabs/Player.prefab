@@ -118,6 +118,8 @@ MonoBehaviour:
   playerId: 0
   sceneId: 255
   objectType: 0
+  networks:
+  - {fileID: 6510642901042831988}
   isItFromTheServer: 0
   simulateServerObj: 1
   drawGizmos: 1

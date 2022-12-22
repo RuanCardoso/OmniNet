@@ -22,6 +22,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
+using static Neutron.Core.Enums;
 using static Neutron.Core.NeutronNetwork;
 
 namespace Neutron.Core
@@ -32,7 +33,7 @@ namespace Neutron.Core
         private readonly SentWindow SENT_WINDOW = new();
 
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
-        protected abstract void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint);
+        protected abstract void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint);
 
         protected abstract bool IsServer { get; }
         protected abstract string Name { get; }
@@ -102,33 +103,33 @@ namespace Neutron.Core
 #else
         protected void WINDOW(UdpEndPoint remoteEndPoint) => WINDOW_COROUTINE = Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
 #endif
-        protected int SendUnreliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me)
+        protected int SendUnreliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
-            ByteStream stream = ByteStream.Get();
-            stream.Write((byte)((byte)Channel.Unreliable | (byte)target << 2));
-            stream.Write(data);
-            int length = Send(stream, remoteEndPoint);
-            stream.Release();
+            ByteStream message = ByteStream.Get();
+            message.WritePaylod(Channel.Unreliable, target, subTarget, cacheMode);
+            message.Write(data);
+            int length = Send(message, remoteEndPoint);
+            message.Release();
             return length;
         }
 
-        protected int SendReliable(ByteStream data, UdpEndPoint remoteEndPoint, Channel channel = Channel.Reliable, Target target = Target.Me)
+        protected int SendReliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             if (IsServer)
                 Logger.PrintError("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
             else
             {
-                ByteStream stream = ByteStream.Get();
-                stream.Write((byte)((byte)channel | (byte)target << 2));
+                ByteStream message = ByteStream.Get();
+                message.WritePaylod(Channel.Reliable, target, subTarget, cacheMode);
                 int _sequence_ = SENT_WINDOW.GetSequence();
-                stream.Write(_sequence_);
-                stream.Write(data);
+                message.Write(_sequence_);
+                message.Write(data);
                 ByteStream window = SENT_WINDOW.GetWindow(_sequence_);
                 window.EndWrite();
                 window.SetLastWriteTime();
-                window.Write(stream);
-                int length = Send(stream, remoteEndPoint);
-                stream.Release();
+                window.Write(message);
+                int length = Send(message, remoteEndPoint);
+                message.Release();
                 return length;
             }
             return 0;
@@ -138,10 +139,11 @@ namespace Neutron.Core
         {
             try
             {
+                // overwrite an existing sequence.....
                 if (data.isRawBytes)
                 {
                     data.Position = 0;
-                    Channel channel = (Channel)(data.ReadByte() & 0x3);
+                    data.ReadPaylod(out Channel channel, out _, out _, out _);
                     switch (channel)
                     {
                         case Channel.Reliable:
@@ -216,23 +218,21 @@ namespace Neutron.Core
                                 RECV_STREAM.Write(buffer, 0, length);
                                 RECV_STREAM.Position = 0;
                                 RECV_STREAM.isRawBytes = true;
-
-                                byte maskBit = RECV_STREAM.ReadByte();
-                                Channel bitChannel = (Channel)(maskBit & 0x3);
-                                Target bitTarget = (Target)((maskBit >> 2) & 0x3);
-                                if ((byte)bitTarget > 0x3 || (byte)bitChannel > 0x3)
+                                RECV_STREAM.ReadPaylod(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode);
+                                // check for corrupted bytes...
+                                if ((byte)target > 0x3 || (byte)channel > 0x1)
                                 {
-                                    Logger.PrintError($"{Name} - ReadData - Invalid target -> {bitTarget} or channel -> {bitChannel}");
-                                    //*************************************************************************************************//
+                                    Logger.PrintError($"{Name} - ReadData - Invalid target -> {channel} or channel -> {target}");
+                                    //*************************************************************************************************
                                     RECV_STREAM.Release();
 #if !NEUTRON_MULTI_THREADED
                                     yield return null;
 #endif
-                                    continue; // << skip
+                                    continue; // skip
                                 }
                                 else
                                 {
-                                    switch (bitChannel)
+                                    switch (channel)
                                     {
                                         case Channel.Unreliable:
                                             {
@@ -245,7 +245,7 @@ namespace Neutron.Core
                                                         _client_.SENT_WINDOW.Acknowledgement(acknowledgment);
                                                         break;
                                                     default:
-                                                        OnMessage(RECV_STREAM, bitChannel, bitTarget, msgType, remoteEndPoint);
+                                                        OnMessage(RECV_STREAM, channel, target, subTarget, cacheMode, msgType, remoteEndPoint);
                                                         break;
                                                 }
                                             }
@@ -263,7 +263,7 @@ namespace Neutron.Core
 #if !NEUTRON_MULTI_THREADED
                                                         yield return null;
 #endif
-                                                        continue; // << skip
+                                                        continue; // skip
                                                     }
 
                                                     #region Send Acknowledgement
@@ -280,7 +280,7 @@ namespace Neutron.Core
 #if !NEUTRON_MULTI_THREADED
                                                         yield return null;
 #endif
-                                                        continue; // << skip
+                                                        continue; // skip
                                                     }
 
                                                     MessageType msgType = RECV_STREAM.ReadPacket();
@@ -291,7 +291,7 @@ namespace Neutron.Core
                                                                 RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
                                                                 while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0) // Head-of-line blocking
                                                                 {
-                                                                    OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], bitChannel, bitTarget, msgType, remoteEndPoint);
+                                                                    OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], channel, target, subTarget, cacheMode, msgType, remoteEndPoint);
                                                                     if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)
                                                                         RECV_WINDOW.ExpectedSequence++;
                                                                     // remove the references to make it eligible for the garbage collector.
@@ -312,11 +312,11 @@ namespace Neutron.Core
 #if !NEUTRON_MULTI_THREADED
                                                     yield return null;
 #endif
-                                                    continue; // << skip
+                                                    continue; // skip
                                                 }
                                             }
                                         default:
-                                            Logger.PrintError($"Unknown channel {bitChannel} received from {remoteEndPoint}");
+                                            Logger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
                                             break;
                                     }
                                 }

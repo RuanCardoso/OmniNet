@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-
 /*===========================================================
     Author: Ruan Cardoso
     -
@@ -16,6 +11,12 @@ using System.Threading;
     -
     License: Open Source (MIT)
     ===========================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
@@ -52,7 +53,7 @@ namespace Neutron.Core
                                 case "Memory":
                                 case "memory":
                                     long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
-                                    Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSize(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSize(SizeUnits.GB)} GB");
+                                    Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.GB)} GB");
                                     break;
                                 case "fps":
                                 case "FPS":

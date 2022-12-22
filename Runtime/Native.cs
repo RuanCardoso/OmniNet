@@ -12,7 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if UNITY_2021_3_OR_NEWER
 using System;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -36,4 +35,3 @@ namespace Neutron.Core
         #endregion
     }
 }
-#endif

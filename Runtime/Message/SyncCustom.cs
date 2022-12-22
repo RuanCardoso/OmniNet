@@ -12,11 +12,15 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System;
+
 namespace Neutron.Core
 {
-    internal class NeutronDefine
+    [Serializable]
+    public class SyncCustom<T> : SyncBase<T> where T : class, ISerializeValueType
     {
-        internal string define;
-        internal bool enabled;
+        public SyncCustom(NeutronObject @this, T value = default) : base(@this, value, value)
+        {
+        }
     }
 }

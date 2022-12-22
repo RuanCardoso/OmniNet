@@ -14,6 +14,7 @@
 
 using System.Threading;
 using UnityEngine;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core.Tests
 {

@@ -18,13 +18,16 @@ using System.Collections;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
     [AddComponentMenu("")]
     public class NeutronObject : ActionDispatcher
     {
+        internal byte SYNC_BASE_ID = 1;
         private MessageType REMOTE_MSG_TYPE = MessageType.None;
+        private MessageType SYNC_BASE_MSG_TYPE = MessageType.None;
 
         [Header("Registration")]
         [SerializeField][ReadOnly][Required("It is necessary to register neutron objects on the identity.")] internal NeutronIdentity identity;
@@ -44,6 +47,11 @@ namespace Neutron.Core
         protected virtual Channel OnSerializeViewChannel => Channel.Unreliable;
         protected virtual Target OnSerializeViewTarget => Target.Others;
         protected virtual SubTarget OnSerializeViewSubTarget => SubTarget.None;
+
+        protected virtual bool OnSyncBaseAuthority => IsServer;
+        protected virtual Channel OnSyncBaseChannel => Channel.Unreliable;
+        protected virtual Target OnSyncBaseTarget => Target.All;
+        protected virtual SubTarget OnSyncBaseSubTarget => SubTarget.None;
         #endregion
 
         protected virtual void Awake()
@@ -55,13 +63,14 @@ namespace Neutron.Core
             }
             else
             {
-                REMOTE_MSG_TYPE = Helper.GetMessageTypeToRemote(identity.objectType);
-                GetAttributes();
+                REMOTE_MSG_TYPE = NeutronHelper.GetMessageTypeToRemote(identity.objectType);
+                SYNC_BASE_MSG_TYPE = NeutronHelper.GetMessageTypeToOnSyncBase(identity.objectType);
+                GetRemoteAttributes();
             }
         }
 
         protected void OnSerializeView(WaitForSeconds seconds) => StartCoroutine(SentOnSerializeView(seconds));
-        private void GetAttributes()
+        private void GetRemoteAttributes()
         {
             #region Signature
             static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats) => MethodBase.GetCurrentMethod();
@@ -107,26 +116,28 @@ namespace Neutron.Core
             }
         }
 
-        private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget)
+
+
+        private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             if (identity.isRegistered)
-                NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget);
+                NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget, cacheMode);
             else parameters.Release();
         }
 
-        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromIdentity.playerId, identity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, NeutronIdentity toIdentity, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, toIdentity.sceneId, fromIdentity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, Channel channel, Target target, NeutronIdentity toIdentity, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, toIdentity.sceneId, identity.playerId, toIdentity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, ushort toId, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, identity.playerId, toId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ByteStream parameters, byte sceneId, ushort toId, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, sceneId, identity.playerId, toId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ushort fromId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromId, identity.playerId, parameters, channel, target, subTarget);
-        public void Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, identity.sceneId, fromId, toId, parameters, channel, target, subTarget);
-        public void Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget = SubTarget.None) => Intern_Remote(id, sceneId, fromId, toId, parameters, channel, target, subTarget);
+        protected void Remote(byte id, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, fromIdentity.playerId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, ByteStream parameters, NeutronIdentity fromIdentity, NeutronIdentity toIdentity, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, toIdentity.sceneId, fromIdentity.playerId, toIdentity.playerId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, NeutronIdentity toIdentity, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, toIdentity.sceneId, identity.playerId, toIdentity.playerId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, ByteStream parameters, ushort toId, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, identity.playerId, toId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, ByteStream parameters, byte sceneId, ushort toId, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, sceneId, identity.playerId, toId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, ushort fromId, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, fromId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, fromId, toId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, sceneId, fromId, toId, parameters, channel, target, subTarget, cacheMode);
 
         #region Intern Network Methods
         private const byte SPAWN = 75;
-        protected void SpawnRemote(Vector3 position, Quaternion rotation, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        protected void SpawnRemote(Vector3 position, Quaternion rotation, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None)
         {
             ByteStream message = ByteStream.Get();
             message.Write(position);
@@ -134,7 +145,7 @@ namespace Neutron.Core
             Remote(SPAWN, message, channel, target, subTarget);
         }
 
-        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None)
         {
             ByteStream message = ByteStream.Get();
             message.Write(position);
@@ -142,7 +153,7 @@ namespace Neutron.Core
             Remote(SPAWN, message, toId, channel, target, subTarget);
         }
 
-        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Channel channel, Target target, SubTarget subTarget = SubTarget.None)
+        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None)
         {
             ByteStream message = ByteStream.Get();
             message.Write(position);
@@ -158,19 +169,31 @@ namespace Neutron.Core
 
         protected internal virtual void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
         {
-            throw new NotImplementedException("Override the OnSerializeView method!");
+            throw new NotImplementedException("Override the OnSerializeView(ByteStream, bool, RemoteStats) method!");
+        }
+
+        protected internal virtual void OnSerializeView(byte id, ByteStream parameters)
+        {
+            throw new NotImplementedException("Override the OnSerializeView(byte, ByteStream) method!");
+        }
+
+        internal void SentOnSyncBase(byte id, ByteStream parameters)
+        {
+            if (OnSyncBaseAuthority)
+                NeutronNetwork.OnSyncBase(parameters, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, SYNC_BASE_MSG_TYPE, OnSyncBaseChannel, OnSyncBaseTarget, OnSyncBaseSubTarget, CacheMode.None);
+            else { }
         }
 
         private IEnumerator SentOnSerializeView(WaitForSeconds seconds)
         {
-            MessageType msgType = Helper.GetMessageTypeToOnSerialize(identity.objectType);
+            MessageType msgType = NeutronHelper.GetMessageTypeToOnSerialize(identity.objectType);
             while (OnSerializeViewAuthority)
             {
                 if (OnSerializeViewAuthority)
                 {
                     ByteStream message = ByteStream.Get();
                     OnSerializeView(message, true, default);
-                    NeutronNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget);
+                    NeutronNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, CacheMode.None);
                 }
                 else
                     break;

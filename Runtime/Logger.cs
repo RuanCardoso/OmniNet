@@ -12,7 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if UNITY_2021_3_OR_NEWER
 using System;
 using UnityEngine;
 
@@ -41,4 +40,3 @@ namespace Neutron.Core
 #endif
     }
 }
-#endif

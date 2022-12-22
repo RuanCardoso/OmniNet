@@ -14,9 +14,11 @@
 
 namespace Neutron.Core
 {
-    internal class NeutronDefine
+    internal interface IValueTypeConverter<T>
     {
-        internal string define;
-        internal bool enabled;
+        int GetInt(T value);
+        bool GetBool(T value);
+        float GetFloat(T value);
+        byte GetByte(T value);
     }
 }

@@ -16,6 +16,7 @@
 using System.Collections.Concurrent;
 #else
 using System.Collections.Generic;
+using static Neutron.Core.Enums;
 #endif
 
 namespace Neutron.Core
@@ -37,7 +38,7 @@ namespace Neutron.Core
             clients.TryAdd(playerId, Client);
         }
 
-        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             ushort uniqueId = (ushort)remoteEndPoint.GetPort();
             switch (messageType)
@@ -75,7 +76,7 @@ namespace Neutron.Core
                             #endregion
 
                             #region Process Message
-                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
+                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                             #endregion
                         }
                         else
@@ -109,7 +110,7 @@ namespace Neutron.Core
                     }
                     break;
                 default:
-                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
+                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                     break;
             }
         }
@@ -117,9 +118,9 @@ namespace Neutron.Core
         internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => GetClient((ushort)remoteEndPoint.GetPort());
         internal UdpClient GetClient(ushort playerId) => clients.TryGetValue(playerId, out UdpClient udpClient) ? udpClient : null;
 
-        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, ushort playerId) => Send(byteStream, channel, target, subTarget, GetClient(playerId));
-        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, subTarget, GetClient(remoteEndPoint));
-        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, UdpClient sender)
+        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort playerId) => Send(byteStream, channel, target, subTarget, cacheMode, GetClient(playerId));
+        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, subTarget, cacheMode, GetClient(remoteEndPoint));
+        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpClient sender)
         {
             // When we send the data to itself, we will always use the Unreliable channel.
             // LocalHost(Loopback), there are no risks of drops or clutter.
@@ -129,23 +130,24 @@ namespace Neutron.Core
                 {
                     case Target.Me:
                         {
-                            if (subTarget == SubTarget.Server)
-                                SendUnreliable(byteStream, Client.remoteEndPoint, target);
+                            if (subTarget == SubTarget.Server) // Defines whether to execute the instruction on the server when the server itself is the sender.
+                                SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
 
                             if (!sender.itSelf)
                             {
                                 if (!byteStream.isRawBytes)
-                                    sender.Send(byteStream, channel, target);
+                                    sender.Send(byteStream, channel, target, subTarget, cacheMode);
                                 else
                                     sender.Send(byteStream);
                             }
-                            else if (subTarget != SubTarget.Server) Logger.PrintError("Are you trying to run the instruction on yourself? Use SubTarget.Server");
+                            else if (subTarget != SubTarget.Server)
+                                Logger.PrintError("Are you trying to run the instruction on yourself? Use SubTarget.Server");
                         }
                         break;
                     case Target.All:
                         {
                             if (subTarget == SubTarget.Server)
-                                SendUnreliable(byteStream, Client.remoteEndPoint, target);
+                                SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
 
                             foreach (var (_, otherClient) in clients)
                             {
@@ -154,7 +156,7 @@ namespace Neutron.Core
                                 else
                                 {
                                     if (!byteStream.isRawBytes)
-                                        otherClient.Send(byteStream, channel, target);
+                                        otherClient.Send(byteStream, channel, target, subTarget, cacheMode);
                                     else
                                         otherClient.Send(byteStream);
                                 }
@@ -164,7 +166,7 @@ namespace Neutron.Core
                     case Target.Others:
                         {
                             if (subTarget == SubTarget.Server)
-                                SendUnreliable(byteStream, Client.remoteEndPoint, target);
+                                SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
 
                             foreach (var (id, otherClient) in clients)
                             {
@@ -175,7 +177,7 @@ namespace Neutron.Core
                                     if (id != sender.Id)
                                     {
                                         if (!byteStream.isRawBytes)
-                                            otherClient.Send(byteStream, channel, target);
+                                            otherClient.Send(byteStream, channel, target, subTarget, cacheMode);
                                         else
                                             otherClient.Send(byteStream);
                                     }

@@ -6,7 +6,6 @@
     Thanks: https://github.com/vis2k/Mirror/blob/master/Assets/Mirror/Runtime/ExponentialMovingAverage.cs
     ===========================================================*/
 
-#if UNITY_2021_3_OR_NEWER
 namespace Neutron.Core
 {
     public struct ExponentialMovingAverage
@@ -44,4 +43,3 @@ namespace Neutron.Core
         }
     }
 }
-#endif

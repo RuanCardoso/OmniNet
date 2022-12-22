@@ -15,6 +15,7 @@
 using System.Collections;
 using System.Net;
 using System.Net.Sockets;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
@@ -92,7 +93,7 @@ namespace Neutron.Core
         }
 
         internal int Send(ByteStream byteStream) => Send(byteStream, remoteEndPoint, 0);
-        internal int Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me)
+        internal int Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             if (remoteEndPoint == null)
                 Logger.PrintError("You must call Connect() before Send()");
@@ -100,15 +101,15 @@ namespace Neutron.Core
             {
                 return channel switch
                 {
-                    Channel.Unreliable => SendUnreliable(byteStream, remoteEndPoint, target),
-                    Channel.Reliable => SendReliable(byteStream, remoteEndPoint, channel, target),
+                    Channel.Unreliable => SendUnreliable(byteStream, remoteEndPoint, target, subTarget, cacheMode),
+                    Channel.Reliable => SendReliable(byteStream, remoteEndPoint, target, subTarget, cacheMode),
                     _ => 0,
                 };
             }
             return 0;
         }
 
-        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             switch (messageType)
             {
@@ -119,7 +120,7 @@ namespace Neutron.Core
                             Id = RECV_STREAM.ReadUShort();
                             IsConnected = true;
                             NeutronNetwork.Instance.StartCoroutine(Ping());
-                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
+                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                         }
                         else Logger.PrintError("The client is already connected!");
                     }
@@ -132,7 +133,7 @@ namespace Neutron.Core
                     }
                     break;
                 default:
-                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, remoteEndPoint, IsServer);
+                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                     break;
             }
         }

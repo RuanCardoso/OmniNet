@@ -45,7 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 920a9de22650f9a42844f636cd1c3876, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  actionsPerFrame: 1
+  CLIENT_APF: 1
+  SERVER_APF: 1
 --- !u!114 &2313533654074987146
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -58,22 +59,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fef60896267743343a75ff1a9619179c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  physicsMode: 2
+  encoding: 3
   fpsUpdateRate: 4
-  windowSize: 255
-  udpPacketSize: 64
   consoleInput: 0
   dontDestroy: 0
+  loadNextScene: 0
+  pingTime: 1
+  connectionTime: 1
+  port: 5055
+  byteStreams: 128
+  windowSize: 255
+  udpPacketSize: 128
   agressiveRelay: 0
   multiThreaded: 0
+  defined:
+  - 
   allPlatformSettings:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -86,11 +96,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -103,11 +113,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -120,11 +130,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -137,11 +147,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -154,11 +164,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -171,11 +181,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -188,11 +198,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -205,11 +215,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -222,11 +232,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -239,11 +249,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -256,11 +266,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -273,11 +283,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -290,11 +300,11 @@ MonoBehaviour:
   - name: Android
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 1
     maxFramerate: 60
     recvMultiplier: 1
@@ -307,11 +317,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -324,11 +334,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -341,11 +351,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -358,11 +368,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -375,11 +385,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -392,11 +402,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -409,11 +419,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -426,11 +436,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -443,11 +453,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -460,11 +470,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -477,11 +487,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -494,11 +504,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -511,11 +521,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -528,11 +538,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -545,11 +555,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -562,11 +572,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -579,11 +589,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -596,11 +606,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -613,11 +623,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -630,11 +640,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -647,11 +657,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -664,11 +674,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -681,11 +691,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -698,11 +708,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -715,11 +725,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -732,11 +742,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -749,11 +759,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -766,11 +776,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -783,11 +793,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -800,11 +810,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -817,11 +827,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -834,11 +844,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -851,11 +861,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -868,11 +878,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -885,11 +895,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -902,11 +912,11 @@ MonoBehaviour:
   - name: No Plataform!
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 0
     maxFramerate: 60
     recvMultiplier: 1
@@ -920,11 +930,11 @@ MonoBehaviour:
     name: Android
     hosts:
     - name: localhost
-      host: 127.0.0.1
+      Ip: 127.0.0.1
     - name: WSL
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     - name: Cloud Server
-      host: 0.0.0.0
+      Ip: 0.0.0.0
     enabled: 1
     maxFramerate: 60
     recvMultiplier: 1

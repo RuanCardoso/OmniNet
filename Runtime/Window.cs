@@ -195,11 +195,14 @@ namespace Neutron.Core
         {
             #region Message Route
             route = MessageRoute.Orderly;
+#pragma warning disable IDE0045
             if (ExpectedSequence == sequence) ExpectedSequence++;
             else if (sequence > ExpectedSequence) route = MessageRoute.OutOfOrder;
             else if (sequence < ExpectedSequence) route = MessageRoute.Duplicate;
             else route = MessageRoute.Unk;
+#pragma warning restore IDE0045
             #endregion
+
             #region Write In Sequence
             switch (route)
             {

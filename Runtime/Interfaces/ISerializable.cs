@@ -14,9 +14,8 @@
 
 namespace Neutron.Core
 {
-    internal class NeutronDefine
+    public interface ISerializable
     {
-        internal string define;
-        internal bool enabled;
+        int Id { get; }
     }
 }

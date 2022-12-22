@@ -21,6 +21,7 @@ using UnityEditor;
 #endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
@@ -63,7 +64,7 @@ namespace Neutron.Core
             }
             else
             {
-                neutronObjects = networks.ToDictionary(k => k.id, v => v);
+                neutronObjects = networks.Where(x => x != null).ToDictionary(k => k.id, v => v);
 #if UNITY_SERVER && !UNITY_EDITOR
             isItFromTheServer = true;
 #endif
@@ -195,7 +196,7 @@ namespace Neutron.Core
                     if (isInRoot)
                     {
                         NeutronIdentity[] identities = FindObjectsOfType<NeutronIdentity>(true).Where(x => x.objectType == objectType).ToArray();
-                        if (id == 0) id = (ushort)Helper.GetAvailableId(identities, x => x.id, short.MaxValue);
+                        if (id == 0) id = (ushort)NeutronHelper.GetAvailableId(identities, x => x.id, short.MaxValue);
                         else
                         {
                             int count = identities.Count(x => x.id == id);
@@ -230,6 +231,7 @@ namespace Neutron.Core
         {
             if (!Application.isPlaying)
             {
+                networks = transform.GetComponentsInChildren<NeutronObject>();
                 var neutronObjects = RootOr().GetComponentsInChildren<NeutronObject>(true);
                 for (int i = 0; i < neutronObjects.Length; i++)
                 {
