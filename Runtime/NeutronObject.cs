@@ -36,22 +36,17 @@ namespace Neutron.Core
         internal byte Id => id;
         protected ByteStream Get => ByteStream.Get();
         protected NeutronIdentity Identity => identity;
-        protected bool IsItFromTheServer => identity.isRegistered && identity.isItFromTheServer;
-        protected bool IsMine => identity.isRegistered && (identity.playerId == NeutronNetwork.Id) && !identity.isItFromTheServer;
-        protected bool IsServer => identity.isRegistered && identity.isItFromTheServer;
-        protected bool IsClient => identity.isRegistered && !identity.isItFromTheServer;
-        protected bool IsFree => identity.isRegistered;
+        protected internal bool IsItFromTheServer => identity.isRegistered && identity.isItFromTheServer;
+        protected internal bool IsMine => identity.isRegistered && (identity.playerId == NeutronNetwork.Id) && !identity.isItFromTheServer;
+        protected internal bool IsServer => identity.isRegistered && identity.isItFromTheServer;
+        protected internal bool IsClient => identity.isRegistered && !identity.isItFromTheServer;
+        protected internal bool IsFree => identity.isRegistered;
 
         #region OnSerializeView
         protected virtual bool OnSerializeViewAuthority => IsMine;
         protected virtual Channel OnSerializeViewChannel => Channel.Unreliable;
         protected virtual Target OnSerializeViewTarget => Target.Others;
         protected virtual SubTarget OnSerializeViewSubTarget => SubTarget.None;
-
-        protected virtual bool OnSyncBaseAuthority => IsServer;
-        protected virtual Channel OnSyncBaseChannel => Channel.Unreliable;
-        protected virtual Target OnSyncBaseTarget => Target.All;
-        protected virtual SubTarget OnSyncBaseSubTarget => SubTarget.None;
         #endregion
 
         protected virtual void Awake()
@@ -116,7 +111,10 @@ namespace Neutron.Core
             }
         }
 
-
+        protected void GetCache(CacheType cacheType, byte cacheId, bool ownerCache = false, Channel channel = Channel.Unreliable)
+        {
+            NeutronNetwork.GetCache(cacheType, ownerCache, cacheId, identity.playerId, IsItFromTheServer, channel);
+        }
 
         private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
@@ -177,10 +175,10 @@ namespace Neutron.Core
             throw new NotImplementedException("Override the OnSerializeView(byte, ByteStream) method!");
         }
 
-        internal void SentOnSyncBase(byte id, ByteStream parameters)
+        internal void SentOnSyncBase(byte id, ByteStream parameters, bool hasAuthority, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
-            if (OnSyncBaseAuthority)
-                NeutronNetwork.OnSyncBase(parameters, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, SYNC_BASE_MSG_TYPE, OnSyncBaseChannel, OnSyncBaseTarget, OnSyncBaseSubTarget, CacheMode.None);
+            if (hasAuthority)
+                NeutronNetwork.OnSyncBase(parameters, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, SYNC_BASE_MSG_TYPE, channel, target, subTarget, cacheMode);
             else { }
         }
 

@@ -23,9 +23,9 @@ namespace Neutron.Core
     public class ActionDispatcher : MonoBehaviour
     {
         [Header("Client & Editor")]
-        [Range(1, byte.MaxValue)][Label("Actions Per Frame")] public int CLIENT_APF = 1; // Client
+        [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int CLIENT_APF = 1; // Client
         [Header("Server")]
-        [Range(1, byte.MaxValue)][Label("Actions Per Frame")] public int SERVER_APF = 1; // Server
+        [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int SERVER_APF = 1; // Server
 
         private readonly object syncRoot = new();
         private readonly Queue<Action> actions = new();

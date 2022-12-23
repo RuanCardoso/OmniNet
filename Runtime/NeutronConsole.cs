@@ -75,7 +75,7 @@ namespace Neutron.Core
                                             {
                                                 for (int i = 1; i < parameters.Length; i++)
                                                 {
-                                                    if (parameters[i].InBounds(0) && parameters[i].InBounds(1))
+                                                    if (parameters[i].IsInBounds(0) && parameters[i].IsInBounds(1))
                                                     {
                                                         string parameter = parameters[i][0];
                                                         string value = parameters[i][1];

@@ -1,17 +1,10 @@
 using UnityEngine;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
     public class NeutronOwnership : NeutronObject
     {
-        private enum AuthorityMode
-        {
-            Mine,
-            Server,
-            Client,
-            Free
-        }
-
         private bool HasAuthority
         {
             get

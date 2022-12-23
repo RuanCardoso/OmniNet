@@ -105,5 +105,13 @@ namespace Neutron.Core
             ASCII,
             Unicode,
         }
+
+        public enum AuthorityMode
+        {
+            Mine,
+            Server,
+            Client,
+            Free
+        }
     }
 }

@@ -35,7 +35,7 @@ namespace Neutron.Core.Tests
 
             if (Input.GetKeyDown(KeyCode.V) && IsMine)
             {
-                NeutronNetwork.GetCache(CacheType.Remote, 1, identity.playerId, IsServer, Channel.Unreliable);
+                //NeutronNetwork.GetCache(CacheType.Remote, 1, identity.playerId, IsServer, Channel.Unreliable);
             }
         }
 

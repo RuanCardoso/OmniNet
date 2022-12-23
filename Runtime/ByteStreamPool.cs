@@ -13,10 +13,11 @@
     ===========================================================*/
 
 using System.Collections.Generic;
+using static Neutron.Core.NeutronNetwork;
 
 namespace Neutron.Core
 {
-    public class ByteStreamPool
+    internal class ByteStreamPool
     {
 #if NEUTRON_MULTI_THREADED
         private readonly object _lock = new();
@@ -26,7 +27,7 @@ namespace Neutron.Core
         public ByteStreamPool(int length = 128)
         {
             for (int i = 0; i < length; i++)
-                pool.Push(new ByteStream(NeutronNetwork.Instance.udpPacketSize));
+                pool.Push(new ByteStream(Instance.udpPacketSize));
         }
 
         public ByteStream Get()
@@ -35,7 +36,7 @@ namespace Neutron.Core
             lock (_lock)
 #endif
             {
-                return pool.Count == 0 ? new ByteStream(NeutronNetwork.Instance.udpPacketSize) : pool.Pop();
+                return pool.Count == 0 ? new ByteStream(Instance.udpPacketSize) : pool.Pop();
             }
         }
 

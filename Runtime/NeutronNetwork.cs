@@ -315,7 +315,7 @@ namespace Neutron.Core
             allPlatformSettings ??= new LocalSettings[SETTINGS_SIZE];
             if (allPlatformSettings.Length == SETTINGS_SIZE)
             {
-                if (allPlatformSettings.InBounds(index))
+                if (allPlatformSettings.IsInBounds(index))
                 {
                     if (allPlatformSettings[index] != null)
                     {
@@ -525,6 +525,8 @@ namespace Neutron.Core
                     {
                         CacheType cacheType = (CacheType)RECV_STREAM.ReadByte();
                         byte id = RECV_STREAM.ReadByte();
+                        bool ownerCache = RECV_STREAM.ReadBool();
+                        ushort fromPort = (ushort)remoteEndPoint.GetPort();
 
                         switch (cacheType)
                         {
@@ -536,10 +538,11 @@ namespace Neutron.Core
                                         foreach (var ICache in caches)
                                         {
                                             RemoteCache cache = ICache.Value;
+                                            if (ownerCache && cache.fromId == fromPort)
+                                                continue;
                                             var message = ByteStream.Get();
                                             message.Write(cache.Buffer);
                                             #region Send
-                                            ushort fromPort = (ushort)remoteEndPoint.GetPort();
                                             if (isServer && fromPort != Port)
                                                 Remote(cache.rpcId, cache.sceneId, cache.identityId, cache.instanceId, cache.fromId, cache.toId, isServer, message, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
                                             #endregion
@@ -594,11 +597,12 @@ namespace Neutron.Core
             message.Release();
         }
 
-        public static void GetCache(CacheType cacheType, byte id, ushort playerId, bool fromServer, Channel channel)
+        public static void GetCache(CacheType cacheType, bool ownerCache, byte id, ushort playerId, bool fromServer, Channel channel)
         {
             ByteStream message = ByteStream.Get(MessageType.GetCache);
             message.Write((byte)cacheType);
             message.Write(id);
+            message.Write(ownerCache);
             Intern_Send(message, playerId, fromServer, channel, Target.Me, SubTarget.None, CacheMode.None);
             message.Release();
         }

@@ -22,7 +22,6 @@ namespace Neutron.Core.Tests
     public class SyncValueTests : NeutronObject
     {
         [SerializeField] private SyncValue<byte> life; // Envia pra rede mudanças no valor.
-        protected override bool OnSyncBaseAuthority => IsMine; // Define de quem é a Autoridade da sincronização.
 
         private void Start()
         {

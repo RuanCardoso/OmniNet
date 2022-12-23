@@ -13,13 +13,14 @@
     ===========================================================*/
 
 using System;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
     [Serializable]
     public class SyncCustom<T> : SyncBase<T> where T : class, ISerializeValueType
     {
-        public SyncCustom(NeutronObject @this, T value = default) : base(@this, value, value)
+        public SyncCustom(NeutronObject @this, T value = default, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority, value)
         {
         }
     }

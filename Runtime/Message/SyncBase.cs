@@ -1,7 +1,21 @@
+/*===========================================================
+    Author: Ruan Cardoso
+    -
+    Country: Brazil(Brasil)
+    -
+    Contact: cardoso.ruan050322@gmail.com
+    -
+    Support: neutron050322@gmail.com
+    -
+    Unity Minor Version: 2021.3 LTS
+    -
+    License: Open Source (MIT)
+    ===========================================================*/
+
 using NaughtyAttributes;
 using System;
 using UnityEngine;
-using UnityEngine.Networking.PlayerConnection;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
@@ -14,16 +28,35 @@ namespace Neutron.Core
         [Label("<------>")]
         [OnValueChanged(nameof(OnEditorSet))] private T value = default;
 
+        private bool HasAuthority => authority switch
+        {
+            AuthorityMode.Mine => @this.IsMine,
+            AuthorityMode.Server => @this.IsServer,
+            AuthorityMode.Client => @this.IsClient,
+            AuthorityMode.Free => @this.IsFree,
+            _ => default,
+        };
+
         private readonly byte id;
         private readonly bool isReferenceType;
         private readonly bool isValueTypeSupported;
         private readonly NeutronObject @this;
         private readonly TypeCode typeCode;
         private readonly ISerializeValueType ISerialize;
-        public SyncBase(NeutronObject @this, T value)
+        private readonly Channel channel;
+        private readonly Target target;
+        private readonly SubTarget subTarget;
+        private readonly CacheMode cacheMode;
+        private readonly AuthorityMode authority;
+        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority)
         {
             this.value = value;
             this.@this = @this;
+            this.channel = channel;
+            this.target = target;
+            this.subTarget = subTarget;
+            this.cacheMode = cacheMode;
+            this.authority = authority;
             id = @this.SYNC_BASE_ID++;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
@@ -34,12 +67,17 @@ namespace Neutron.Core
             //........
         }
 
-        public SyncBase(NeutronObject @this, T value, ISerializeValueType ISerialize = default)
+        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISerializeValueType ISerialize = default)
         {
             this.value = value;
             this.@this = @this;
-            id = @this.SYNC_BASE_ID++;
             this.ISerialize = ISerialize;
+            this.channel = channel;
+            this.target = target;
+            this.subTarget = subTarget;
+            this.cacheMode = cacheMode;
+            this.authority = authority;
+            id = @this.SYNC_BASE_ID++;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
             isReferenceType = false;
@@ -95,7 +133,8 @@ namespace Neutron.Core
                 }
             }
             else message.Serialize(value);
-            @this.SentOnSyncBase(id, message);
+            // Sent this var to Network......
+            @this.SentOnSyncBase(id, message, HasAuthority, channel, target, subTarget, cacheMode);
         }
 
         public static implicit operator T(SyncBase<T> value) => value.value;

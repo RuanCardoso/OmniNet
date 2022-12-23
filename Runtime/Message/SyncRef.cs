@@ -13,13 +13,14 @@
     ===========================================================*/
 
 using System;
+using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
     [Serializable]
     public class SyncRef<T> : SyncBase<T> where T : class
     {
-        public SyncRef(NeutronObject @this, T value) : base(@this, value)
+        public SyncRef(NeutronObject @this, T value, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
         {
         }
     }

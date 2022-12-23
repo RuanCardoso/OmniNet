@@ -20,6 +20,6 @@ namespace Neutron.Core
     internal static class NeutronExtensions
     {
         internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
-        internal static bool InBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
+        internal static bool IsInBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
     }
 }

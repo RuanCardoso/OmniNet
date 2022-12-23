@@ -41,7 +41,7 @@ namespace Neutron.Core
 
         internal void Resize(int sequence)
         {
-            if (!window.InBounds(sequence))
+            if (!window.IsInBounds(sequence))
             {
                 int size = Math.Abs(sequence - window.Length) + windowSize;
                 Array.Resize(ref window, window.Length + size);
@@ -65,7 +65,7 @@ namespace Neutron.Core
         #endregion
         internal void Acknowledgement(int acknowledgment)
         {
-            if (window.InBounds(acknowledgment))
+            if (window.IsInBounds(acknowledgment))
             {
                 ByteStream byteStream = window[acknowledgment];
                 if (byteStream != null) byteStream.IsAcked = true;
