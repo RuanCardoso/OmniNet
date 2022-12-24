@@ -25,13 +25,16 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class NeutronObject : ActionDispatcher
     {
-        internal byte SYNC_BASE_ID = 1;
+        const int SEPARATOR_HEIGHT = 1;
+        const int SEPARATOR = -(20 - SEPARATOR_HEIGHT);
+
+        internal byte SYNC_BASE_ID = 0;
         private MessageType REMOTE_MSG_TYPE = MessageType.None;
         private MessageType SYNC_BASE_MSG_TYPE = MessageType.None;
 
         [Header("Registration")]
         [SerializeField][ReadOnly][Required("It is necessary to register neutron objects on the identity.")] internal NeutronIdentity identity;
-        [SerializeField][ReadOnly] internal byte id;
+        [SerializeField][ReadOnly][HorizontalLine(SEPARATOR_HEIGHT, below: true)][Space(SEPARATOR)] internal byte id;
 
         internal byte Id => id;
         protected ByteStream Get => ByteStream.Get();

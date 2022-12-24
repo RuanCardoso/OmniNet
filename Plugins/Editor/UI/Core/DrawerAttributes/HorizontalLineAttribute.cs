@@ -10,11 +10,13 @@ namespace NaughtyAttributes
 
         public float Height { get; private set; }
         public EColor Color { get; private set; }
+        public bool Below { get; private set; }
 
-        public HorizontalLineAttribute(float height = DefaultHeight, EColor color = DefaultColor)
+        public HorizontalLineAttribute(float height = DefaultHeight, EColor color = DefaultColor, bool below = false)
         {
             Height = height;
             Color = color;
+            Below = below;
         }
     }
 }

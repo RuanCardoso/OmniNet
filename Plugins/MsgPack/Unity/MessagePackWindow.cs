@@ -89,7 +89,8 @@ namespace MessagePack.Unity.Editor
                         if (Directory.Exists(outputPath))
                         {
                             string[] asmDefs = Directory.GetFiles(outputPath, "*.asmdef", SearchOption.TopDirectoryOnly);
-                            if (asmDefs.Length == 0) asmDefs = new[] { "Assembly-CSharp.asmdef" };
+                            if (asmDefs.Length == 0)
+                                asmDefs = new[] { "Assembly-CSharp.asmdef" };
                             if (asmDefs.Length > 0)
                             {
                                 FileInfo asmDef = new(asmDefs[0]);
@@ -105,7 +106,6 @@ namespace MessagePack.Unity.Editor
                                     Namespace = "Neutron",
                                     UseMapMode = mapMode,
                                 };
-
 
                                 string pathToDel = outputPath + "/code-gen";
                                 if (Directory.Exists(pathToDel)) Directory.Delete(pathToDel, true);

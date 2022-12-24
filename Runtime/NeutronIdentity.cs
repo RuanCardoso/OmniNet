@@ -79,21 +79,24 @@ namespace Neutron.Core
 #if UNITY_EDITOR // Visuale
         private void Clone()
         {
-            if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
+            if (NeutronNetwork.IsBind)
             {
-                if (simulateServerObj)
+                if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
                 {
-                    if (!loop)
+                    if (simulateServerObj)
                     {
-                        loop = true;
-                        Instantiate(gameObject);
-                        name = $"{gameObject.name} -> [Client]";
-                    }
-                    else
-                    {
-                        isItFromTheServer = true;
-                        name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
-                        SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
+                        if (!loop)
+                        {
+                            loop = true;
+                            Instantiate(gameObject);
+                            name = $"{gameObject.name} -> [Client]";
+                        }
+                        else
+                        {
+                            isItFromTheServer = true;
+                            name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
+                            SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
+                        }
                     }
                 }
             }
@@ -108,7 +111,7 @@ namespace Neutron.Core
                 if (!isRegistered)
                 {
                     isRegistered = true;
-                    playerId = isItFromTheServer ? NeutronNetwork.ServerId : (ushort)NeutronNetwork.Id;
+                    playerId = isItFromTheServer ? NeutronNetwork.NetworkId : (ushort)NeutronNetwork.Id;
                     NeutronNetwork.AddIdentity(this);
                 }
                 else Logger.PrintError("This object is already registered!");

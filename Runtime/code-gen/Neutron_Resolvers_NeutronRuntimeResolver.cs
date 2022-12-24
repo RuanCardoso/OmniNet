@@ -47,10 +47,8 @@ namespace Neutron.Resolvers
 
         static NeutronRuntimeResolverGetFormatterHelper()
         {
-            lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(2)
+            lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(0)
             {
-                { typeof(global::Neutron.Core.Tests.LoadResolver.NetPlayer), 0 },
-                { typeof(global::Neutron.Core.Tests.MoveCube.NetMove), 1 },
             };
         }
 
@@ -64,8 +62,6 @@ namespace Neutron.Resolvers
 
             switch (key)
             {
-                case 0: return new Neutron.Formatters.Neutron.Core.Tests.LoadResolver_NetPlayerFormatter();
-                case 1: return new Neutron.Formatters.Neutron.Core.Tests.MoveCube_NetMoveFormatter();
                 default: return null;
             }
         }

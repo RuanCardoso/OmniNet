@@ -28,11 +28,9 @@ namespace Neutron.Core
             [SerializeField] internal string Ip;
         }
 
-        [InfoBox("In case the platform name does not match the platform chosen in the build settings.\r\nClick \"Reload scripts\"", EInfoBoxType.Warning)]
-        [ReadOnly][AllowNesting] public string name = "No Plataform!";
-#if UNITY_SERVER
-        [HideInInspector]
-#endif
+        [InfoBox("Click \"Reload scripts\" before build!", EInfoBoxType.Warning)]
+        [ReadOnly][AllowNesting][Label("")][Space(3)] public string name = "No Plataform!";
+
         public Host[] hosts = {
             new Host() { Ip = "127.0.0.1", name = "localhost" },
             new Host() { Ip = "0.0.0.0", name = "WSL" },
@@ -42,9 +40,6 @@ namespace Neutron.Core
         [HideInInspector] public bool enabled;
         [Header("Others")]
         [Range(30, byte.MaxValue * 128)] public int maxFramerate = 60;
-#if NEUTRON_MULTI_THREADED
-        [HideInInspector]
-#endif
         [Range(1, byte.MaxValue * 8)] public int recvMultiplier = 1;
         [Header("Timers")]
         [Range(0, 5f)] public double ackTimeout = 0.3f; // seconds

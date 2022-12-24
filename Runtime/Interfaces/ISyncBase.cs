@@ -12,12 +12,10 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using MessagePack;
-
 namespace Neutron.Core
 {
-    public interface ISerializable
+    public interface ISyncBase
     {
-        [IgnoreMember] byte Id { get; }
+        void OnSyncEditor();
     }
 }

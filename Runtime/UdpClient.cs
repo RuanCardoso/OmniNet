@@ -23,7 +23,6 @@ namespace Neutron.Core
     {
         public Player Player { get; }
         internal int Id { get; private set; }
-        internal bool IsConnected { get; private set; }
 
         protected override string Name => "Neutron_Client";
         protected override bool IsServer => false;
@@ -35,7 +34,7 @@ namespace Neutron.Core
             this.itSelf = itSelf;
             if (itSelf)
             {
-                Id = NeutronNetwork.ServerId;
+                Id = NeutronNetwork.NetworkId;
                 remoteEndPoint = new UdpEndPoint(IPAddress.Loopback, NeutronNetwork.Port);
                 Player = new(Id, remoteEndPoint);
             }
@@ -69,6 +68,9 @@ namespace Neutron.Core
 
         private IEnumerator Connect()
         {
+            if (IsConnected)
+                Logger.PrintError("You are connected!");
+
             while (!IsConnected)
             {
                 ByteStream message = ByteStream.Get();

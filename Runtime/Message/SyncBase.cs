@@ -12,22 +12,18 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using NaughtyAttributes;
 using System;
 using UnityEngine;
 using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
-    public class SyncBase<T>
+    [Serializable]
+    public class SyncBase<T> : ISyncBase
     {
         private static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._ as IValueTypeConverter<T>;
 
-        [SerializeField]
-        [AllowNesting]
-        [Label("<------>")]
-        [OnValueChanged(nameof(OnEditorSet))] private T value = default;
-
+        [SerializeField] private T value = default;
         private bool HasAuthority => authority switch
         {
             AuthorityMode.Mine => @this.IsMine,
@@ -63,8 +59,6 @@ namespace Neutron.Core
             isReferenceType = !type.IsValueType;
             isValueTypeSupported = ValueTypeConverter.Types.Contains(type);
             typeCode = Type.GetTypeCode(type);
-            // Sync when the value is changed for the first time, i.e. on assignment.
-            //........
         }
 
         public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISerializeValueType ISerialize = default)
@@ -83,20 +77,28 @@ namespace Neutron.Core
             isReferenceType = false;
             isValueTypeSupported = false;
             typeCode = Type.GetTypeCode(type);
-            // Sync when the value is changed for the first time, i.e. on assignment.
-            //........
         }
 
+        public T Get() => value;
         public void Set(T value)
         {
             this.value = value;
             SyncOnNetwork();
         }
 
-        public T Get() => value;
-        private void OnEditorSet() => SyncOnNetwork();
+        public void OnSyncEditor() // Editor Only
+        {
+            if (Application.isPlaying) SyncOnNetwork();
+        }
+
         private void SyncOnNetwork()
         {
+            if (@this == null)
+            {
+                Logger.PrintError($"did you forget to initialize the variable? -> {GetType().Name}");
+                return;
+            }
+
             ByteStream message = ByteStream.Get();
             if (!isReferenceType)
             {
@@ -127,13 +129,11 @@ namespace Neutron.Core
                 }
                 else
                 {
-                    if (ISerialize != null)
-                        ISerialize.Serialize(message);
+                    if (ISerialize != null) ISerialize.Serialize(message);
                     else Logger.PrintError("SyncValue -> Custom type is not supported, use SyncCustom instead!");
                 }
             }
             else message.Serialize(value);
-            // Sent this var to Network......
             @this.SentOnSyncBase(id, message, HasAuthority, channel, target, subTarget, cacheMode);
         }
 

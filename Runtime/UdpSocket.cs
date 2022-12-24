@@ -35,8 +35,9 @@ namespace Neutron.Core
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
         protected abstract void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint);
 
-        protected abstract bool IsServer { get; }
+        internal bool IsConnected { get; set; }
         protected abstract string Name { get; }
+        protected abstract bool IsServer { get; }
 
         internal Socket globalSocket;
         internal readonly CancellationTokenSource cancellationTokenSource = new();
@@ -59,10 +60,17 @@ namespace Neutron.Core
 
             try
             {
+                IsConnected = localEndPoint.GetPort() == Port;
 #if UNITY_SERVER || UNITY_EDITOR
                 if (IsServer) // Only work in Windows Server and Linux Server, Mac Os Server not support!
                 {
-                    switch (Application.platform)
+                    if (Application.platform == RuntimePlatform.WindowsServer)
+                    {
+                        int SIO_UDP_CONNRESET = -1744830452;
+                        globalSocket.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
+                    }
+
+                    switch (Application.platform) // [ONLY SERVER]
                     {
                         case RuntimePlatform.LinuxEditor:
                         case RuntimePlatform.LinuxServer:
@@ -87,6 +95,7 @@ namespace Neutron.Core
             }
             catch (SocketException ex)
             {
+                IsConnected = false;
                 if (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
                     Logger.PrintWarning($"The {Name} not binded to {localEndPoint} because it is already in use!");
                 else
