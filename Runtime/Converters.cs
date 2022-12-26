@@ -47,5 +47,20 @@ namespace Neutron.Core
         public bool GetBool(bool value) => value;
         public float GetFloat(float value) => value;
         public byte GetByte(byte value) => value;
+
+        #region _
+        bool IValueTypeConverter<bool>.GetInt(int value) => throw new NotImplementedException();
+        float IValueTypeConverter<float>.GetInt(int value) => throw new NotImplementedException();
+        byte IValueTypeConverter<byte>.GetInt(int value) => throw new NotImplementedException();
+        int IValueTypeConverter<int>.GetBool(bool value) => throw new NotImplementedException();
+        int IValueTypeConverter<int>.GetFloat(float value) => throw new NotImplementedException();
+        int IValueTypeConverter<int>.GetByte(byte value) => throw new NotImplementedException();
+        bool IValueTypeConverter<bool>.GetFloat(float value) => throw new NotImplementedException();
+        bool IValueTypeConverter<bool>.GetByte(byte value) => throw new NotImplementedException();
+        float IValueTypeConverter<float>.GetBool(bool value) => throw new NotImplementedException();
+        float IValueTypeConverter<float>.GetByte(byte value) => throw new NotImplementedException();
+        byte IValueTypeConverter<byte>.GetBool(bool value) => throw new NotImplementedException();
+        byte IValueTypeConverter<byte>.GetFloat(float value) => throw new NotImplementedException();
+        #endregion
     }
 }

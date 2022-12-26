@@ -351,7 +351,7 @@ namespace Neutron.Core
             return identity;
         }
 
-        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
+        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : IMessage, new()
         {
             T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))

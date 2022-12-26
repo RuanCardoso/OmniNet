@@ -17,8 +17,12 @@ namespace Neutron.Core
     internal interface IValueTypeConverter<T>
     {
         int GetInt(T value);
+        T GetInt(int value);
         bool GetBool(T value);
+        T GetBool(bool value);
         float GetFloat(T value);
+        T GetFloat(float value);
         byte GetByte(T value);
+        T GetByte(byte value);
     }
 }

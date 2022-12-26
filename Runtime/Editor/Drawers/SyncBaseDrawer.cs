@@ -29,15 +29,25 @@ namespace Neutron.Core.Inspector
 
         private object GetTarget(SerializedProperty property) => target ??= PropertyUtility.GetTargetObjectWithProperty(property);
         private SerializedProperty GetProperty(SerializedProperty property) => this.property ??= property.FindPropertyRelative(FIELD_NAME);
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label) => EditorGUI.GetPropertyHeight(GetProperty(property), label, true);
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            SerializedProperty TValue = GetProperty(property);
+            if (TValue != null)
+                return EditorGUI.GetPropertyHeight(TValue, label, true);
+            else return base.GetPropertyHeight(property, label);
+        }
+
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             label.image = GetTexture();
-            //------------------------------------------------
             SerializedProperty TValue = GetProperty(property);
-            EditorGUI.BeginChangeCheck();
-            if (EditorGUI.PropertyField(position, TValue, label, true)) { }
-            if (EditorGUI.EndChangeCheck()) CallCallback(GetTarget(TValue), property.serializedObject);
+            if (TValue != null)
+            {
+                EditorGUI.BeginChangeCheck();
+                if (EditorGUI.PropertyField(position, TValue, label, true)) { }
+                if (EditorGUI.EndChangeCheck()) CallCallback(GetTarget(TValue), property.serializedObject);
+            }
+            else EditorGUI.LabelField(position, label);
         }
 
         private Texture2D GetTexture()

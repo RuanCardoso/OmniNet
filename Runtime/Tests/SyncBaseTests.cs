@@ -13,6 +13,7 @@
     ===========================================================*/
 
 using Neutron.Core;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using static Neutron.Core.Enums;
@@ -22,12 +23,30 @@ namespace Neutron.Tests
     [AddComponentMenu("")]
     public class SyncBaseTests : NeutronObject
     {
+        //[Serializable]
+        public class Person : ISyncCustom
+        {
+            public int value = 1;
+
+            public void Deserialize(ByteStream parameters)
+            {
+                value = parameters.ReadInt();
+            }
+
+            public void Serialize(ByteStream parameters)
+            {
+                parameters.Write(value);
+            }
+        }
+
         [SerializeField] private SyncValue<byte> health;
         [SerializeField] private SyncValue<int> points;
         [SerializeField] private SyncValue<float> xAxis;
 
         [SerializeField] private SyncRef<int[]> arrayOfInt;
         [SerializeField] private SyncRef<List<float>> listOfFloat;
+
+        [SerializeField] private SyncCustom<Person> person;
 
         private void Start()
         {
@@ -37,28 +56,35 @@ namespace Neutron.Tests
             //----------------------------------------------------------------
             arrayOfInt = new SyncRef<int[]>(this, new int[] { });
             listOfFloat = new SyncRef<List<float>>(this, new List<float> { });
+            person = new SyncCustom<Person>(this, new Person
+            {
+                value = 1
+            });
         }
 
         protected internal override void OnSerializeView(byte id, ByteStream parameters)
         {
-            switch (id)
-            {
-                case 0:
-                    health.Set(parameters.ReadByte());
-                    break;
-                case 1:
-                    points.Set(parameters.ReadInt());
-                    break;
-                case 2:
-                    xAxis.Set(parameters.ReadFloat());
-                    break;
-                case 3:
-                    arrayOfInt.Set(parameters.Deserialize<int[]>());
-                    break;
-                case 4:
-                    listOfFloat.Set(parameters.Deserialize<List<float>>());
-                    break;
-            }
+            //switch (id)
+            //{
+            //    case 0:
+            //        health.Read(parameters);
+            //        break;
+            //    case 1:
+            //        points.Read(parameters);
+            //        break;
+            //    case 2:
+            //        xAxis.Read(parameters);
+            //        break;
+            //    case 3:
+            //        arrayOfInt.Read(parameters);
+            //        break;
+            //    case 4:
+            //        listOfFloat.Read(parameters);
+            //        break;
+            //    case 5:
+            //        person.Read(parameters);
+            //        break;
+            //}
         }
     }
 }

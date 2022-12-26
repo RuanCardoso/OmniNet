@@ -21,7 +21,8 @@ namespace Neutron.Core
     [Serializable]
     public class SyncBase<T> : ISyncBase
     {
-        private static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._ as IValueTypeConverter<T>;
+        internal readonly TypeCode typeCode;
+        internal static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._ as IValueTypeConverter<T>;
 
         [SerializeField] private T value = default;
         private bool HasAuthority => authority switch
@@ -37,8 +38,7 @@ namespace Neutron.Core
         private readonly bool isReferenceType;
         private readonly bool isValueTypeSupported;
         private readonly NeutronObject @this;
-        private readonly TypeCode typeCode;
-        private readonly ISerializeValueType ISerialize;
+        private readonly ISyncCustom ISerialize;
         private readonly Channel channel;
         private readonly Target target;
         private readonly SubTarget subTarget;
@@ -61,7 +61,7 @@ namespace Neutron.Core
             typeCode = Type.GetTypeCode(type);
         }
 
-        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISerializeValueType ISerialize = default)
+        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISyncCustom ISerialize = default)
         {
             this.value = value;
             this.@this = @this;
@@ -80,6 +80,7 @@ namespace Neutron.Core
         }
 
         public T Get() => value;
+        internal void Intern_Set(T value) => this.value = value;
         public void Set(T value)
         {
             this.value = value;

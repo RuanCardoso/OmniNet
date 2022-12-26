@@ -14,7 +14,7 @@
 
 namespace Neutron.Core
 {
-    public interface ISerializeValueType
+    public interface ISyncCustom
     {
         void Serialize(ByteStream parameters);
         void Deserialize(ByteStream parameters);
