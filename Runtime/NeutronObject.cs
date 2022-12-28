@@ -25,10 +25,10 @@ namespace Neutron.Core
     [AddComponentMenu("")]
     public class NeutronObject : ActionDispatcher
     {
-        const int SEPARATOR_HEIGHT = 1;
-        const int SEPARATOR = -(20 - SEPARATOR_HEIGHT);
+        private const byte SPAWN = 75;
+        private const int SEPARATOR_HEIGHT = 1;
+        private const int SEPARATOR = -(20 - SEPARATOR_HEIGHT);
 
-        internal byte SYNC_BASE_ID = 0;
         private MessageType REMOTE_MSG_TYPE = MessageType.None;
         private MessageType SYNC_BASE_MSG_TYPE = MessageType.None;
 
@@ -50,7 +50,11 @@ namespace Neutron.Core
         protected virtual Channel OnSerializeViewChannel => Channel.Unreliable;
         protected virtual Target OnSerializeViewTarget => Target.Others;
         protected virtual SubTarget OnSerializeViewSubTarget => SubTarget.None;
+        protected virtual CacheMode OnSerializeViewCacheMode => CacheMode.None;
         #endregion
+
+        internal byte OnSyncBaseId = 0;
+        internal Action<byte, ByteStream> OnSyncBase;
 
         protected virtual void Awake()
         {
@@ -137,45 +141,43 @@ namespace Neutron.Core
         protected void Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, sceneId, fromId, toId, parameters, channel, target, subTarget, cacheMode);
 
         #region Intern Network Methods
-        private const byte SPAWN = 75;
-        protected void SpawnRemote(Vector3 position, Quaternion rotation, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None)
+        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             ByteStream message = ByteStream.Get();
             message.Write(position);
             message.Write(rotation);
-            Remote(SPAWN, message, channel, target, subTarget);
+            parameters?.Invoke(message);
+            Remote(SPAWN, message, channel, target, subTarget, cacheMode);
         }
 
-        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None)
+        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             ByteStream message = ByteStream.Get();
             message.Write(position);
             message.Write(rotation);
-            Remote(SPAWN, message, toId, channel, target, subTarget);
+            parameters?.Invoke(message);
+            Remote(SPAWN, message, toId, channel, target, subTarget, cacheMode);
         }
 
-        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None)
+        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             ByteStream message = ByteStream.Get();
             message.Write(position);
             message.Write(rotation);
-            Remote(SPAWN, fromId, toId, message, channel, target, subTarget);
+            parameters?.Invoke(message);
+            Remote(SPAWN, fromId, toId, message, channel, target, subTarget, cacheMode);
         }
 
         [Remote(SPAWN)]
-        protected virtual void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        internal void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats) => OnSpawnedObject(parameters.ReadVector3(), parameters.ReadQuaternion(), parameters, fromId, toId, stats);
+        protected virtual void OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
         {
-            throw new NotImplementedException("Override the SpawnRemote method!");
+            throw new NotImplementedException("Override the OnSpawnedObject method!");
         }
 
         protected internal virtual void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
         {
             throw new NotImplementedException("Override the OnSerializeView(ByteStream, bool, RemoteStats) method!");
-        }
-
-        protected internal virtual void OnSerializeView(byte id, ByteStream parameters)
-        {
-            throw new NotImplementedException("Override the OnSerializeView(byte, ByteStream) method!");
         }
 
         internal void SentOnSyncBase(byte id, ByteStream parameters, bool hasAuthority, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
@@ -194,7 +196,7 @@ namespace Neutron.Core
                 {
                     ByteStream message = ByteStream.Get();
                     OnSerializeView(message, true, default);
-                    NeutronNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, CacheMode.None);
+                    NeutronNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, OnSerializeViewCacheMode);
                 }
                 else
                     break;

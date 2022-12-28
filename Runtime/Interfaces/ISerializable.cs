@@ -16,7 +16,7 @@ using MessagePack;
 
 namespace Neutron.Core
 {
-    public interface IMessage
+    public interface ISerializable
     {
         [IgnoreMember] byte Id { get; }
     }

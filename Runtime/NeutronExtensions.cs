@@ -21,8 +21,8 @@ namespace Neutron.Core
     {
         internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
         internal static bool IsInBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
-        public static void Read<T>(this SyncRef<T> value, ByteStream message) where T : class => value.Intern_Set(message.Deserialize<T>());
-        public static void Read<T>(this SyncValue<T> value, ByteStream message) where T : unmanaged
+        internal static void Read<T>(this SyncRef<T> value, ByteStream message) where T : class => value.Intern_Set(message.Deserialize<T>());
+        internal static void Read<T>(this SyncValue<T> value, ByteStream message) where T : unmanaged
         {
             var converter = SyncValue<T>.Converter;
             switch (value.typeCode)
@@ -42,7 +42,7 @@ namespace Neutron.Core
             }
         }
 
-        public static void Read<T>(this SyncCustom<T> value, ByteStream message) where T : class, ISyncCustom
+        internal static void Read<T>(this SyncCustom<T> value, ByteStream message) where T : class, ISyncCustom
         {
             ISyncCustom ISerialize = value.Get() as ISyncCustom;
             if (ISerialize != null) ISerialize.Deserialize(message);

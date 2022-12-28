@@ -351,7 +351,7 @@ namespace Neutron.Core
             return identity;
         }
 
-        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : IMessage, new()
+        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
         {
             T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))
@@ -393,7 +393,7 @@ namespace Neutron.Core
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(RECV_STREAM);
-                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? isServer ? NetworkId : (ushort)Id : toId;
+                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? NeutronHelper.GetPlayerId(isServer) : toId;
 
                         #region Cache System
                         if (isServer)
@@ -454,12 +454,13 @@ namespace Neutron.Core
                 case MessageType.OnSerializeDynamic:
                     {
                         ushort identityId = RECV_STREAM.ReadUShort();
+                        ushort playerId = RECV_STREAM.ReadUShort();
                         byte instanceId = RECV_STREAM.ReadByte();
                         byte sceneId = RECV_STREAM.ReadByte();
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(RECV_STREAM);
-                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSerializeStatic || messageType == MessageType.OnSerializeScene ? isServer ? NetworkId : (ushort)Id : (ushort)remoteEndPoint.GetPort();
+                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSerializeStatic || messageType == MessageType.OnSerializeScene ? NeutronHelper.GetPlayerId(isServer) : playerId;
 
                         #region Process OnSerializeView
                         switch (NeutronHelper.GetSubTarget(isServer, subTarget))
@@ -490,21 +491,22 @@ namespace Neutron.Core
                     {
                         byte varId = RECV_STREAM.ReadByte();
                         ushort identityId = RECV_STREAM.ReadUShort();
+                        ushort playerId = RECV_STREAM.ReadUShort();
                         byte instanceId = RECV_STREAM.ReadByte();
                         byte sceneId = RECV_STREAM.ReadByte();
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(RECV_STREAM);
-                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSyncBaseStatic || messageType == MessageType.OnSyncBaseScene ? isServer ? NetworkId : (ushort)Id : (ushort)remoteEndPoint.GetPort();
+                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSyncBaseStatic || messageType == MessageType.OnSyncBaseScene ? NeutronHelper.GetPlayerId(isServer) : playerId;
 
-                        #region Process OnSerializeView
+                        #region Process OnSyncBase
                         switch (NeutronHelper.GetSubTarget(isServer, subTarget))
                         {
                             case SubTarget.Server:
                                 {
                                     NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, NeutronHelper.GetObjectType(messageType));
                                     if (identity != null)
-                                        identity.GetNeutronObject(instanceId).OnSerializeView(varId, RECV_STREAM);
+                                        identity.GetNeutronObject(instanceId).OnSyncBase?.Invoke(varId, RECV_STREAM);
                                     else
                                         Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
                                     break;
@@ -574,6 +576,7 @@ namespace Neutron.Core
         {
             ByteStream message = ByteStream.Get(msgType);
             message.Write(identity);
+            message.Write(playerId);
             message.Write(instanceId);
             message.Write(sceneId);
             message.Write(msg);
@@ -587,6 +590,7 @@ namespace Neutron.Core
             ByteStream message = ByteStream.Get(msgType);
             message.Write(varId);
             message.Write(identity);
+            message.Write(playerId);
             message.Write(instanceId);
             message.Write(sceneId);
             message.Write(msg);

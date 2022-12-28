@@ -23,7 +23,7 @@ namespace Neutron.Tests
     [AddComponentMenu("")]
     public class SyncBaseTests : NeutronObject
     {
-        //[Serializable]
+        [Serializable]
         public class Person : ISyncCustom
         {
             public int value = 1;
@@ -53,38 +53,12 @@ namespace Neutron.Tests
             health = new SyncValue<byte>(this, authority: AuthorityMode.Mine, target: Target.Me, subTarget: SubTarget.Server);
             points = new SyncValue<int>(this);
             xAxis = new SyncValue<float>(this);
-            //----------------------------------------------------------------
             arrayOfInt = new SyncRef<int[]>(this, new int[] { });
             listOfFloat = new SyncRef<List<float>>(this, new List<float> { });
             person = new SyncCustom<Person>(this, new Person
             {
                 value = 1
             });
-        }
-
-        protected internal override void OnSerializeView(byte id, ByteStream parameters)
-        {
-            //switch (id)
-            //{
-            //    case 0:
-            //        health.Read(parameters);
-            //        break;
-            //    case 1:
-            //        points.Read(parameters);
-            //        break;
-            //    case 2:
-            //        xAxis.Read(parameters);
-            //        break;
-            //    case 3:
-            //        arrayOfInt.Read(parameters);
-            //        break;
-            //    case 4:
-            //        listOfFloat.Read(parameters);
-            //        break;
-            //    case 5:
-            //        person.Read(parameters);
-            //        break;
-            //}
         }
     }
 }

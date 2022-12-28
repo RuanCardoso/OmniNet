@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+#if UNITY_EDITOR
 using NaughtyAttributes.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -78,3 +79,4 @@ namespace Neutron.Core.Inspector
         }
     }
 }
+#endif

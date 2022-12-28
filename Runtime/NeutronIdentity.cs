@@ -39,7 +39,6 @@ namespace Neutron.Core
         [SerializeField][ReadOnly] private NeutronObject[] networks;
         [SerializeField][HideInInspector] internal bool isItFromTheServer;
         [Header("Editor")]
-        [InfoBox("These properties are only valid for the Editor.")]
         [SerializeField] private bool simulateServerObj = true;
         [SerializeField] private bool drawGizmos = true;
         [SerializeField] internal bool rootMode = true;
@@ -116,11 +115,9 @@ namespace Neutron.Core
                 }
                 else Logger.PrintError("This object is already registered!");
             }
-#if UNITY_EDITOR
-            else Logger.PrintWarning("Dynamically networked object!");
-#endif
         }
 
+        public void Register(bool isServer, ushort playerId) => Register(isServer, playerId, 0);
         public void Register(bool isServer, ushort playerId, ushort id = 0)
         {
             if (objectType == ObjectType.Player || objectType == ObjectType.Dynamic)

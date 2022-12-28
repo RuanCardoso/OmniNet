@@ -21,6 +21,7 @@ namespace Neutron.Core
     [Serializable]
     public class SyncBase<T> : ISyncBase
     {
+        internal protected readonly byte id;
         internal readonly TypeCode typeCode;
         internal static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._ as IValueTypeConverter<T>;
 
@@ -34,7 +35,6 @@ namespace Neutron.Core
             _ => default,
         };
 
-        private readonly byte id;
         private readonly bool isReferenceType;
         private readonly bool isValueTypeSupported;
         private readonly NeutronObject @this;
@@ -53,7 +53,7 @@ namespace Neutron.Core
             this.subTarget = subTarget;
             this.cacheMode = cacheMode;
             this.authority = authority;
-            id = @this.SYNC_BASE_ID++;
+            id = @this.OnSyncBaseId++;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
             isReferenceType = !type.IsValueType;
@@ -71,7 +71,7 @@ namespace Neutron.Core
             this.subTarget = subTarget;
             this.cacheMode = cacheMode;
             this.authority = authority;
-            id = @this.SYNC_BASE_ID++;
+            id = @this.OnSyncBaseId++;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
             isReferenceType = false;
