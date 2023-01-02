@@ -23,6 +23,7 @@ using static Neutron.Core.Enums;
 namespace Neutron.Core
 {
     [AddComponentMenu("")]
+    [DefaultExecutionOrder(-0x62)]
     public class NeutronObject : ActionDispatcher
     {
         private const byte SPAWN = 75;
@@ -33,17 +34,17 @@ namespace Neutron.Core
         private MessageType SYNC_BASE_MSG_TYPE = MessageType.None;
 
         [Header("Registration")]
-        [SerializeField][ReadOnly][Required("It is necessary to register neutron objects on the identity.")] internal NeutronIdentity identity;
+        [SerializeField][ReadOnly][Required("It is necessary to register this instance in the identity!")] internal NeutronIdentity identity;
         [SerializeField][ReadOnly][HorizontalLine(SEPARATOR_HEIGHT, below: true)][Space(SEPARATOR)] internal byte id;
 
         internal byte Id => id;
         protected ByteStream Get => ByteStream.Get();
         protected NeutronIdentity Identity => identity;
-        protected internal bool IsItFromTheServer => identity.isRegistered && identity.isItFromTheServer;
-        protected internal bool IsMine => identity.isRegistered && (identity.playerId == NeutronNetwork.Id) && !identity.isItFromTheServer;
-        protected internal bool IsServer => identity.isRegistered && identity.isItFromTheServer;
-        protected internal bool IsClient => identity.isRegistered && !identity.isItFromTheServer;
-        protected internal bool IsFree => identity.isRegistered;
+        protected internal bool IsItFromTheServer => identity.isItFromTheServer && identity.itIsRegistered;
+        protected internal bool IsMine => !identity.isItFromTheServer && identity.playerId == NeutronNetwork.Id && identity.itIsRegistered;
+        protected internal bool IsServer => identity.isItFromTheServer && identity.itIsRegistered;
+        protected internal bool IsClient => !identity.isItFromTheServer && identity.itIsRegistered;
+        protected internal bool IsCustom => OnCustomAuthority() && identity.itIsRegistered;
 
         #region OnSerializeView
         protected virtual bool OnSerializeViewAuthority => IsMine;
@@ -56,22 +57,15 @@ namespace Neutron.Core
         internal byte OnSyncBaseId = 0;
         internal Action<byte, ByteStream> OnSyncBase;
 
-        protected virtual void Awake()
+        internal void OnAwake()
         {
-            if (identity == null)
-            {
-                Logger.PrintError("Does this object not have an identity? Did you register the objects?");
-                Destroy(gameObject);
-            }
-            else
-            {
-                REMOTE_MSG_TYPE = NeutronHelper.GetMessageTypeToRemote(identity.objectType);
-                SYNC_BASE_MSG_TYPE = NeutronHelper.GetMessageTypeToOnSyncBase(identity.objectType);
-                GetRemoteAttributes();
-            }
+            REMOTE_MSG_TYPE = NeutronHelper.GetMessageTypeToRemote(identity.objectType);
+            SYNC_BASE_MSG_TYPE = NeutronHelper.GetMessageTypeToOnSyncBase(identity.objectType);
+            // Reflection: Get all network methods and create a delegate for each one.
+            // Reflection: All methods are stored in a dictionary to avoid invocation bottlenecks.
+            GetRemoteAttributes();
         }
 
-        protected void OnSerializeView(WaitForSeconds seconds) => StartCoroutine(SentOnSerializeView(seconds));
         private void GetRemoteAttributes()
         {
             #region Signature
@@ -118,6 +112,8 @@ namespace Neutron.Core
             }
         }
 
+        protected virtual bool OnCustomAuthority() => throw new NotImplementedException($"Override the {nameof(OnCustomAuthority)} method!");
+        protected void OnSerializeView(WaitForSeconds seconds) => StartCoroutine(SentOnSerializeView(seconds));
         protected void GetCache(CacheType cacheType, byte cacheId, bool ownerCache = false, Channel channel = Channel.Unreliable)
         {
             NeutronNetwork.GetCache(cacheType, ownerCache, cacheId, identity.playerId, IsItFromTheServer, channel);
@@ -125,9 +121,7 @@ namespace Neutron.Core
 
         private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
-            if (identity.isRegistered)
-                NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget, cacheMode);
-            else parameters.Release();
+            NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget, cacheMode);
         }
 
         protected void Remote(byte id, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
@@ -169,15 +163,24 @@ namespace Neutron.Core
         }
 
         [Remote(SPAWN)]
-        internal void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats) => OnSpawnedObject(parameters.ReadVector3(), parameters.ReadQuaternion(), parameters, fromId, toId, stats);
-        protected virtual void OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        internal void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
         {
-            throw new NotImplementedException("Override the OnSpawnedObject method!");
+            Vector3 position = parameters.ReadVector3();
+            Quaternion rotation = parameters.ReadQuaternion();
+            NeutronIdentity identity = OnSpawnedObject(position, rotation, parameters, fromId, toId, stats);
+            if (identity.objectType == ObjectType.Dynamic)
+                throw new NotImplementedException("Dynamic object not supported Id!");
+            else identity.Register(IsServer, fromId);
+        }
+
+        protected virtual NeutronIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        {
+            throw new NotImplementedException($"Override the {nameof(OnSpawnedObject)} method!");
         }
 
         protected internal virtual void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
         {
-            throw new NotImplementedException("Override the OnSerializeView(ByteStream, bool, RemoteStats) method!");
+            throw new NotImplementedException($"Override the {nameof(OnSerializeView)} method!");
         }
 
         internal void SentOnSyncBase(byte id, ByteStream parameters, bool hasAuthority, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)

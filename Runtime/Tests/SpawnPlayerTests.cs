@@ -34,10 +34,9 @@ namespace Neutron.Tests
             }
         }
 
-        protected override void OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        protected override NeutronIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
         {
-            NeutronIdentity identity = Instantiate(objectToSpawn);
-            identity.Register(IsServer, fromId);
+            return Instantiate(objectToSpawn, position, rotation);
         }
     }
 }

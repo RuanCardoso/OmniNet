@@ -17,6 +17,7 @@ using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
+    [DisallowMultipleComponent]
     public class NeutronTransform : NeutronObject
     {
         [SerializeField] private float lerpSpeed = 1f;
@@ -39,7 +40,7 @@ namespace Neutron.Core
                     AuthorityMode.Mine => IsMine,
                     AuthorityMode.Server => IsServer,
                     AuthorityMode.Client => IsClient,
-                    AuthorityMode.Free => IsFree,
+                    AuthorityMode.Custom => IsCustom,
                     _ => default,
                 };
             }
@@ -56,9 +57,8 @@ namespace Neutron.Core
                 OnSerializeView(new(syncInterval));
         }
 
-        protected override void Update()
+        private void Update()
         {
-            base.Update();
             if (OnSerializeViewAuthority)
             {
                 netPos = transform.position;

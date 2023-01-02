@@ -17,6 +17,7 @@ using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
+    [DisallowMultipleComponent]
     public class NeutronOwnership : NeutronObject
     {
         private bool HasAuthority
@@ -28,7 +29,7 @@ namespace Neutron.Core
                     AuthorityMode.Mine => IsMine,
                     AuthorityMode.Server => IsServer,
                     AuthorityMode.Client => IsClient,
-                    AuthorityMode.Free => IsFree,
+                    AuthorityMode.Custom => IsCustom,
                     _ => default,
                 };
             }

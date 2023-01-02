@@ -17,6 +17,7 @@ using UnityEngine.SceneManagement;
 
 namespace Neutron.Core
 {
+    [DisallowMultipleComponent]
     public class NeutronClone : MonoBehaviour
     {
 #if UNITY_EDITOR

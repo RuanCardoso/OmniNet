@@ -30,7 +30,7 @@ namespace Neutron.Core
         private readonly object syncRoot = new();
         private readonly Queue<Action> actions = new();
 
-        protected virtual void Update()
+        protected void ProcessActions()
         {
             lock (syncRoot)
             {

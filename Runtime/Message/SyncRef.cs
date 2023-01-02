@@ -20,12 +20,15 @@ namespace Neutron.Core
     [Serializable]
     public class SyncRef<T> : SyncBase<T> where T : class
     {
-        public SyncRef(NeutronObject @this, T value, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
+        public SyncRef(NeutronObject @this, T value, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
         {
             @this.OnSyncBase += (id, message) =>
             {
                 if (this.id == id)
+                {
                     this.Read(message);
+                    onChanged?.Invoke(Get());
+                }
             };
         }
     }

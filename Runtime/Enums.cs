@@ -112,7 +112,7 @@ namespace Neutron.Core
             Mine,
             Server,
             Client,
-            Free
+            Custom
         }
     }
 }

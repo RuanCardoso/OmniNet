@@ -20,13 +20,14 @@ using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
+    [DisallowMultipleComponent]
     public class NeutronAnimator : NeutronObject
     {
         private const int SEPARATOR_HEIGHT = 1;
         private const int SEPARATOR = -(20 - SEPARATOR_HEIGHT);
 
-        [InfoBox("Trigger type parameters are not supported!", EInfoBoxType.Warning)]
-        [Required][Space(2)] public Animator animator;
+        [InfoBox("Trigger are not supported!", EInfoBoxType.Warning)]
+        [Required("Animator is required!")][Space(2)] public Animator animator;
         [HorizontalLine(below: true, height: SEPARATOR_HEIGHT)][Space(SEPARATOR)] public List<AnimatorParameter> parameters;
         [SerializeField][Range(0, 1f)] private float syncInterval = 0.1f;
         [SerializeField] private AuthorityMode authority = AuthorityMode.Mine;
@@ -44,7 +45,7 @@ namespace Neutron.Core
                     AuthorityMode.Mine => IsMine,
                     AuthorityMode.Server => IsServer,
                     AuthorityMode.Client => IsClient,
-                    AuthorityMode.Free => IsFree,
+                    AuthorityMode.Custom => IsCustom,
                     _ => default,
                 };
             }
@@ -66,6 +67,8 @@ namespace Neutron.Core
             for (int i = 0; i < this.parameters.Count; i++)
             {
                 AnimatorParameter parameter = this.parameters[i];
+                if (parameter.SyncMode == AnimatorParameter.Sync.Disabled)
+                    continue;
                 switch (parameter.ParameterType)
                 {
                     case AnimatorControllerParameterType.Float:

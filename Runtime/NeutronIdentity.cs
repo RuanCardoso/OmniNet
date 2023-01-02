@@ -27,9 +27,11 @@ namespace Neutron.Core
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-0x63)]
-    public class NeutronIdentity : ActionDispatcher
+    public sealed class NeutronIdentity : ActionDispatcher
     {
-        [SerializeField][HideInInspector] internal bool isRegistered;
+        public event Action OnAfterRegistered;
+
+        [SerializeField][HideInInspector] internal bool itIsRegistered;
         [ValidateInput("WarnIfNotRoot", "Root mode is enabled, but the identity is not on the root object.")]
         [Header("Registration")]
         [SerializeField][ReadOnly] internal ushort id;
@@ -37,7 +39,14 @@ namespace Neutron.Core
         [SerializeField][ReadOnly][ShowIf("objectType", ObjectType.Scene)] internal byte sceneId;
         [SerializeField][Label("Mode")] internal ObjectType objectType = ObjectType.Player;
         [SerializeField][ReadOnly] private NeutronObject[] networks;
-        [SerializeField][HideInInspector] internal bool isItFromTheServer;
+#if UNITY_SERVER && !UNITY_EDITOR
+        [NonSerialized]
+        internal bool isItFromTheServer = true;
+#else
+        [SerializeField]
+        [HideInInspector]
+        internal bool isItFromTheServer;
+#endif
         [Header("Editor")]
         [SerializeField] private bool simulateServerObj = true;
         [SerializeField] private bool drawGizmos = true;
@@ -54,7 +63,7 @@ namespace Neutron.Core
 #pragma warning disable IDE0051
         private bool WarnIfNotRoot() => !rootMode || transform == transform.root;
 #pragma warning restore IDE0051
-        protected virtual void Awake()
+        private void Awake()
         {
             if (!NeutronNetwork.IsConnected)
             {
@@ -63,19 +72,49 @@ namespace Neutron.Core
             }
             else
             {
-                neutronObjects = networks.Where(x => x != null).ToDictionary(k => k.id, v => v);
-#if UNITY_SERVER && !UNITY_EDITOR
-            isItFromTheServer = true;
-#endif
+                if (networks != null && networks.Length > 0)
+                {
+                    neutronObjects = networks.Where(x => x != null).ToDictionary(k => k.id, v => v);
+                    foreach (var nO in neutronObjects.Values)
+                        nO.OnAwake();
+                }
+                else { }
 #if UNITY_EDITOR
                 Clone();
 #endif
                 Register();
                 isInRoot = transform == RootOr();
+#if UNITY_EDITOR
+                DrawGizmos();
+#endif
             }
         }
 
 #if UNITY_EDITOR // Visuale
+        private void DrawGizmos()
+        {
+            if (drawGizmos)
+            {
+                Vector3 position = transform.position;
+                if (!isItFromTheServer) position.y += 0.2f;
+                else position.y -= 0.2f;
+                //----------------------------------------------------------
+                GameObject @object = new("@object");
+                @object.transform.position = position;
+                @object.transform.localScale = new(0.01f, 0.01f, 0.01f);
+                @object.transform.parent = transform;
+                //----------------------------------------------------------
+                Canvas canvas = @object.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.WorldSpace;
+                //----------------------------------------------------------
+                TextMesh text = @object.AddComponent<TextMesh>();
+                text.text = $"{(isItFromTheServer ? "Server -> " : "Client -> ")} {id}";
+                text.fontStyle = FontStyle.Bold;
+                text.fontSize = 90;
+                text.color = !isItFromTheServer ? Color.white : Color.red;
+            }
+        }
+
         private void Clone()
         {
             if (NeutronNetwork.IsBind)
@@ -107,18 +146,20 @@ namespace Neutron.Core
         {
             if (objectType == ObjectType.Scene || objectType == ObjectType.Static)
             {
-                if (!isRegistered)
+                if (!itIsRegistered)
                 {
-                    isRegistered = true;
+                    itIsRegistered = true;
                     playerId = isItFromTheServer ? NeutronNetwork.NetworkId : (ushort)NeutronNetwork.Id;
                     NeutronNetwork.AddIdentity(this);
+                    OnAfterRegistered?.Invoke();
+                    OnAfterRegistered = null;
                 }
                 else Logger.PrintError("This object is already registered!");
             }
         }
 
-        public void Register(bool isServer, ushort playerId) => Register(isServer, playerId, 0);
-        public void Register(bool isServer, ushort playerId, ushort id = 0)
+        internal void Register(bool isServer, ushort playerId) => Register(isServer, playerId, 0);
+        internal void Register(bool isServer, ushort playerId, ushort id = 0)
         {
             if (objectType == ObjectType.Player || objectType == ObjectType.Dynamic)
             {
@@ -130,9 +171,9 @@ namespace Neutron.Core
                 else
                 {
                     isItFromTheServer = isServer;
-                    if (!isRegistered)
+                    if (!itIsRegistered)
                     {
-                        isRegistered = true;
+                        itIsRegistered = true;
                         this.playerId = playerId;
                         this.id = objectType == ObjectType.Player ? playerId : id;
                         #region Visuale
@@ -146,6 +187,8 @@ namespace Neutron.Core
 #endif
                         #endregion
                         NeutronNetwork.AddIdentity(this);
+                        OnAfterRegistered?.Invoke();
+                        OnAfterRegistered = null;
                     }
                     else Logger.PrintError("This object is already registered!");
                 }
@@ -240,17 +283,6 @@ namespace Neutron.Core
                     nObject.identity = this;
                     EditorUtility.SetDirty(nObject.gameObject);
                 }
-            }
-        }
-
-        private void OnDrawGizmos()
-        {
-            if (drawGizmos)
-            {
-                Vector3 position = transform.position;
-                if (!isItFromTheServer) position.y += 0.2f;
-                else position.y -= 0.2f;
-                Handles.Label(position, $"{(isItFromTheServer ? "Server -> " : "Client -> ")} {id}");
             }
         }
 #endif

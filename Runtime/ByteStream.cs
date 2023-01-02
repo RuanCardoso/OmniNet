@@ -67,7 +67,12 @@ namespace Neutron.Core
             Write(payload);
         }
 
-        public void Write(bool value) => Write(value ? (byte)1 : (byte)0);
+        public unsafe void Write(bool value) => Write(*(byte*)&value);
+        public unsafe void Write(bool v1, bool v2) => Write((byte)(*(byte*)&v1 | *(byte*)&v2 << 1));
+        public unsafe void Write(bool v1, bool v2, bool v3) => Write((byte)(*(byte*)&v1 | *(byte*)&v2 << 1 | *(byte*)&v3 << 2));
+        public unsafe void Write(bool v1, bool v2, bool v3, bool v4) => Write((byte)(*(byte*)&v1 | *(byte*)&v2 << 1 | *(byte*)&v3 << 2 | *(byte*)&v4 << 3));
+        public unsafe void Write(bool v1, bool v2, bool v3, bool v4, bool v5) => Write((byte)(*(byte*)&v1 | *(byte*)&v2 << 1 | *(byte*)&v3 << 2 | *(byte*)&v4 << 3 | *(byte*)&v5 << 4));
+
         public void Write7BitEncodedInt(int value)
         {
             // Write out an int 7 bits at a time.  The high bit of the byte,
@@ -284,6 +289,36 @@ namespace Neutron.Core
         }
 
         public bool ReadBool() => ReadByte() == 1;
+        public void ReadBool(out bool v1, out bool v2)
+        {
+            v1 = ReadBool();
+            v2 = ReadBool();
+        }
+
+        public void ReadBool(out bool v1, out bool v2, out bool v3)
+        {
+            v1 = ReadBool();
+            v2 = ReadBool();
+            v3 = ReadBool();
+        }
+
+        public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4)
+        {
+            v1 = ReadBool();
+            v2 = ReadBool();
+            v3 = ReadBool();
+            v4 = ReadBool();
+        }
+
+        public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5)
+        {
+            v1 = ReadBool();
+            v2 = ReadBool();
+            v3 = ReadBool();
+            v4 = ReadBool();
+            v5 = ReadBool();
+        }
+
         public int Read7BitEncodedInt()
         {
             // Read out an Int32 7 bits at a time.  The high bit

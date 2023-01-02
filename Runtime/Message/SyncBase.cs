@@ -31,7 +31,7 @@ namespace Neutron.Core
             AuthorityMode.Mine => @this.IsMine,
             AuthorityMode.Server => @this.IsServer,
             AuthorityMode.Client => @this.IsClient,
-            AuthorityMode.Free => @this.IsFree,
+            AuthorityMode.Custom => @this.IsCustom,
             _ => default,
         };
 
