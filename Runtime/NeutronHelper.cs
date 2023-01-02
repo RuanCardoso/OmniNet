@@ -17,6 +17,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using UnityEditor;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 using static Neutron.Core.Enums;
 using MessageType = Neutron.Core.Enums.MessageType;
 
@@ -113,6 +115,12 @@ namespace Neutron.Core
         }
 
 #if UNITY_EDITOR
+        internal static void MoveToServer(bool isServer, GameObject gameObject)
+        {
+            if (isServer && NeutronNetwork.IsBind)
+                SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
+        }
+
         internal static List<string> GetDefines(out BuildTargetGroup targetGroup)
         {
             BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;

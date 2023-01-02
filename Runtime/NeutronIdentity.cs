@@ -133,7 +133,6 @@ namespace Neutron.Core
                         {
                             isItFromTheServer = true;
                             name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
-                            SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
                         }
                     }
                 }
@@ -153,6 +152,9 @@ namespace Neutron.Core
                     NeutronNetwork.AddIdentity(this);
                     OnAfterRegistered?.Invoke();
                     OnAfterRegistered = null;
+#if UNITY_EDITOR
+                    NeutronHelper.MoveToServer(isItFromTheServer, gameObject);
+#endif
                 }
                 else Logger.PrintError("This object is already registered!");
             }
@@ -178,17 +180,15 @@ namespace Neutron.Core
                         this.id = objectType == ObjectType.Player ? playerId : id;
                         #region Visuale
 #if UNITY_EDITOR
-                        if (isServer)
-                        {
-                            name = $"{gameObject.name.Replace("(Clone)", "")} -> [Server]";
-                            SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
-                        }
-                        else name = $"{gameObject.name.Replace("(Clone)", "")} -> [Client]";
+                        name = isServer ? $"{gameObject.name.Replace("(Clone)", "")} -> [Server]" : $"{gameObject.name.Replace("(Clone)", "")} -> [Client]";
 #endif
                         #endregion
                         NeutronNetwork.AddIdentity(this);
                         OnAfterRegistered?.Invoke();
                         OnAfterRegistered = null;
+#if UNITY_EDITOR
+                        NeutronHelper.MoveToServer(isServer, gameObject);
+#endif
                     }
                     else Logger.PrintError("This object is already registered!");
                 }

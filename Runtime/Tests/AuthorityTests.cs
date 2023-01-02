@@ -28,7 +28,7 @@ namespace Neutron.Tests
 
         private void Start()
         {
-            Identity.OnAfterRegistered += () => Logger.Print($"{nameof(Start)} -> {Identity.itIsRegistered}");
+            Logger.Print($"{nameof(Start)} -> {Identity.itIsRegistered}");
         }
 
         private void Update()

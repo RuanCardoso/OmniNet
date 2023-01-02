@@ -33,7 +33,7 @@ namespace Neutron.Core
                     loop = true;
                     Instantiate(gameObject);
                 }
-                else SceneManager.MoveGameObjectToScene(gameObject, NeutronNetwork.Scene);
+                else NeutronHelper.MoveToServer(true, gameObject);
             }
             catch
             {
