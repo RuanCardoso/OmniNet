@@ -84,9 +84,6 @@ namespace Neutron.Core
 #endif
                 Register();
                 isInRoot = transform == RootOr();
-#if UNITY_EDITOR
-                DrawGizmos();
-#endif
             }
         }
 
@@ -96,8 +93,8 @@ namespace Neutron.Core
             if (drawGizmos)
             {
                 Vector3 position = transform.position;
-                if (!isItFromTheServer) position.y += 0.2f;
-                else position.y -= 0.2f;
+                if (!isItFromTheServer) position.y += 0.1f;
+                else position.y -= 0.1f;
                 //----------------------------------------------------------
                 GameObject @object = new("@object");
                 @object.transform.position = position;
@@ -154,6 +151,7 @@ namespace Neutron.Core
                     OnAfterRegistered = null;
 #if UNITY_EDITOR
                     NeutronHelper.MoveToServer(isItFromTheServer, gameObject);
+                    DrawGizmos();
 #endif
                 }
                 else Logger.PrintError("This object is already registered!");
@@ -188,6 +186,7 @@ namespace Neutron.Core
                         OnAfterRegistered = null;
 #if UNITY_EDITOR
                         NeutronHelper.MoveToServer(isServer, gameObject);
+                        DrawGizmos();
 #endif
                     }
                     else Logger.PrintError("This object is already registered!");
