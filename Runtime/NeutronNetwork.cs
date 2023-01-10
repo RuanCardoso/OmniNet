@@ -17,7 +17,6 @@ using MessagePack.Resolvers;
 using MessagePack.Unity;
 using MessagePack.Unity.Extension;
 using NaughtyAttributes;
-using Neutron.Resolvers;
 using System;
 #if NEUTRON_MULTI_THREADED
 using System.Collections.Concurrent;
@@ -141,7 +140,7 @@ namespace Neutron.Core
             else
             {
                 Formatter = resolver == null
-                    ? (resolver = CompositeResolver.Create(NeutronRuntimeResolver.Instance, UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance))
+                    ? (resolver = CompositeResolver.Create(UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance))
                     : (resolver = CompositeResolver.Create(resolver, Formatter));
                 return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
             }
@@ -351,11 +350,24 @@ namespace Neutron.Core
             return identity;
         }
 
-        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : ISerializable, new()
+        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : IMessage, new()
         {
             T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))
                 Logger.PrintError($"Handler for {instance.Id} already exists!");
+            else
+            {
+                try
+                {
+                    MessagePackSerializer.Serialize(instance);
+                }
+                catch (Exception ex)
+                {
+                    ex = ex.InnerException;
+                    Logger.PrintError(ex.Message);
+                    Logger.PrintError("It is necessary to generate the AOT code and register the type.");
+                }
+            }
         }
 
         private static void Intern_Send(ByteStream byteStream, ushort id, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)

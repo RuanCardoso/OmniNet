@@ -13,11 +13,11 @@
 
 namespace Neutron.Resolvers
 {
-    public class NeutronRuntimeResolver : global::MessagePack.IFormatterResolver
+    public class NeutronTestsResolver : global::MessagePack.IFormatterResolver
     {
-        public static readonly global::MessagePack.IFormatterResolver Instance = new NeutronRuntimeResolver();
+        public static readonly global::MessagePack.IFormatterResolver Instance = new NeutronTestsResolver();
 
-        private NeutronRuntimeResolver()
+        private NeutronTestsResolver()
         {
         }
 
@@ -32,7 +32,7 @@ namespace Neutron.Resolvers
 
             static FormatterCache()
             {
-                var f = NeutronRuntimeResolverGetFormatterHelper.GetFormatter(typeof(T));
+                var f = NeutronTestsResolverGetFormatterHelper.GetFormatter(typeof(T));
                 if (f != null)
                 {
                     Formatter = (global::MessagePack.Formatters.IMessagePackFormatter<T>)f;
@@ -41,14 +41,16 @@ namespace Neutron.Resolvers
         }
     }
 
-    internal static class NeutronRuntimeResolverGetFormatterHelper
+    internal static class NeutronTestsResolverGetFormatterHelper
     {
         private static readonly global::System.Collections.Generic.Dictionary<global::System.Type, int> lookup;
 
-        static NeutronRuntimeResolverGetFormatterHelper()
+        static NeutronTestsResolverGetFormatterHelper()
         {
-            lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(0)
+            lookup = new global::System.Collections.Generic.Dictionary<global::System.Type, int>(2)
             {
+                { typeof(global::Neutron.Tests.ChatMsg), 0 },
+                { typeof(global::Neutron.Tests.PlayerTests), 1 },
             };
         }
 
@@ -62,6 +64,8 @@ namespace Neutron.Resolvers
 
             switch (key)
             {
+                case 0: return new Neutron.Formatters.Neutron.Tests.ChatMsgFormatter();
+                case 1: return new Neutron.Formatters.Neutron.Tests.PlayerTestsFormatter();
                 default: return null;
             }
         }

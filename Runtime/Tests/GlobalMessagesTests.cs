@@ -14,28 +14,28 @@
 
 using Neutron.Core;
 using UnityEngine;
-using Logger = Neutron.Core.Logger;
 
 namespace Neutron.Tests
 {
     [AddComponentMenu("")]
-    public class AuthorityTests : NeutronObject
+    public class GlobalMessagesTests : MonoBehaviour
     {
-        private void Awake()
-        {
-        }
-
         private void Start()
         {
+            NeutronNetwork.AddHandler<PlayerTests>(OnPlayerTests);
+        }
+
+        private void OnPlayerTests(ByteStream byteStream, bool isServer)
+        {
+
         }
 
         private void Update()
         {
-
-        }
-
-        private void OnEnable()
-        {
+            if (Input.GetKeyUp(KeyCode.KeypadEnter))
+            {
+                PlayerTests player = new();
+            }
         }
     }
 }

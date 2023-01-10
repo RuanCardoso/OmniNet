@@ -45,10 +45,10 @@ namespace MessagePack.Unity.Editor
         public static async void InitCodeGenShortcut()
         {
         begin:
-            var dotnet = await ProcessHelper.FindDotnetAsync();
+            var dotnet = await ProcessHelper.FindDotnetAsync("6.0");
             if (!dotnet.found)
             {
-                UnityEngine.Debug.LogError("dotnet sdk not found! please download from https://dotnet.microsoft.com/en-us/download and install.");
+                UnityEngine.Debug.LogError("dotnet sdk(.NET 6.0) not found! please download from https://dotnet.microsoft.com/en-us/download and install.");
                 return;
             }
             else
@@ -230,9 +230,9 @@ namespace MessagePack.Unity.Editor
 
             EditorGUI.BeginDisabledGroup(invokingMpc);
             if (GUILayout.Button("Generate"))
-#pragma warning disable CS4014 // Como esta chamada não é esperada, a execução do método atual continua antes de a chamada ser concluída
+#pragma warning disable CS4014
                 InitCodeGen();
-#pragma warning restore CS4014 // Como esta chamada não é esperada, a execução do método atual continua antes de a chamada ser concluída
+#pragma warning restore CS4014
             EditorGUI.EndDisabledGroup();
         }
 
@@ -348,7 +348,7 @@ namespace MessagePack.Unity.Editor
 
         public static async Task<string> InstallMpc()
         {
-            return await InvokeProcessStartAsync("dotnet", "tool install --global " + InstallName);
+            return await InvokeProcessStartAsync("dotnet", "tool install --global " + InstallName + " --version 2.4.35");
         }
 
         public static async Task<(bool found, string version)> FindDotnetAsync()
@@ -357,6 +357,19 @@ namespace MessagePack.Unity.Editor
             {
                 var version = await InvokeProcessStartAsync("dotnet", "--version");
                 return (true, version);
+            }
+            catch
+            {
+                return (false, null);
+            }
+        }
+
+        public static async Task<(bool found, string version)> FindDotnetAsync(string ver)
+        {
+            try
+            {
+                var version = await InvokeProcessStartAsync("dotnet", "--list-sdks");
+                return (version.Contains(ver), version);
             }
             catch
             {
