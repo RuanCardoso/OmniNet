@@ -27,7 +27,7 @@ namespace Neutron.Core
         public ByteStreamPool(int length = 128)
         {
             for (int i = 0; i < length; i++)
-                pool.Push(new ByteStream(Instance.udpPacketSize));
+                pool.Push(new ByteStream(Instance.udpPacketSize, true));
         }
 
         public ByteStream Get()
@@ -36,13 +36,13 @@ namespace Neutron.Core
             lock (_lock)
 #endif
             {
-                return pool.Count == 0 ? new ByteStream(Instance.udpPacketSize) : pool.Pop();
+                return pool.Count == 0 ? new ByteStream(Instance.udpPacketSize, true) : pool.Pop();
             }
         }
 
         public void Release(ByteStream stream)
         {
-            stream.EndWrite();
+            stream.Write();
 #if NEUTRON_MULTI_THREADED
             lock (_lock)
 #endif

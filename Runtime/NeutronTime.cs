@@ -15,25 +15,28 @@
     ===========================================================*/
 
 using System;
+using InternalTime = UnityEngine.Time;
 
 namespace Neutron.Core
 {
     public static class NeutronTime
     {
-        private const int WINDOW_SIZE = 10;
-        private static double _recMsgs = 1d;
-        private static double _sentMsgs = 1d;
+        const int WINDOW_SIZE = 10;
+
         private static ExponentialMovingAverage _rttExAvg = new(WINDOW_SIZE);
         private static ExponentialMovingAverage _offsetExAvg = new(WINDOW_SIZE);
-        private static double _offsetMin = double.MinValue;
-        private static double _offsetMax = double.MaxValue;
 
-        public static double PacketLoss => Math.Abs(Math.Round(100d - (_recMsgs / _sentMsgs * 100d), MidpointRounding.ToEven));
+        private static double receivedMessages = 1d;
+        private static double messagesSent = 1d;
+        private static double offsetMin = double.MinValue;
+        private static double offsetMax = double.MaxValue;
+
+        public static double PacketLoss => Math.Abs(Math.Round(100d - (receivedMessages / messagesSent * 100d), MidpointRounding.ToEven));
         public static double Latency => Math.Round((RoundTripTime * 0.5d) * 1000d);
         public static double Ping => Math.Round(RoundTripTime * 1000d);
         public static double RoundTripTime => _rttExAvg.Avg;
         public static double Offset => _offsetExAvg.Avg;
-        public static double LocalTime => NeutronNetwork.timeAsDouble;
+        public static double LocalTime => InternalTime.timeAsDouble;
         public static double Time => LocalTime - Offset;
         public static double RttSlope => _rttExAvg.Slope;
         public static double OffsetSlope => _offsetExAvg.Slope;
@@ -47,20 +50,20 @@ namespace Neutron.Core
             double offsetMin = now - rtt - serverTime;
             double offsetMax = now - serverTime;
 
-            _offsetMin = Math.Max(_offsetMin, offsetMin);
-            _offsetMax = Math.Min(_offsetMax, offsetMax);
+            NeutronTime.offsetMin = Math.Max(NeutronTime.offsetMin, offsetMin);
+            NeutronTime.offsetMax = Math.Min(NeutronTime.offsetMax, offsetMax);
 
             _rttExAvg.Add(rtt);
-            if (_offsetExAvg.Avg < _offsetMin || _offsetExAvg.Avg > _offsetMax)
+            if (_offsetExAvg.Avg < NeutronTime.offsetMin || _offsetExAvg.Avg > NeutronTime.offsetMax)
             {
                 _offsetExAvg = new ExponentialMovingAverage(WINDOW_SIZE);
                 _offsetExAvg.Add(offset);
             }
-            else if (offset >= _offsetMin || offset <= _offsetMax)
+            else if (offset >= NeutronTime.offsetMin || offset <= NeutronTime.offsetMax)
                 _offsetExAvg.Add(offset);
         }
 
-        public static void AddSent() => _sentMsgs++;
-        public static void AddReceived() => _recMsgs++;
+        public static void AddSent() => messagesSent++;
+        public static void AddReceived() => receivedMessages++;
     }
 }

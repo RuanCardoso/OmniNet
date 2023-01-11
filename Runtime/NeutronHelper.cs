@@ -62,6 +62,11 @@ namespace Neutron.Core
                 MessageType.OnSyncBaseScene => ObjectType.Scene,
                 MessageType.OnSyncBasePlayer => ObjectType.Player,
                 MessageType.OnSyncBaseDynamic => ObjectType.Dynamic,
+                //*************************************************
+                MessageType.LocalMessageStatic => ObjectType.Static,
+                MessageType.LocalMessageScene => ObjectType.Scene,
+                MessageType.LocalMessagePlayer => ObjectType.Player,
+                MessageType.LocalMessageDynamic => ObjectType.Dynamic,
                 _ => default,
             };
         }
@@ -98,6 +103,18 @@ namespace Neutron.Core
                 ObjectType.Scene => MessageType.OnSyncBaseScene,
                 ObjectType.Player => MessageType.OnSyncBasePlayer,
                 ObjectType.Dynamic => MessageType.OnSyncBaseDynamic,
+                _ => default,
+            };
+        }
+
+        internal static MessageType GetMessageTypeToLocalMessage(ObjectType messageType) // bandwidth optimize
+        {
+            return messageType switch
+            {
+                ObjectType.Static => MessageType.LocalMessageStatic,
+                ObjectType.Scene => MessageType.LocalMessageScene,
+                ObjectType.Player => MessageType.LocalMessagePlayer,
+                ObjectType.Dynamic => MessageType.LocalMessageDynamic,
                 _ => default,
             };
         }

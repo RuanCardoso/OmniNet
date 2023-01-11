@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 #endif
 using System.Threading;
 using System;
+using static Neutron.Core.NeutronNetwork;
 
 namespace Neutron.Core
 {
@@ -33,7 +34,7 @@ namespace Neutron.Core
         {
             if (window == null)
             {
-                windowSize = NeutronNetwork.Instance.windowSize;
+                windowSize = Instance.windowSize;
                 window = new ByteStream[windowSize];
                 Resize(window.Length - 1);
             }
@@ -47,7 +48,7 @@ namespace Neutron.Core
                 Array.Resize(ref window, window.Length + size);
             }
 
-            for (int i = lastIndex; i < window.Length; i++) window[i] = new(NeutronNetwork.Instance.udpPacketSize);
+            for (int i = lastIndex; i < window.Length; i++) window[i] = new(Instance.udpPacketSize);
             if (lastIndex != window.Length) lastIndex = window.Length;
         }
     }
@@ -99,8 +100,8 @@ namespace Neutron.Core
 #endif
             {
                 int nextSequence = 0;
-                double timeout = NeutronNetwork.Instance.platformSettings.ackTimeout;
-                int sweep = NeutronNetwork.Instance.platformSettings.ackSweep;
+                double timeout = Instance.platformSettings.ackTimeout;
+                int sweep = Instance.platformSettings.ackSweep;
 #if !NEUTRON_MULTI_THREADED
                 var yieldSec = new WaitForSeconds(sweep / 1000f); // avoid gc alloc;
 #endif

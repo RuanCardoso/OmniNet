@@ -31,6 +31,7 @@ namespace Neutron.Core
         private int bytesWritten;
         private bool isAcked;
         private readonly byte[] buffer;
+        private readonly bool isPoolObject;
         private DateTime lastWriteTime;
 
         public byte[] Buffer => buffer;
@@ -43,12 +44,20 @@ namespace Neutron.Core
 #if UNITY_SERVER && !UNITY_EDITOR
         static int allocated = 0;
 #endif
-        public ByteStream(int size)
+        public ByteStream(int size, bool isPoolObject = false)
         {
             buffer = new byte[size];
+            this.isPoolObject = isPoolObject;
 #if UNITY_SERVER && !UNITY_EDITOR
             Logger.Inline($"Allocated: {Interlocked.Increment(ref allocated)} ByteStream!");
 #endif
+        }
+
+        public void Write()
+        {
+            isRawBytes = false;
+            position = 0;
+            bytesWritten = 0;
         }
 
         public void Write(byte value)
@@ -265,13 +274,6 @@ namespace Neutron.Core
         }
 
         internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
-        public void EndWrite()
-        {
-            isRawBytes = false;
-            position = 0;
-            bytesWritten = 0;
-        }
-
         public byte ReadByte() => ThrowIfNotEnoughData(sizeof(byte)) ? buffer[position++] : default;
         internal void ReadPaylod(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode)
         {
@@ -476,6 +478,80 @@ namespace Neutron.Core
                 value[offset + i] = ReadByte();
         }
 
+        #region Slice Memory
+        public ReadOnlyMemory<byte> ReadAsReadOnlyMemory()
+        {
+            ReadOnlyMemory<byte> span = buffer;
+            return span[position..bytesWritten];
+        }
+
+        public ReadOnlyMemory<byte> ReadAsReadOnlyMemory(int offset, int size)
+        {
+            ReadOnlyMemory<byte> span = buffer;
+            return span[offset..size];
+        }
+
+        public ReadOnlyMemory<byte> ReadAsReadOnlyMemory(int size)
+        {
+            ReadOnlyMemory<byte> span = buffer;
+            return span[position..size];
+        }
+
+        public ReadOnlySpan<byte> ReadAsReadOnlySpan()
+        {
+            ReadOnlySpan<byte> span = buffer;
+            return span[position..bytesWritten];
+        }
+
+        public ReadOnlySpan<byte> ReadAsReadOnlySpan(int offset, int size)
+        {
+            ReadOnlySpan<byte> span = buffer;
+            return span[offset..size];
+        }
+
+        public ReadOnlySpan<byte> ReadAsReadOnlySpan(int size)
+        {
+            ReadOnlySpan<byte> span = buffer;
+            return span[position..size];
+        }
+
+        public Memory<byte> ReadAsMemory()
+        {
+            Memory<byte> span = buffer;
+            return span[position..bytesWritten];
+        }
+
+        public Memory<byte> ReadAsMemory(int offset, int size)
+        {
+            Memory<byte> span = buffer;
+            return span[offset..size];
+        }
+
+        public Memory<byte> ReadAsMemory(int size)
+        {
+            Memory<byte> span = buffer;
+            return span[position..size];
+        }
+
+        public Span<byte> ReadAsSpan()
+        {
+            Span<byte> span = buffer;
+            return span[position..bytesWritten];
+        }
+
+        public Span<byte> ReadAsSpan(int offset, int size)
+        {
+            Span<byte> span = buffer;
+            return span[offset..size];
+        }
+
+        public Span<byte> ReadAsSpan(int size)
+        {
+            Span<byte> span = buffer;
+            return span[position..size];
+        }
+        #endregion
+
         private bool ThrowIfNotEnoughSpace(int size)
         {
             if (position + size > buffer.Length)
@@ -500,7 +576,7 @@ namespace Neutron.Core
         {
             ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
-            if (_get_.position != 0 || _get_.bytesWritten != 0)
+            if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             return _get_;
         }
@@ -509,7 +585,7 @@ namespace Neutron.Core
         {
             ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
-            if (_get_.position != 0 || _get_.bytesWritten != 0)
+            if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             else _get_.WritePacket(msgType);
             return _get_;
@@ -521,7 +597,7 @@ namespace Neutron.Core
         {
             ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
-            if (_get_.position != 0 || _get_.bytesWritten != 0)
+            if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             else
             {
@@ -534,12 +610,17 @@ namespace Neutron.Core
         internal bool isRelease = false;
         internal void Release()
         {
-            if (isRelease) Logger.PrintError($"The ByteStream is already released!");
-            else
+            if (isPoolObject)
             {
-                isRelease = true;
-                streams.Release(this);
+                if (isRelease)
+                    Logger.PrintError($"The ByteStream is already released!");
+                else
+                {
+                    isRelease = true;
+                    streams.Release(this);
+                }
             }
+            else Write();
         }
     }
 }

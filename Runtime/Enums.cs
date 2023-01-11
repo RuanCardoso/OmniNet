@@ -42,7 +42,12 @@ namespace Neutron.Core
             OnSyncBaseScene = 17,
             //......................
             GetCache = 18,
-            LocalMessage = 19,
+            // Bandwidth Optimize
+            LocalMessageStatic = 19,
+            LocalMessagePlayer = 20,
+            LocalMessageDynamic = 21,
+            LocalMessageScene = 22,
+            //......................
             Connect = 254,
             Disconnect = 255,
         }

@@ -134,7 +134,7 @@ namespace Neutron.Core
                 message.Write(_sequence_);
                 message.Write(data);
                 ByteStream window = SENT_WINDOW.GetWindow(_sequence_);
-                window.EndWrite();
+                window.Write();
                 window.SetLastWriteTime();
                 window.Write(message);
                 int length = Send(message, remoteEndPoint);
@@ -166,7 +166,7 @@ namespace Neutron.Core
                                 offset = 0;
 
                                 ByteStream window = SENT_WINDOW.GetWindow(_sequence_);
-                                window.EndWrite();
+                                window.Write();
                                 window.SetLastWriteTime();
                                 window.Write(data);
                                 break;

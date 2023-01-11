@@ -14,28 +14,27 @@
 
 using MessagePack;
 using Neutron.Core;
+using UnityEngine;
 
 namespace Neutron.Tests
 {
     [MessagePackObject]
-    public class PlayerTests : IMessage
-    {
-        [IgnoreMember] public byte Id => 0;
-        //*********************************
-        [Key(0)]
-        public string name;
-        [Key(1)]
-        public int idade;
-    }
-
-    [MessagePackObject]
-    public class ChatMsg
+    public struct NetMove : IMessage
     {
         [IgnoreMember] public byte Id => 1;
-        //*********************************
+
         [Key(0)]
-        public string name;
+        public Vector3 pos;
         [Key(1)]
-        public int msg;
+        public Quaternion rotation;
+        [Key(2)]
+        public double time;
+
+        public NetMove(Vector3 pos, Quaternion rotation, double time)
+        {
+            this.pos = pos;
+            this.rotation = rotation;
+            this.time = time;
+        }
     }
 }

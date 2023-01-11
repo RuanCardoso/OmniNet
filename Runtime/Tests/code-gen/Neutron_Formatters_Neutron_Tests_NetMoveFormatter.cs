@@ -16,44 +16,44 @@
 
 namespace Neutron.Formatters.Neutron.Tests
 {
-    public sealed class ChatMsgFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::Neutron.Tests.ChatMsg>
+    public sealed class NetMoveFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::Neutron.Tests.NetMove>
     {
 
-        public void Serialize(ref global::MessagePack.MessagePackWriter writer, global::Neutron.Tests.ChatMsg value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref global::MessagePack.MessagePackWriter writer, global::Neutron.Tests.NetMove value, global::MessagePack.MessagePackSerializerOptions options)
         {
-            if (value == null)
-            {
-                writer.WriteNil();
-                return;
-            }
-
             global::MessagePack.IFormatterResolver formatterResolver = options.Resolver;
-            writer.WriteArrayHeader(2);
-            global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<string>(formatterResolver).Serialize(ref writer, value.name, options);
-            writer.Write(value.msg);
+            writer.WriteArrayHeader(3);
+            global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Vector3>(formatterResolver).Serialize(ref writer, value.pos, options);
+            global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Quaternion>(formatterResolver).Serialize(ref writer, value.rotation, options);
+            writer.Write(value.time);
         }
 
-        public global::Neutron.Tests.ChatMsg Deserialize(ref global::MessagePack.MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::Neutron.Tests.NetMove Deserialize(ref global::MessagePack.MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
         {
             if (reader.TryReadNil())
             {
-                return null;
+                throw new global::System.InvalidOperationException("typecode is null, struct not supported");
             }
 
             options.Security.DepthStep(ref reader);
             global::MessagePack.IFormatterResolver formatterResolver = options.Resolver;
             var length = reader.ReadArrayHeader();
-            var ____result = new global::Neutron.Tests.ChatMsg();
+            var __pos__ = default(global::UnityEngine.Vector3);
+            var __rotation__ = default(global::UnityEngine.Quaternion);
+            var __time__ = default(double);
 
             for (int i = 0; i < length; i++)
             {
                 switch (i)
                 {
                     case 0:
-                        ____result.name = global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<string>(formatterResolver).Deserialize(ref reader, options);
+                        __pos__ = global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Vector3>(formatterResolver).Deserialize(ref reader, options);
                         break;
                     case 1:
-                        ____result.msg = reader.ReadInt32();
+                        __rotation__ = global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<global::UnityEngine.Quaternion>(formatterResolver).Deserialize(ref reader, options);
+                        break;
+                    case 2:
+                        __time__ = reader.ReadDouble();
                         break;
                     default:
                         reader.Skip();
@@ -61,6 +61,7 @@ namespace Neutron.Formatters.Neutron.Tests
                 }
             }
 
+            var ____result = new global::Neutron.Tests.NetMove(__pos__, __rotation__, __time__);
             reader.Depth--;
             return ____result;
         }

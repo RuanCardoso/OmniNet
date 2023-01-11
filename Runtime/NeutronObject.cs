@@ -12,9 +12,11 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using MessagePack;
 using NaughtyAttributes;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
@@ -32,6 +34,7 @@ namespace Neutron.Core
 
         private MessageType REMOTE_MSG_TYPE = MessageType.None;
         private MessageType SYNC_BASE_MSG_TYPE = MessageType.None;
+        private MessageType LOCAL_MESSAGE_MSG_TYPE = MessageType.None;
 
         [Header("Registration")]
         [SerializeField][ReadOnly][Required("It is necessary to register this instance in the identity!")] internal NeutronIdentity identity;
@@ -54,6 +57,7 @@ namespace Neutron.Core
         protected virtual CacheMode OnSerializeViewCacheMode => CacheMode.None;
         #endregion
 
+        private readonly Dictionary<int, Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats>> handlers = new();
         internal byte OnSyncBaseId = 0;
         internal Action<byte, ByteStream> OnSyncBase;
 
@@ -61,6 +65,7 @@ namespace Neutron.Core
         {
             REMOTE_MSG_TYPE = NeutronHelper.GetMessageTypeToRemote(identity.objectType);
             SYNC_BASE_MSG_TYPE = NeutronHelper.GetMessageTypeToOnSyncBase(identity.objectType);
+            LOCAL_MESSAGE_MSG_TYPE = NeutronHelper.GetMessageTypeToLocalMessage(identity.objectType);
             // Reflection: Get all network methods and create a delegate for each one.
             // Reflection: All methods are stored in a dictionary to avoid invocation bottlenecks.
             GetRemoteAttributes();
@@ -112,6 +117,27 @@ namespace Neutron.Core
             }
         }
 
+        internal Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> GetHandler(byte id) => handlers.TryGetValue(id, out var handler) ? handler : null;
+        protected void AddHandler<T>(Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> handler) where T : IMessage, new()
+        {
+            T instance = new();
+            if (!handlers.TryAdd(instance.Id, handler))
+                Logger.PrintError($"Handler for {instance.Id} already exists!");
+            else
+            {
+                try
+                {
+                    MessagePackSerializer.Serialize(instance);
+                }
+                catch (Exception ex)
+                {
+                    ex = ex.InnerException;
+                    Logger.PrintError(ex.Message);
+                    Logger.PrintError("It is necessary to generate the AOT code and register the type.");
+                }
+            }
+        }
+
         protected virtual bool OnCustomAuthority() => throw new NotImplementedException($"Override the {nameof(OnCustomAuthority)} method!");
         protected void OnSerializeView(WaitForSeconds seconds) => StartCoroutine(SentOnSerializeView(seconds));
         protected void GetCache(CacheType cacheType, byte cacheId, bool ownerCache = false, Channel channel = Channel.Unreliable)
@@ -122,6 +148,11 @@ namespace Neutron.Core
         private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget, cacheMode);
+        }
+
+        internal void LocalMessage(ByteStream msg, byte id, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        {
+            NeutronNetwork.LocalMessage(msg, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, LOCAL_MESSAGE_MSG_TYPE, channel, target, subTarget, cacheMode);
         }
 
         protected void Remote(byte id, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
@@ -192,14 +223,14 @@ namespace Neutron.Core
 
         private IEnumerator SentOnSerializeView(WaitForSeconds seconds)
         {
-            MessageType msgType = NeutronHelper.GetMessageTypeToOnSerialize(identity.objectType);
+            MessageType SERIALIZE_MSG_TYPE = NeutronHelper.GetMessageTypeToOnSerialize(identity.objectType);
             while (OnSerializeViewAuthority)
             {
                 if (OnSerializeViewAuthority)
                 {
                     ByteStream message = ByteStream.Get();
                     OnSerializeView(message, true, default);
-                    NeutronNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, OnSerializeViewCacheMode);
+                    NeutronNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, SERIALIZE_MSG_TYPE, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, OnSerializeViewCacheMode);
                 }
                 else
                     break;

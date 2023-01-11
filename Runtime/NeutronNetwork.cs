@@ -66,7 +66,7 @@ namespace Neutron.Core
         private static float deltaTime = 0f;
 
         private static readonly Dictionary<(ushort, ushort, bool, byte, ObjectType), NeutronIdentity> identities = new(); // [Identity Id, Player Id, IsServer, Scene Id, Object Type]
-        private static readonly Dictionary<int, Action<ByteStream, bool>> handlers = new();
+        private static readonly Dictionary<int, Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats>> handlers = new();
         private static readonly UdpServer udpServer = new();
         private static readonly UdpClient udpClient = new();
 
@@ -115,7 +115,7 @@ namespace Neutron.Core
         [SerializeField][ReadOnly] private string[] defined;
         #endregion
 
-        internal static double timeAsDouble;
+        //internal static double timeAsDouble;
 
         [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
         [Header("Plataforms")][SerializeField] internal LocalSettings platformSettings;
@@ -259,7 +259,7 @@ namespace Neutron.Core
                 deltaTime = 0f;
                 frameCount = 0;
             }
-            timeAsDouble = Time.timeAsDouble;
+            //timeAsDouble = Time.timeAsDouble;
 #if UNITY_EDITOR
             if (Input.GetKeyDown(KeyCode.B)) udpClient.Disconnect();
 #endif
@@ -343,14 +343,15 @@ namespace Neutron.Core
                 Logger.PrintError($"the identity already exists -> {key}");
         }
 
-        internal static NeutronIdentity GetIdentity(ushort identityId, ushort playerId, bool isServer, byte sceneId, ObjectType objType)
+        private static NeutronIdentity GetIdentity(ushort identityId, ushort playerId, bool isServer, byte sceneId, ObjectType objType)
         {
             if (!identities.TryGetValue((identityId, playerId, isServer, sceneId, objType), out NeutronIdentity identity))
                 Logger.PrintWarning($"Indentity not found! -> [IsServer]={isServer}");
             return identity;
         }
 
-        public static void AddHandler<T>(Action<ByteStream, bool> handler) where T : IMessage, new()
+        private static Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> GetHandler(byte id) => handlers.TryGetValue(id, out var handler) ? handler : null;
+        public static void AddHandler<T>(Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> handler) where T : IMessage, new()
         {
             T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))
@@ -492,7 +493,7 @@ namespace Neutron.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            OnSerializeView(message, identityId, instanceId, fromPort, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
+                            OnSerializeView(message, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
                         #endregion
                     }
                     break;
@@ -529,7 +530,7 @@ namespace Neutron.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            OnSyncBase(message, varId, identityId, instanceId, fromPort, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
+                            OnSyncBase(message, varId, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
                         #endregion
                     }
                     break;
@@ -566,6 +567,96 @@ namespace Neutron.Core
                         }
                     }
                     break;
+                case MessageType.GlobalMessage:
+                    {
+                        byte id = RECV_STREAM.ReadByte();
+                        ushort playerId = RECV_STREAM.ReadUShort();
+
+                        ByteStream message = ByteStream.Get();
+                        message.WriteRemainingBytes(RECV_STREAM);
+
+                        #region Execute Message
+                        switch (NeutronHelper.GetSubTarget(isServer, subTarget))
+                        {
+                            case SubTarget.Server:
+                                {
+                                    var handler = GetHandler(id);
+                                    handler?.Invoke(RECV_STREAM.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
+                                }
+                                break;
+                        }
+                        #endregion
+
+                        #region Send
+                        ushort fromPort = (ushort)remoteEndPoint.GetPort();
+                        if (isServer && fromPort != Port)
+                            GlobalMessage(message, id, playerId, isServer, channel, target, SubTarget.None, cacheMode);
+                        #endregion
+                    }
+                    break;
+                case MessageType.LocalMessageStatic:
+                case MessageType.LocalMessageScene:
+                case MessageType.LocalMessagePlayer:
+                case MessageType.LocalMessageDynamic:
+                    {
+                        byte id = RECV_STREAM.ReadByte();
+                        ushort identityId = RECV_STREAM.ReadUShort();
+                        ushort playerId = RECV_STREAM.ReadUShort();
+                        byte instanceId = RECV_STREAM.ReadByte();
+                        byte sceneId = RECV_STREAM.ReadByte();
+
+                        ByteStream message = ByteStream.Get();
+                        message.WriteRemainingBytes(RECV_STREAM);
+                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.LocalMessageStatic || messageType == MessageType.LocalMessageScene ? NeutronHelper.GetPlayerId(isServer) : playerId;
+
+                        #region Execute Message
+                        switch (NeutronHelper.GetSubTarget(isServer, subTarget))
+                        {
+                            case SubTarget.Server:
+                                {
+                                    NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, NeutronHelper.GetObjectType(messageType));
+                                    if (identity != null)
+                                    {
+                                        NeutronObject @this = identity.GetNeutronObject(instanceId);
+                                        var handler = @this.GetHandler(id);
+                                        handler?.Invoke(RECV_STREAM.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
+                                    }
+                                    else
+                                        Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                }
+                                break;
+                        }
+                        #endregion
+
+                        #region Send
+                        ushort fromPort = (ushort)remoteEndPoint.GetPort();
+                        if (isServer && fromPort != Port)
+                            LocalMessage(message, id, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
+                        #endregion
+                    }
+                    break;
+            }
+        }
+
+        public static bool Interval(ref double lastTime, double frequency, bool localTime = true)
+        {
+            if (localTime)
+            {
+                if (NeutronTime.LocalTime - lastTime >= frequency)
+                {
+                    lastTime = NeutronTime.LocalTime;
+                    return true;
+                }
+                else return false;
+            }
+            else
+            {
+                if (NeutronTime.Time - lastTime >= frequency)
+                {
+                    lastTime = NeutronTime.Time;
+                    return true;
+                }
+                else return false;
             }
         }
 
@@ -621,18 +712,27 @@ namespace Neutron.Core
             message.Release();
         }
 
-        internal static void GlobalMessage(byte id, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void GlobalMessage(ByteStream msg, byte id, ushort playerId, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             ByteStream message = ByteStream.Get(MessageType.GlobalMessage);
             message.Write(id);
-            Intern_Send(message, NeutronHelper.GetPlayerId(fromServer), fromServer, channel, target, subTarget, cacheMode);
+            message.Write(playerId);
+            message.Write(msg);
+            msg.Release();
+            Intern_Send(message, playerId, fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
-        internal static void GlobalMessage(byte id, ushort playerId, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void LocalMessage(ByteStream msg, byte id, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
-            ByteStream message = ByteStream.Get(MessageType.GlobalMessage);
+            ByteStream message = ByteStream.Get(msgType);
             message.Write(id);
+            message.Write(identity);
+            message.Write(playerId);
+            message.Write(instanceId);
+            message.Write(sceneId);
+            message.Write(msg);
+            msg.Release();
             Intern_Send(message, playerId, fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }

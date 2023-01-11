@@ -10,8 +10,8 @@ namespace Neutron.Core
 {
     public struct ExponentialMovingAverage
     {
-        readonly float alpha;
-        bool initialized;
+        private readonly float alpha;
+        private bool initialized;
 
         public double Avg;
         public double Slope;

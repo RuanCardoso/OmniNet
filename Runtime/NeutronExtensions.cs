@@ -12,12 +12,13 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using MessagePack;
 using System;
 using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
-    internal static class NeutronExtensions
+    public static class NeutronExtensions
     {
         internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
         internal static bool IsInBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
@@ -47,6 +48,22 @@ namespace Neutron.Core
             ISyncCustom ISerialize = value.Get() as ISyncCustom;
             if (ISerialize != null) ISerialize.Deserialize(message);
             else Logger.PrintError("SyncCustom -> Deserialize fail!");
+        }
+
+        public static T GetMessage<T>(this ReadOnlyMemory<byte> message, MessagePackSerializerOptions options = null) => MessagePackSerializer.Deserialize<T>(message, options);
+        public static void SendMessage<T>(this T message, MessageStream messageStream, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage => SendMessage(message, messageStream, NeutronHelper.GetPlayerId(fromServer), fromServer, channel, target, subTarget, cacheMode, options);
+        public static void SendMessage<T>(this T message, MessageStream messageStream, ushort playerId, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage
+        {
+            MessagePackSerializer.Serialize(messageStream, message, options);
+            ByteStream msgStream = messageStream.GetStream();
+            NeutronNetwork.GlobalMessage(msgStream, message.Id, playerId, fromServer, channel, target, subTarget, cacheMode);
+        }
+
+        public static void SendMessage<T>(this T message, MessageStream messageStream, NeutronObject @this, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage
+        {
+            MessagePackSerializer.Serialize(messageStream, message, options);
+            ByteStream msgStream = messageStream.GetStream();
+            @this.LocalMessage(msgStream, message.Id, channel, target, subTarget, cacheMode);
         }
     }
 }
