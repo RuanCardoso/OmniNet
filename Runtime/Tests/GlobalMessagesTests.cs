@@ -32,9 +32,14 @@ namespace Neutron.Tests
             netMoveStream = new();
         }
 
+        byte netMoveId;
+
         private void Start()
         {
-            NeutronNetwork.AddHandler<NetMove>(OnNetMove);
+            netMoveId = NeutronNetwork.AddHandler<NetMove>(OnNetMove);
+
+            NetMove netMove = new(transform.position, transform.rotation, NeutronTime.Time);
+            netMove.SendMessage(netMoveStream, false, cacheMode: Enums.CacheMode.Overwrite);
         }
 
         private void OnNetMove(ReadOnlyMemory<byte> data, ushort playerId, bool isServer, RemoteStats stats)
@@ -46,11 +51,16 @@ namespace Neutron.Tests
         private double lastSyncTime;
         private void Update()
         {
-            if (NeutronNetwork.Interval(ref lastSyncTime, 1, true))
+            if (Input.GetKeyDown(KeyCode.K))
             {
-                NetMove netMove = new(transform.position, transform.rotation, NeutronTime.Time);
-                netMove.SendMessage(netMoveStream, false);
+                NeutronNetwork.GetCache(Enums.CacheType.GlobalMessage, false, netMoveId, false, channel: Enums.Channel.Unreliable);
             }
+
+            //if (NeutronNetwork.Interval(ref lastSyncTime, 1, true))
+            //{
+            //    NetMove netMove = new(transform.position, transform.rotation, NeutronTime.Time);
+            //    netMove.SendMessage(netMoveStream, false);
+            //}
         }
     }
 }

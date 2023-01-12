@@ -55,6 +55,10 @@ namespace Neutron.Core
         public enum CacheType : byte
         {
             Remote = 0,
+            OnSerialize = 1,
+            OnSync = 2,
+            GlobalMessage = 3,
+            LocalMessage = 4,
         }
 
         public enum Channel : byte

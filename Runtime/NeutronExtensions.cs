@@ -59,11 +59,12 @@ namespace Neutron.Core
             NeutronNetwork.GlobalMessage(msgStream, message.Id, playerId, fromServer, channel, target, subTarget, cacheMode);
         }
 
-        public static void SendMessage<T>(this T message, MessageStream messageStream, NeutronObject @this, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage
+        public static void SendMessage<T>(this T message, MessageStream messageStream, NeutronObject @this, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage => SendMessage(message, messageStream, @this, @this.identity.playerId, channel, target, subTarget, cacheMode, options);
+        public static void SendMessage<T>(this T message, MessageStream messageStream, NeutronObject @this, ushort playerId, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage
         {
             MessagePackSerializer.Serialize(messageStream, message, options);
             ByteStream msgStream = messageStream.GetStream();
-            @this.LocalMessage(msgStream, message.Id, channel, target, subTarget, cacheMode);
+            @this.Intern_Message(msgStream, message.Id, playerId, channel, target, subTarget, cacheMode);
         }
     }
 }

@@ -17,7 +17,7 @@ using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
-    internal class RemoteCache
+    internal class NeutronCache
     {
         internal ReadOnlyMemory<byte> Buffer { get; private set; }
 
@@ -32,7 +32,7 @@ namespace Neutron.Core
         internal readonly Channel channel;
         internal readonly ObjectType objectType;
 
-        internal RemoteCache(byte[] data, int length, ushort fromId, ushort toId, byte sceneId, ushort identityId, byte rpcId, byte instanceId, MessageType messageType, Channel channel, ObjectType objectType)
+        internal NeutronCache(byte[] data, int length, ushort fromId, ushort toId, byte sceneId, ushort identityId, byte rpcId, byte instanceId, MessageType messageType, Channel channel, ObjectType objectType)
         {
             this.data = data;
             this.fromId = fromId;
@@ -45,7 +45,7 @@ namespace Neutron.Core
             this.channel = channel;
             this.objectType = objectType;
 
-            Buffer = data;
+            Buffer = this.data;
             Buffer = Buffer[..length];
         }
 

@@ -129,7 +129,11 @@ namespace Neutron.Core
 #if NEUTRON_MULTI_THREADED
         private static readonly ConcurrentDictionary<int, RemoteCache> remoteCache = new();
 #else
-        private static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), RemoteCache> remoteCache = new(); // [Remote Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
+        private static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> remoteCache = new(); // [Remote Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
+        private static readonly Dictionary<(ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> serializeCache = new(); // [Identity Id, Instance Id, Player Id, Scene Id, Object Type]
+        private static readonly Dictionary<(byte varId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> syncCache = new(); // [Var Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
+        private static readonly Dictionary<(byte id, ushort playerId), NeutronCache> globalCache = new(); // [Id, Player Id]
+        private static readonly Dictionary<(byte id, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> localCache = new(); // [id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
 #endif
 
         public static IFormatterResolver Formatter { get; private set; }
@@ -351,7 +355,7 @@ namespace Neutron.Core
         }
 
         private static Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> GetHandler(byte id) => handlers.TryGetValue(id, out var handler) ? handler : null;
-        public static void AddHandler<T>(Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> handler) where T : IMessage, new()
+        public static byte AddHandler<T>(Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> handler) where T : IMessage, new()
         {
             T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))
@@ -369,6 +373,8 @@ namespace Neutron.Core
                     Logger.PrintError("It is necessary to generate the AOT code and register the type.");
                 }
             }
+
+            return instance.Id;
         }
 
         private static void Intern_Send(ByteStream byteStream, ushort id, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
@@ -383,29 +389,31 @@ namespace Neutron.Core
             else udpClient.Send(byteStream, channel, target, subTarget, cacheMode);
         }
 
-        internal static void OnMessage(ByteStream RECV_STREAM, MessageType messageType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpEndPoint remoteEndPoint, bool isServer)
+        internal static void OnMessage(ByteStream parameters, MessageType messageType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpEndPoint remoteEndPoint, bool isServer)
         {
+            var OBJ_TYPE = NeutronHelper.GetObjectType(messageType);
+            // Let's process packets with maximum performance!
+            // Data must be read in the same order in which they are written.
             switch (messageType)
             {
                 case MessageType.Connect:
                     if (isServer) Logger.Print($"The endpoint {remoteEndPoint} has been established.");
-                    OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), RECV_STREAM);
+                    OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), parameters);
                     break;
                 case MessageType.RemoteStatic:
                 case MessageType.RemoteScene:
                 case MessageType.RemotePlayer:
                 case MessageType.RemoteDynamic:
                     {
-                        ObjectType objectType = NeutronHelper.GetObjectType(messageType);
-                        ushort fromId = RECV_STREAM.ReadUShort();
-                        ushort toId = RECV_STREAM.ReadUShort();
-                        byte sceneId = RECV_STREAM.ReadByte();
-                        ushort identityId = RECV_STREAM.ReadUShort();
-                        byte remoteId = RECV_STREAM.ReadByte();
-                        byte instanceId = RECV_STREAM.ReadByte();
+                        ushort fromId = parameters.ReadUShort();
+                        ushort toId = parameters.ReadUShort();
+                        byte sceneId = parameters.ReadByte();
+                        ushort identityId = parameters.ReadUShort();
+                        byte remoteId = parameters.ReadByte();
+                        byte instanceId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(RECV_STREAM);
+                        message.WriteRemainingBytes(parameters);
                         ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? NeutronHelper.GetPlayerId(isServer) : toId;
 
                         #region Cache System
@@ -415,19 +423,19 @@ namespace Neutron.Core
                             switch (cacheMode)
                             {
                                 case CacheMode.Append:
+                                    Logger.PrintError("Cache System -> Append is not supported!");
                                     break;
                                 case CacheMode.Overwrite:
                                     {
-                                        var key = (remoteId, identityId, instanceId, toId, sceneId, objectType);
-                                        if (remoteCache.TryGetValue(key, out RemoteCache cache))
+                                        var key = (remoteId, identityId, instanceId, toId, sceneId, OBJ_TYPE);
+                                        if (remoteCache.TryGetValue(key, out NeutronCache cache))
                                             cache.SetData(message.Buffer, message.BytesWritten);
                                         else
                                         {
                                             byte[] data = new byte[Instance.udpPacketSize];
                                             Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            RemoteCache remoteCache = new(data, message.BytesWritten, fromId, toId, sceneId, identityId, remoteId, instanceId, messageType, channel, objectType);
-                                            if (!NeutronNetwork.remoteCache.TryAdd(key, remoteCache))
-                                                Logger.PrintError("Could not create cache, hash key already exists?");
+                                            NeutronCache remoteCache = new(data, message.BytesWritten, fromId, toId, sceneId, identityId, remoteId, instanceId, messageType, channel, OBJ_TYPE);
+                                            if (!NeutronNetwork.remoteCache.TryAdd(key, remoteCache)) Logger.PrintError("Could not create cache, hash key already exists?");
                                         }
                                     }
                                     break;
@@ -441,11 +449,11 @@ namespace Neutron.Core
                         {
                             case SubTarget.Server:
                                 {
-                                    NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, objectType);
+                                    NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, OBJ_TYPE);
                                     if (identity != null)
                                     {
-                                        Action<ByteStream, ushort, ushort, RemoteStats> rpc = identity.GetRpc(instanceId, remoteId);
-                                        rpc?.Invoke(RECV_STREAM, fromId, toId, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
+                                        var rpc = identity.GetRpc(instanceId, remoteId);
+                                        rpc?.Invoke(parameters, fromId, toId, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
                                     }
                                     else
                                         Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
@@ -466,23 +474,51 @@ namespace Neutron.Core
                 case MessageType.OnSerializePlayer:
                 case MessageType.OnSerializeDynamic:
                     {
-                        ushort identityId = RECV_STREAM.ReadUShort();
-                        ushort playerId = RECV_STREAM.ReadUShort();
-                        byte instanceId = RECV_STREAM.ReadByte();
-                        byte sceneId = RECV_STREAM.ReadByte();
+                        ushort identityId = parameters.ReadUShort();
+                        ushort playerId = parameters.ReadUShort();
+                        byte instanceId = parameters.ReadByte();
+                        byte sceneId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(RECV_STREAM);
+                        message.WriteRemainingBytes(parameters);
                         ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSerializeStatic || messageType == MessageType.OnSerializeScene ? NeutronHelper.GetPlayerId(isServer) : playerId;
+
+                        #region Cache System
+                        if (isServer)
+                        {
+#if UNITY_SERVER || UNITY_EDITOR
+                            switch (cacheMode)
+                            {
+                                case CacheMode.Append:
+                                    Logger.PrintError("Cache System -> Append is not supported!");
+                                    break;
+                                case CacheMode.Overwrite:
+                                    {
+                                        var key = (identityId, instanceId, playerId, sceneId, OBJ_TYPE);
+                                        if (serializeCache.TryGetValue(key, out NeutronCache cache))
+                                            cache.SetData(message.Buffer, message.BytesWritten);
+                                        else
+                                        {
+                                            byte[] data = new byte[Instance.udpPacketSize];
+                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
+                                            NeutronCache serializeCache = new(data, message.BytesWritten, playerId, playerId, sceneId, identityId, 0, instanceId, messageType, channel, OBJ_TYPE);
+                                            if (!NeutronNetwork.serializeCache.TryAdd(key, serializeCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                        }
+                                    }
+                                    break;
+                            }
+#endif
+                        }
+                        #endregion
 
                         #region Process OnSerializeView
                         switch (NeutronHelper.GetSubTarget(isServer, subTarget))
                         {
                             case SubTarget.Server:
                                 {
-                                    NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, NeutronHelper.GetObjectType(messageType));
+                                    NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, OBJ_TYPE);
                                     if (identity != null)
-                                        identity.GetNeutronObject(instanceId).OnSerializeView(RECV_STREAM, false, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
+                                        identity.GetNeutronObject(instanceId).OnSerializeView(parameters, false, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
                                     else
                                         Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
                                     break;
@@ -502,24 +538,52 @@ namespace Neutron.Core
                 case MessageType.OnSyncBasePlayer:
                 case MessageType.OnSyncBaseDynamic:
                     {
-                        byte varId = RECV_STREAM.ReadByte();
-                        ushort identityId = RECV_STREAM.ReadUShort();
-                        ushort playerId = RECV_STREAM.ReadUShort();
-                        byte instanceId = RECV_STREAM.ReadByte();
-                        byte sceneId = RECV_STREAM.ReadByte();
+                        byte varId = parameters.ReadByte();
+                        ushort identityId = parameters.ReadUShort();
+                        ushort playerId = parameters.ReadUShort();
+                        byte instanceId = parameters.ReadByte();
+                        byte sceneId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(RECV_STREAM);
+                        message.WriteRemainingBytes(parameters);
                         ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSyncBaseStatic || messageType == MessageType.OnSyncBaseScene ? NeutronHelper.GetPlayerId(isServer) : playerId;
+
+                        #region Cache System
+                        if (isServer)
+                        {
+#if UNITY_SERVER || UNITY_EDITOR
+                            switch (cacheMode)
+                            {
+                                case CacheMode.Append:
+                                    Logger.PrintError("Cache System -> Append is not supported!");
+                                    break;
+                                case CacheMode.Overwrite:
+                                    {
+                                        var key = (varId, identityId, instanceId, playerId, sceneId, OBJ_TYPE);
+                                        if (syncCache.TryGetValue(key, out NeutronCache cache))
+                                            cache.SetData(message.Buffer, message.BytesWritten);
+                                        else
+                                        {
+                                            byte[] data = new byte[Instance.udpPacketSize];
+                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
+                                            NeutronCache syncCache = new(data, message.BytesWritten, playerId, playerId, sceneId, identityId, varId, instanceId, messageType, channel, OBJ_TYPE);
+                                            if (!NeutronNetwork.syncCache.TryAdd(key, syncCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                        }
+                                    }
+                                    break;
+                            }
+#endif
+                        }
+                        #endregion
 
                         #region Process OnSyncBase
                         switch (NeutronHelper.GetSubTarget(isServer, subTarget))
                         {
                             case SubTarget.Server:
                                 {
-                                    NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, NeutronHelper.GetObjectType(messageType));
+                                    NeutronIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, OBJ_TYPE);
                                     if (identity != null)
-                                        identity.GetNeutronObject(instanceId).OnSyncBase?.Invoke(varId, RECV_STREAM);
+                                        identity.GetNeutronObject(instanceId).OnSyncBase?.Invoke(varId, parameters);
                                     else
                                         Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
                                     break;
@@ -536,9 +600,9 @@ namespace Neutron.Core
                     break;
                 case MessageType.GetCache:
                     {
-                        CacheType cacheType = (CacheType)RECV_STREAM.ReadByte();
-                        byte id = RECV_STREAM.ReadByte();
-                        bool ownerCache = RECV_STREAM.ReadBool();
+                        CacheType cacheType = (CacheType)parameters.ReadByte();
+                        byte id = parameters.ReadByte();
+                        bool ownerCache = parameters.ReadBool();
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
 
                         switch (cacheType)
@@ -550,8 +614,8 @@ namespace Neutron.Core
                                     {
                                         foreach (var ICache in caches)
                                         {
-                                            RemoteCache cache = ICache.Value;
-                                            if (ownerCache && cache.fromId == fromPort)
+                                            NeutronCache cache = ICache.Value;
+                                            if (!ownerCache && cache.fromId == fromPort)
                                                 continue;
                                             var message = ByteStream.Get();
                                             message.Write(cache.Buffer);
@@ -564,16 +628,127 @@ namespace Neutron.Core
                                     else Logger.PrintError("There is no cached data!");
                                 }
                                 break;
+                            case CacheType.OnSerialize:
+                                {
+                                    if (serializeCache.Count() != 0)
+                                    {
+                                        foreach (var ICache in serializeCache)
+                                        {
+                                            NeutronCache cache = ICache.Value;
+                                            if (!ownerCache && cache.fromId == fromPort)
+                                                continue;
+                                            var message = ByteStream.Get();
+                                            message.Write(cache.Buffer);
+                                            #region Send
+                                            if (isServer && fromPort != Port)
+                                                OnSerializeView(message, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                            #endregion
+                                        }
+                                    }
+                                    else Logger.PrintError("There is no cached data!");
+                                }
+                                break;
+                            case CacheType.OnSync:
+                                {
+                                    var caches = syncCache.Where(x => x.Key.varId == id);
+                                    if (caches.Count() != 0)
+                                    {
+                                        foreach (var ICache in caches)
+                                        {
+                                            NeutronCache cache = ICache.Value;
+                                            if (!ownerCache && cache.fromId == fromPort)
+                                                continue;
+                                            var message = ByteStream.Get();
+                                            message.Write(cache.Buffer);
+                                            #region Send
+                                            if (isServer && fromPort != Port)
+                                                OnSyncBase(message, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                            #endregion
+                                        }
+                                    }
+                                    else Logger.PrintError("There is no cached data!");
+                                }
+                                break;
+                            case CacheType.GlobalMessage:
+                                {
+                                    var caches = globalCache.Where(x => x.Key.id == id);
+                                    if (caches.Count() != 0)
+                                    {
+                                        foreach (var ICache in caches)
+                                        {
+                                            NeutronCache cache = ICache.Value;
+                                            if (!ownerCache && cache.fromId == fromPort)
+                                                continue;
+                                            var message = ByteStream.Get();
+                                            message.Write(cache.Buffer);
+                                            #region Send
+                                            if (isServer && fromPort != Port)
+                                                GlobalMessage(message, cache.rpcId, cache.toId, isServer, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                            #endregion
+                                        }
+                                    }
+                                    else Logger.PrintError("There is no cached data!");
+                                }
+                                break;
+                            case CacheType.LocalMessage:
+                                {
+                                    var caches = localCache.Where(x => x.Key.id == id);
+                                    if (caches.Count() != 0)
+                                    {
+                                        foreach (var ICache in caches)
+                                        {
+                                            NeutronCache cache = ICache.Value;
+                                            if (!ownerCache && cache.fromId == fromPort)
+                                                continue;
+                                            var message = ByteStream.Get();
+                                            message.Write(cache.Buffer);
+                                            #region Send
+                                            if (isServer && fromPort != Port)
+                                                LocalMessage(message, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                            #endregion
+                                        }
+                                    }
+                                    else Logger.PrintError("There is no cached data!");
+                                }
+                                break;
                         }
                     }
                     break;
                 case MessageType.GlobalMessage:
                     {
-                        byte id = RECV_STREAM.ReadByte();
-                        ushort playerId = RECV_STREAM.ReadUShort();
+                        byte id = parameters.ReadByte();
+                        ushort playerId = parameters.ReadUShort();
 
                         ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(RECV_STREAM);
+                        message.WriteRemainingBytes(parameters);
+
+                        #region Cache System
+                        if (isServer)
+                        {
+#if UNITY_SERVER || UNITY_EDITOR
+                            switch (cacheMode)
+                            {
+                                case CacheMode.Append:
+                                    Logger.PrintError("Cache System -> Append is not supported!");
+                                    break;
+                                case CacheMode.Overwrite:
+                                    {
+                                        var key = (id, playerId);
+                                        if (globalCache.TryGetValue(key, out NeutronCache cache))
+                                            cache.SetData(message.Buffer, message.BytesWritten);
+                                        else
+                                        {
+                                            byte[] data = new byte[Instance.udpPacketSize];
+                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
+                                            NeutronCache globalCache = new(data, message.BytesWritten, playerId, playerId, 0, 0, id, 0, default, channel, default);
+                                            if (!NeutronNetwork.globalCache.TryAdd(key, globalCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                        }
+                                    }
+                                    break;
+                            }
+#endif
+                        }
+                        #endregion
 
                         #region Execute Message
                         switch (NeutronHelper.GetSubTarget(isServer, subTarget))
@@ -581,7 +756,7 @@ namespace Neutron.Core
                             case SubTarget.Server:
                                 {
                                     var handler = GetHandler(id);
-                                    handler?.Invoke(RECV_STREAM.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
+                                    handler?.Invoke(parameters.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
                                 }
                                 break;
                         }
@@ -599,15 +774,43 @@ namespace Neutron.Core
                 case MessageType.LocalMessagePlayer:
                 case MessageType.LocalMessageDynamic:
                     {
-                        byte id = RECV_STREAM.ReadByte();
-                        ushort identityId = RECV_STREAM.ReadUShort();
-                        ushort playerId = RECV_STREAM.ReadUShort();
-                        byte instanceId = RECV_STREAM.ReadByte();
-                        byte sceneId = RECV_STREAM.ReadByte();
+                        byte id = parameters.ReadByte();
+                        ushort identityId = parameters.ReadUShort();
+                        ushort playerId = parameters.ReadUShort();
+                        byte instanceId = parameters.ReadByte();
+                        byte sceneId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(RECV_STREAM);
+                        message.WriteRemainingBytes(parameters);
                         ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.LocalMessageStatic || messageType == MessageType.LocalMessageScene ? NeutronHelper.GetPlayerId(isServer) : playerId;
+
+                        #region Cache System
+                        if (isServer)
+                        {
+#if UNITY_SERVER || UNITY_EDITOR
+                            switch (cacheMode)
+                            {
+                                case CacheMode.Append:
+                                    Logger.PrintError("Cache System -> Append is not supported!");
+                                    break;
+                                case CacheMode.Overwrite:
+                                    {
+                                        var key = (id, identityId, instanceId, playerId, sceneId, OBJ_TYPE);
+                                        if (localCache.TryGetValue(key, out NeutronCache cache))
+                                            cache.SetData(message.Buffer, message.BytesWritten);
+                                        else
+                                        {
+                                            byte[] data = new byte[Instance.udpPacketSize];
+                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
+                                            NeutronCache localCache = new(data, message.BytesWritten, playerId, playerId, sceneId, identityId, id, instanceId, messageType, channel, OBJ_TYPE);
+                                            if (!NeutronNetwork.localCache.TryAdd(key, localCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                        }
+                                    }
+                                    break;
+                            }
+#endif
+                        }
+                        #endregion
 
                         #region Execute Message
                         switch (NeutronHelper.GetSubTarget(isServer, subTarget))
@@ -619,7 +822,7 @@ namespace Neutron.Core
                                     {
                                         NeutronObject @this = identity.GetNeutronObject(instanceId);
                                         var handler = @this.GetHandler(id);
-                                        handler?.Invoke(RECV_STREAM.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(NeutronTime.Time, RECV_STREAM.BytesRemaining));
+                                        handler?.Invoke(parameters.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
                                     }
                                     else
                                         Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
@@ -702,6 +905,7 @@ namespace Neutron.Core
             message.Release();
         }
 
+        public static void GetCache(CacheType cacheType, bool ownerCache, byte cacheId, bool fromServer, Channel channel) => GetCache(cacheType, ownerCache, cacheId, NeutronHelper.GetPlayerId(fromServer), fromServer, channel);
         public static void GetCache(CacheType cacheType, bool ownerCache, byte cacheId, ushort playerId, bool fromServer, Channel channel)
         {
             ByteStream message = ByteStream.Get(MessageType.GetCache);

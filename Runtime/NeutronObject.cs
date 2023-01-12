@@ -150,9 +150,9 @@ namespace Neutron.Core
             NeutronNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget, cacheMode);
         }
 
-        internal void LocalMessage(ByteStream msg, byte id, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal void Intern_Message(ByteStream msg, byte id, ushort playerId, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
-            NeutronNetwork.LocalMessage(msg, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, LOCAL_MESSAGE_MSG_TYPE, channel, target, subTarget, cacheMode);
+            NeutronNetwork.LocalMessage(msg, id, identity.id, this.id, playerId, identity.sceneId, IsItFromTheServer, LOCAL_MESSAGE_MSG_TYPE, channel, target, subTarget, cacheMode);
         }
 
         protected void Remote(byte id, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget, cacheMode);

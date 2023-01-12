@@ -69,7 +69,7 @@ namespace Neutron.Core
             }
         }
 
-        internal void WritePaylod(Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal void WritePayload(Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             // Packed to optimize bandwidth!
             byte payload = (byte)((byte)channel | (byte)target << 1 | (byte)subTarget << 3 | (byte)cacheMode << 4);
@@ -275,7 +275,7 @@ namespace Neutron.Core
 
         internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
         public byte ReadByte() => ThrowIfNotEnoughData(sizeof(byte)) ? buffer[position++] : default;
-        internal void ReadPaylod(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode)
+        internal void ReadPayload(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode)
         {
             byte payload = ReadByte();
             // Unpack..........................

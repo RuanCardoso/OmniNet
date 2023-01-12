@@ -115,7 +115,7 @@ namespace Neutron.Core
         protected int SendUnreliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             ByteStream message = ByteStream.Get();
-            message.WritePaylod(Channel.Unreliable, target, subTarget, cacheMode);
+            message.WritePayload(Channel.Unreliable, target, subTarget, cacheMode);
             message.Write(data);
             int length = Send(message, remoteEndPoint);
             message.Release();
@@ -129,7 +129,7 @@ namespace Neutron.Core
             else
             {
                 ByteStream message = ByteStream.Get();
-                message.WritePaylod(Channel.Reliable, target, subTarget, cacheMode);
+                message.WritePayload(Channel.Reliable, target, subTarget, cacheMode);
                 int _sequence_ = SENT_WINDOW.GetSequence();
                 message.Write(_sequence_);
                 message.Write(data);
@@ -152,7 +152,7 @@ namespace Neutron.Core
                 if (data.isRawBytes)
                 {
                     data.Position = 0;
-                    data.ReadPaylod(out Channel channel, out _, out _, out _);
+                    data.ReadPayload(out Channel channel, out _, out _, out _);
                     switch (channel)
                     {
                         case Channel.Reliable:
@@ -227,7 +227,7 @@ namespace Neutron.Core
                                 RECV_STREAM.Write(buffer, 0, length);
                                 RECV_STREAM.Position = 0;
                                 RECV_STREAM.isRawBytes = true;
-                                RECV_STREAM.ReadPaylod(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode);
+                                RECV_STREAM.ReadPayload(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode);
                                 // check for corrupted bytes...
                                 if ((byte)target > 0x3 || (byte)channel > 0x1)
                                 {
