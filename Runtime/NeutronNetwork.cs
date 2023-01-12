@@ -427,7 +427,7 @@ namespace Neutron.Core
                                     break;
                                 case CacheMode.Overwrite:
                                     {
-                                        var key = (remoteId, identityId, instanceId, toId, sceneId, OBJ_TYPE);
+                                        var key = (remoteId, identityId, instanceId, fromId, sceneId, OBJ_TYPE);
                                         if (remoteCache.TryGetValue(key, out NeutronCache cache))
                                             cache.SetData(message.Buffer, message.BytesWritten);
                                         else
