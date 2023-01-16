@@ -48,6 +48,7 @@ namespace Neutron.Core
             LocalMessageDynamic = 21,
             LocalMessageScene = 22,
             //......................
+            Remote = 23,
             Connect = 254,
             Disconnect = 255,
         }
@@ -59,6 +60,7 @@ namespace Neutron.Core
             OnSync = 2,
             GlobalMessage = 3,
             LocalMessage = 4,
+            GlobalRemote,
         }
 
         public enum Channel : byte

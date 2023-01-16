@@ -130,6 +130,7 @@ namespace Neutron.Core
         private static readonly ConcurrentDictionary<int, RemoteCache> remoteCache = new();
 #else
         private static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> remoteCache = new(); // [Remote Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
+        private static readonly Dictionary<(byte remoteId, ushort playerId), NeutronCache> globalRemoteCache = new(); // [Remote Id, Player Id]
         private static readonly Dictionary<(ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> serializeCache = new(); // [Identity Id, Instance Id, Player Id, Scene Id, Object Type]
         private static readonly Dictionary<(byte varId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> syncCache = new(); // [Var Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
         private static readonly Dictionary<(byte id, ushort playerId), NeutronCache> globalCache = new(); // [Id, Player Id]
@@ -400,6 +401,62 @@ namespace Neutron.Core
                     if (isServer) Logger.Print($"The endpoint {remoteEndPoint} has been established.");
                     OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), parameters);
                     break;
+                case MessageType.Remote:
+                    {
+                        ushort fromId = parameters.ReadUShort();
+                        ushort toId = parameters.ReadUShort();
+                        byte remoteId = parameters.ReadByte();
+
+                        ByteStream message = ByteStream.Get();
+                        message.WriteRemainingBytes(parameters);
+
+                        #region Cache System
+                        if (isServer)
+                        {
+#if UNITY_SERVER || UNITY_EDITOR
+                            switch (cacheMode)
+                            {
+                                case CacheMode.Append:
+                                    Logger.PrintError("Cache System -> Append is not supported!");
+                                    break;
+                                case CacheMode.Overwrite:
+                                    {
+                                        var key = (remoteId, fromId);
+                                        if (globalRemoteCache.TryGetValue(key, out NeutronCache cache))
+                                            cache.SetData(message.Buffer, message.BytesWritten);
+                                        else
+                                        {
+                                            byte[] data = new byte[Instance.udpPacketSize];
+                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
+                                            NeutronCache globalRemoteCache = new(data, message.BytesWritten, fromId, toId, 0, 0, remoteId, 0, default, channel, default);
+                                            if (!NeutronNetwork.globalRemoteCache.TryAdd(key, globalRemoteCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                        }
+                                    }
+                                    break;
+                            }
+#endif
+                        }
+                        #endregion
+
+                        #region Process RPC
+                        switch (NeutronHelper.GetSubTarget(isServer, subTarget))
+                        {
+                            case SubTarget.Server:
+                                {
+                                    var rpc = NeutronBehaviour.GetRpc(remoteId, isServer);
+                                    rpc?.Invoke(parameters, fromId, toId, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
+                                }
+                                break;
+                        }
+                        #endregion
+
+                        #region Send
+                        ushort fromPort = (ushort)remoteEndPoint.GetPort();
+                        if (isServer && fromPort != Port)
+                            Remote(remoteId, fromId, toId, isServer, message, channel, target, SubTarget.None, cacheMode);
+                        #endregion
+                    }
+                    break;
                 case MessageType.RemoteStatic:
                 case MessageType.RemoteScene:
                 case MessageType.RemotePlayer:
@@ -622,6 +679,27 @@ namespace Neutron.Core
                                             #region Send
                                             if (isServer && fromPort != Port)
                                                 Remote(cache.rpcId, cache.sceneId, cache.identityId, cache.instanceId, cache.fromId, cache.toId, isServer, message, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                            #endregion
+                                        }
+                                    }
+                                    else Logger.PrintError("There is no cached data!");
+                                }
+                                break;
+                            case CacheType.GlobalRemote:
+                                {
+                                    var caches = globalRemoteCache.Where(x => x.Key.remoteId == id);
+                                    if (caches.Count() != 0)
+                                    {
+                                        foreach (var ICache in caches)
+                                        {
+                                            NeutronCache cache = ICache.Value;
+                                            if (!ownerCache && cache.fromId == fromPort)
+                                                continue;
+                                            var message = ByteStream.Get();
+                                            message.Write(cache.Buffer);
+                                            #region Send
+                                            if (isServer && fromPort != Port)
+                                                Remote(cache.rpcId, cache.fromId, cache.toId, isServer, message, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
                                             #endregion
                                         }
                                     }
@@ -872,6 +950,18 @@ namespace Neutron.Core
             message.Write(identity);
             message.Write(id);
             message.Write(instanceId);
+            message.Write(msg);
+            msg.Release();
+            Intern_Send(message, toId, fromServer, channel, target, subTarget, cacheMode);
+            message.Release();
+        }
+
+        internal static void Remote(byte id, ushort fromId, ushort toId, bool fromServer, ByteStream msg, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        {
+            ByteStream message = ByteStream.Get(MessageType.Remote);
+            message.Write(fromId);
+            message.Write(toId);
+            message.Write(id);
             message.Write(msg);
             msg.Release();
             Intern_Send(message, toId, fromServer, channel, target, subTarget, cacheMode);
