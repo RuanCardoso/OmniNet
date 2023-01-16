@@ -22,7 +22,7 @@ namespace Neutron.Tests
     public class Tests : NeutronBehaviour
     {
         [Remote(1)]
-        private void TestGlobalRPC(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        private void TestGlobalRPC(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
         {
             Logger.PrintError("AHHAHAHHA");
         }

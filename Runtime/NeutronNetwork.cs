@@ -444,7 +444,7 @@ namespace Neutron.Core
                             case SubTarget.Server:
                                 {
                                     var rpc = NeutronBehaviour.GetRpc(remoteId, isServer);
-                                    rpc?.Invoke(parameters, fromId, toId, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
+                                    rpc?.Invoke(parameters, fromId, toId, isServer, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
                                 }
                                 break;
                         }

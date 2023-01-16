@@ -23,14 +23,14 @@ namespace Neutron.Core
 {
     public class NeutronBehaviour : MonoBehaviour
     {
-        private static readonly Dictionary<byte, Action<ByteStream, ushort, ushort, RemoteStats>> remoteMethods = new(); // [rpc id, instanceId]
+        private static readonly Dictionary<byte, Action<ByteStream, ushort, ushort, bool, RemoteStats>> remoteMethods = new(); // [rpc id, instanceId]
         // Start is called before the first frame update
-        private void Start() => GetRemoteAttributes();
+        protected virtual void Awake() => GetRemoteAttributes();
         private void GetRemoteAttributes()
         {
             #region Signature
-            static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats) => MethodBase.GetCurrentMethod();
-            MethodBase methodSignature = MethodSignature(default, default, default, default);
+            static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats) => MethodBase.GetCurrentMethod();
+            MethodBase methodSignature = MethodSignature(default, default, default, default, default);
             ParameterInfo[] parametersSignature = methodSignature.GetParameters();
             int parametersCount = parametersSignature.Length;
 
@@ -57,7 +57,7 @@ namespace Neutron.Core
                         {
                             try
                             {
-                                var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, RemoteStats>), this) as Action<ByteStream, ushort, ushort, RemoteStats>;
+                                var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, bool, RemoteStats>), this) as Action<ByteStream, ushort, ushort, bool, RemoteStats>;
                                 if (!remoteMethods.TryAdd(attr.id, remote))
                                     Logger.PrintError($"The RPC {attr.id} is already registered.");
                             }
@@ -73,9 +73,9 @@ namespace Neutron.Core
             }
         }
 
-        internal static Action<ByteStream, ushort, ushort, RemoteStats> GetRpc(byte rpcId, bool isServer)
+        internal static Action<ByteStream, ushort, ushort, bool, RemoteStats> GetRpc(byte rpcId, bool isServer)
         {
-            if (!remoteMethods.TryGetValue(rpcId, out Action<ByteStream, ushort, ushort, RemoteStats> value))
+            if (!remoteMethods.TryGetValue(rpcId, out Action<ByteStream, ushort, ushort, bool, RemoteStats> value))
                 Logger.PrintWarning($"RPC does not exist! -> {rpcId} -> [IsServer]={isServer}");
             return value;
         }
