@@ -23,7 +23,10 @@ namespace Neutron.Core
 {
     public class NeutronBehaviour : MonoBehaviour
     {
-        private static readonly Dictionary<byte, Action<ByteStream, ushort, ushort, bool, RemoteStats>> remoteMethods = new(); // [rpc id, instanceId]
+        private const byte GLOBAL_SPAWN_ID = 255;
+        private static readonly Dictionary<byte, Action<ByteStream, ushort, ushort, bool, RemoteStats>> remoteMethods = new(); // [rpc id]
+        protected ByteStream Get => ByteStream.Get();
+
         // Start is called before the first frame update
         protected virtual void Awake() => GetRemoteAttributes();
         private void GetRemoteAttributes()
@@ -98,6 +101,49 @@ namespace Neutron.Core
         protected void Remote(byte id, ushort fromId, ByteStream parameters, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             NeutronNetwork.Remote(id, fromId, NeutronHelper.GetPlayerId(fromServer), fromServer, parameters, channel, target, subTarget, cacheMode);
+        }
+
+        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, bool fromServer = false, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        {
+            ByteStream message = ByteStream.Get();
+            message.Write(position);
+            message.Write(rotation);
+            parameters?.Invoke(message);
+            Remote(GLOBAL_SPAWN_ID, message, fromServer, channel, target, subTarget, cacheMode);
+        }
+
+        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, bool fromServer = false, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        {
+            ByteStream message = ByteStream.Get();
+            message.Write(position);
+            message.Write(rotation);
+            parameters?.Invoke(message);
+            Remote(GLOBAL_SPAWN_ID, message, toId, fromServer, channel, target, subTarget, cacheMode);
+        }
+
+        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, bool fromServer = false, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        {
+            ByteStream message = ByteStream.Get();
+            message.Write(position);
+            message.Write(rotation);
+            parameters?.Invoke(message);
+            Remote(GLOBAL_SPAWN_ID, message, fromId, toId, fromServer, channel, target, subTarget, cacheMode);
+        }
+
+        [Remote(GLOBAL_SPAWN_ID)]
+        internal void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
+        {
+            Vector3 position = parameters.ReadVector3();
+            Quaternion rotation = parameters.ReadQuaternion();
+            NeutronIdentity identity = OnSpawnedObject(position, rotation, parameters, fromId, toId, stats);
+            if (identity.objectType == ObjectType.Dynamic)
+                throw new NotImplementedException("Dynamic object not supported Id!");
+            else identity.Register(isServer, fromId);
+        }
+
+        protected virtual NeutronIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        {
+            throw new NotImplementedException($"Override the {nameof(OnSpawnedObject)} method!");
         }
     }
 }
