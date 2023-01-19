@@ -19,6 +19,7 @@ namespace Neutron.Core
     [DisallowMultipleComponent]
     public class NeutronServerOwnership : MonoBehaviour
     {
+        [SerializeField] private bool toDestroy = false;
         [SerializeField] private bool inverse;
         [SerializeField] private Component[] components;
 
@@ -26,7 +27,23 @@ namespace Neutron.Core
         {
 #if UNITY_SERVER && !UNITY_EDITOR
             for (int i = 0; i < components.Length; i++)
-                Destroy(components[i] is Transform ? components[i].gameObject : components[i]);
+            {
+                if (toDestroy)
+                    Destroy(components[i] is Transform ? components[i].gameObject : components[i]);
+                else
+                {
+                    if (components[i] is Transform) // Is a game object?
+                    {
+                        GameObject gO = components[i].gameObject;
+                        gO.SetActive(false);
+                    }
+                    else
+                    {
+                        MonoBehaviour component = components[i] as MonoBehaviour;
+                        component.enabled = false;
+                    }
+                }
+            }
 #endif
         }
     }

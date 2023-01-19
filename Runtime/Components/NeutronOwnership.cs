@@ -35,6 +35,7 @@ namespace Neutron.Core
             }
         }
 
+        [SerializeField] private bool toDestroy = false;
         [SerializeField] private bool inverse;
         [SerializeField] private AuthorityMode authority = AuthorityMode.Mine;
         [SerializeField] private Component[] components;
@@ -43,7 +44,23 @@ namespace Neutron.Core
         {
             bool conditional = !inverse ? HasAuthority : !HasAuthority;
             for (int i = 0; i < components.Length && conditional; i++)
-                Destroy(components[i] is Transform ? components[i].gameObject : components[i]);
+            {
+                if (toDestroy)
+                    Destroy(components[i] is Transform ? components[i].gameObject : components[i]);
+                else
+                {
+                    if (components[i] is Transform) // Is a game object?
+                    {
+                        GameObject gO = components[i].gameObject;
+                        gO.SetActive(false);
+                    }
+                    else
+                    {
+                        MonoBehaviour component = components[i] as MonoBehaviour;
+                        component.enabled = false;
+                    }
+                }
+            }
         }
     }
 }
