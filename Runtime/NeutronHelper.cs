@@ -120,6 +120,7 @@ namespace Neutron.Core
         }
 
         internal static SubTarget GetSubTarget(bool fromServer, SubTarget subTarget) => fromServer ? subTarget : SubTarget.Server;
+        internal static ushort GetPlayerId(ushort senderId, ushort playerId) => senderId == 0 ? playerId : senderId;
         internal static ushort GetPlayerId(bool fromServer) => fromServer ? NeutronNetwork.NetworkId : (ushort)NeutronNetwork.Id;
         internal static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange, int minRange = 0)
         {

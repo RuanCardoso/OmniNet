@@ -679,7 +679,7 @@ namespace Neutron.Core
                                             message.Write(cache.Buffer);
                                             #region Send
                                             if (isServer && fromPort != Port)
-                                                Remote(cache.rpcId, cache.sceneId, cache.identityId, cache.instanceId, cache.fromId, cache.toId, isServer, message, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                                Remote(cache.rpcId, cache.sceneId, cache.identityId, cache.instanceId, cache.fromId, cache.toId, isServer, message, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
                                             #endregion
                                         }
                                     }
@@ -700,7 +700,7 @@ namespace Neutron.Core
                                             message.Write(cache.Buffer);
                                             #region Send
                                             if (isServer && fromPort != Port)
-                                                Remote(cache.rpcId, cache.instanceId, cache.fromId, cache.toId, isServer, message, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                                Remote(cache.rpcId, cache.instanceId, cache.fromId, cache.toId, isServer, message, cache.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
                                             #endregion
                                         }
                                     }
@@ -720,7 +720,7 @@ namespace Neutron.Core
                                             message.Write(cache.Buffer);
                                             #region Send
                                             if (isServer && fromPort != Port)
-                                                OnSerializeView(message, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                                OnSerializeView(message, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
                                             #endregion
                                         }
                                     }
@@ -741,7 +741,7 @@ namespace Neutron.Core
                                             message.Write(cache.Buffer);
                                             #region Send
                                             if (isServer && fromPort != Port)
-                                                OnSyncBase(message, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                                OnSyncBase(message, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
                                             #endregion
                                         }
                                     }
@@ -762,7 +762,7 @@ namespace Neutron.Core
                                             message.Write(cache.Buffer);
                                             #region Send
                                             if (isServer && fromPort != Port)
-                                                GlobalMessage(message, cache.rpcId, cache.toId, isServer, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                                GlobalMessage(message, cache.rpcId, cache.toId, isServer, cache.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
                                             #endregion
                                         }
                                     }
@@ -783,7 +783,7 @@ namespace Neutron.Core
                                             message.Write(cache.Buffer);
                                             #region Send
                                             if (isServer && fromPort != Port)
-                                                LocalMessage(message, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                                LocalMessage(message, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
                                             #endregion
                                         }
                                     }
@@ -920,6 +920,7 @@ namespace Neutron.Core
             }
         }
 
+        public bool IsMine(ushort playerId) => Id == playerId;
         public static bool Interval(ref double lastTime, double frequency, bool localTime = true)
         {
             if (localTime)
@@ -942,7 +943,7 @@ namespace Neutron.Core
             }
         }
 
-        internal static void Remote(byte id, byte sceneId, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void Remote(byte id, byte sceneId, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
         {
             ByteStream message = ByteStream.Get(msgType);
             message.Write(fromId);
@@ -953,11 +954,11 @@ namespace Neutron.Core
             message.Write(instanceId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, toId, fromServer, channel, target, subTarget, cacheMode);
+            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
-        internal static void Remote(byte id, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void Remote(byte id, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
         {
             ByteStream message = ByteStream.Get(MessageType.Remote);
             message.Write(fromId);
@@ -966,11 +967,11 @@ namespace Neutron.Core
             message.Write(instanceId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, toId, fromServer, channel, target, subTarget, cacheMode);
+            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
-        internal static void OnSerializeView(ByteStream msg, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void OnSerializeView(ByteStream msg, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
         {
             ByteStream message = ByteStream.Get(msgType);
             message.Write(identity);
@@ -979,11 +980,11 @@ namespace Neutron.Core
             message.Write(sceneId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, playerId, fromServer, channel, target, subTarget, cacheMode);
+            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
-        internal static void OnSyncBase(ByteStream msg, byte varId, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void OnSyncBase(ByteStream msg, byte varId, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
         {
             ByteStream message = ByteStream.Get(msgType);
             message.Write(varId);
@@ -993,7 +994,7 @@ namespace Neutron.Core
             message.Write(sceneId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, playerId, fromServer, channel, target, subTarget, cacheMode);
+            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
@@ -1008,18 +1009,18 @@ namespace Neutron.Core
             message.Release();
         }
 
-        internal static void GlobalMessage(ByteStream msg, byte id, ushort playerId, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void GlobalMessage(ByteStream msg, byte id, ushort playerId, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
         {
             ByteStream message = ByteStream.Get(MessageType.GlobalMessage);
             message.Write(id);
             message.Write(playerId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, playerId, fromServer, channel, target, subTarget, cacheMode);
+            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
-        internal static void LocalMessage(ByteStream msg, byte id, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void LocalMessage(ByteStream msg, byte id, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
         {
             ByteStream message = ByteStream.Get(msgType);
             message.Write(id);
@@ -1029,7 +1030,7 @@ namespace Neutron.Core
             message.Write(sceneId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, playerId, fromServer, channel, target, subTarget, cacheMode);
+            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
