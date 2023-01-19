@@ -24,83 +24,90 @@ namespace Neutron.Core
     public class NeutronBehaviour : MonoBehaviour
     {
         private const byte GLOBAL_SPAWN_ID = 255;
-        private static readonly Dictionary<byte, Action<ByteStream, ushort, ushort, bool, RemoteStats>> remoteMethods = new(); // [rpc id]
+        private static readonly Dictionary<(byte, byte), Action<ByteStream, ushort, ushort, bool, RemoteStats>> remoteMethods = new(); // [rpc id, instance Id]
+
+        protected virtual byte Id => 0;
         protected ByteStream Get => ByteStream.Get();
 
         // Start is called before the first frame update
         protected virtual void Awake() => GetRemoteAttributes();
         private void GetRemoteAttributes()
         {
-            #region Signature
-            static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats) => MethodBase.GetCurrentMethod();
-            MethodBase methodSignature = MethodSignature(default, default, default, default, default);
-            ParameterInfo[] parametersSignature = methodSignature.GetParameters();
-            int parametersCount = parametersSignature.Length;
-
-            void ThrowErrorIfSignatureIsIncorret(byte id, string name)
+            if (Id == 0)
+                Logger.PrintError($"Override {nameof(Id)} property! [{GetType().Name} -> {nameof(NeutronBehaviour)}]");
+            else
             {
-                Logger.PrintError($"The signature of method with Id: {id} | name: {name} | type: {GetType().Name} is incorrect!");
-                Logger.PrintError($"Correct -> private public void METHOD_NAME({string.Join(",", parametersSignature.Select(x => x.ToString()))});");
-            }
-            #endregion
+                #region Signature
+                static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats) => MethodBase.GetCurrentMethod();
+                MethodBase methodSignature = MethodSignature(default, default, default, default, default);
+                ParameterInfo[] parametersSignature = methodSignature.GetParameters();
+                int parametersCount = parametersSignature.Length;
 
-            Type typeOf = GetType();
-            MethodInfo[] methods = typeOf.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            for (int i = 0; i < methods.Length; i++)
-            {
-                MethodInfo method = methods[i];
-                if (method != null)
+                void ThrowErrorIfSignatureIsIncorret(byte id, string name)
                 {
-                    RemoteAttribute attr = method.GetCustomAttribute<RemoteAttribute>(true);
-                    if (attr != null)
+                    Logger.PrintError($"The signature of method with Id: {id} | name: {name} | type: {GetType().Name} is incorrect!");
+                    Logger.PrintError($"Correct -> private public void METHOD_NAME({string.Join(",", parametersSignature.Select(x => x.ToString()))});");
+                }
+                #endregion
+
+                Type typeOf = GetType();
+                MethodInfo[] methods = typeOf.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                for (int i = 0; i < methods.Length; i++)
+                {
+                    MethodInfo method = methods[i];
+                    if (method != null)
                     {
-                        ParameterInfo[] parameters = method.GetParameters();
-                        if (parameters.Length != parametersCount) ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
-                        else
+                        RemoteAttribute attr = method.GetCustomAttribute<RemoteAttribute>(true);
+                        if (attr != null)
                         {
-                            try
+                            ParameterInfo[] parameters = method.GetParameters();
+                            if (parameters.Length != parametersCount) ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
+                            else
                             {
-                                var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, bool, RemoteStats>), this) as Action<ByteStream, ushort, ushort, bool, RemoteStats>;
-                                if (!remoteMethods.TryAdd(attr.id, remote))
-                                    Logger.PrintError($"The RPC {attr.id} is already registered.");
-                            }
-                            catch (ArgumentException)
-                            {
-                                ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
+                                try
+                                {
+                                    var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, bool, RemoteStats>), this) as Action<ByteStream, ushort, ushort, bool, RemoteStats>;
+                                    if (!remoteMethods.TryAdd((attr.id, Id), remote))
+                                        Logger.PrintError($"The RPC {attr.id} is already registered.");
+                                }
+                                catch (ArgumentException)
+                                {
+                                    ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
+                                }
                             }
                         }
+                        else continue;
                     }
                     else continue;
                 }
-                else continue;
             }
         }
 
-        internal static Action<ByteStream, ushort, ushort, bool, RemoteStats> GetRpc(byte rpcId, bool isServer)
+        internal static Action<ByteStream, ushort, ushort, bool, RemoteStats> GetRpc(byte rpcId, byte instanceId, bool isServer)
         {
-            if (!remoteMethods.TryGetValue(rpcId, out Action<ByteStream, ushort, ushort, bool, RemoteStats> value))
+            if (!remoteMethods.TryGetValue((rpcId, instanceId), out Action<ByteStream, ushort, ushort, bool, RemoteStats> value))
                 Logger.PrintWarning($"RPC does not exist! -> {rpcId} -> [IsServer]={isServer}");
             return value;
         }
 
         protected void Remote(byte id, ByteStream parameters, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
-            NeutronNetwork.Remote(id, NeutronHelper.GetPlayerId(fromServer), NeutronHelper.GetPlayerId(fromServer), fromServer, parameters, channel, target, subTarget, cacheMode);
+            NeutronNetwork.Remote(id, Id, NeutronHelper.GetPlayerId(fromServer), NeutronHelper.GetPlayerId(fromServer), fromServer, parameters, channel, target, subTarget, cacheMode);
         }
 
         protected void Remote(byte id, ByteStream parameters, ushort fromId, ushort toId, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
-            NeutronNetwork.Remote(id, fromId, toId, fromServer, parameters, channel, target, subTarget, cacheMode);
+            NeutronNetwork.Remote(id, Id, fromId, toId, fromServer, parameters, channel, target, subTarget, cacheMode);
         }
 
         protected void Remote(byte id, ByteStream parameters, ushort toId, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
-            NeutronNetwork.Remote(id, NeutronHelper.GetPlayerId(fromServer), toId, fromServer, parameters, channel, target, subTarget, cacheMode);
+            NeutronNetwork.Remote(id, Id, NeutronHelper.GetPlayerId(fromServer), toId, fromServer, parameters, channel, target, subTarget, cacheMode);
         }
 
         protected void Remote(byte id, ushort fromId, ByteStream parameters, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
-            NeutronNetwork.Remote(id, fromId, NeutronHelper.GetPlayerId(fromServer), fromServer, parameters, channel, target, subTarget, cacheMode);
+            NeutronNetwork.Remote(id, Id, fromId, NeutronHelper.GetPlayerId(fromServer), fromServer, parameters, channel, target, subTarget, cacheMode);
         }
 
         protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, bool fromServer = false, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)

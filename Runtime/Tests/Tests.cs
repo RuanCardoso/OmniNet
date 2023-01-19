@@ -21,6 +21,8 @@ namespace Neutron.Tests
     [AddComponentMenu("")]
     public class Tests : NeutronBehaviour
     {
+        protected override byte Id => 1;
+
         [Remote(1)]
         private void TestGlobalRPC(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
         {

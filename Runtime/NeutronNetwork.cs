@@ -130,7 +130,7 @@ namespace Neutron.Core
         private static readonly ConcurrentDictionary<int, RemoteCache> remoteCache = new();
 #else
         private static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> remoteCache = new(); // [Remote Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
-        private static readonly Dictionary<(byte remoteId, ushort playerId), NeutronCache> globalRemoteCache = new(); // [Remote Id, Player Id]
+        private static readonly Dictionary<(byte remoteId, byte instanceId, ushort playerId), NeutronCache> globalRemoteCache = new(); // [Remote Id, Player Id]
         private static readonly Dictionary<(ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> serializeCache = new(); // [Identity Id, Instance Id, Player Id, Scene Id, Object Type]
         private static readonly Dictionary<(byte varId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> syncCache = new(); // [Var Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
         private static readonly Dictionary<(byte id, ushort playerId), NeutronCache> globalCache = new(); // [Id, Player Id]
@@ -406,6 +406,7 @@ namespace Neutron.Core
                         ushort fromId = parameters.ReadUShort();
                         ushort toId = parameters.ReadUShort();
                         byte remoteId = parameters.ReadByte();
+                        byte instanceId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(parameters);
@@ -421,14 +422,14 @@ namespace Neutron.Core
                                     break;
                                 case CacheMode.Overwrite:
                                     {
-                                        var key = (remoteId, fromId);
+                                        var key = (remoteId, instanceId, fromId);
                                         if (globalRemoteCache.TryGetValue(key, out NeutronCache cache))
                                             cache.SetData(message.Buffer, message.BytesWritten);
                                         else
                                         {
                                             byte[] data = new byte[Instance.udpPacketSize];
                                             Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            NeutronCache globalRemoteCache = new(data, message.BytesWritten, fromId, toId, 0, 0, remoteId, 0, default, channel, default);
+                                            NeutronCache globalRemoteCache = new(data, message.BytesWritten, fromId, toId, 0, 0, remoteId, instanceId, default, channel, default);
                                             if (!NeutronNetwork.globalRemoteCache.TryAdd(key, globalRemoteCache)) Logger.PrintError("Could not create cache, hash key already exists?");
                                         }
                                     }
@@ -443,7 +444,7 @@ namespace Neutron.Core
                         {
                             case SubTarget.Server:
                                 {
-                                    var rpc = NeutronBehaviour.GetRpc(remoteId, isServer);
+                                    var rpc = NeutronBehaviour.GetRpc(remoteId, instanceId, isServer);
                                     rpc?.Invoke(parameters, fromId, toId, isServer, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
                                 }
                                 break;
@@ -453,7 +454,7 @@ namespace Neutron.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            Remote(remoteId, fromId, toId, isServer, message, channel, target, SubTarget.None, cacheMode);
+                            Remote(remoteId, instanceId, fromId, toId, isServer, message, channel, target, SubTarget.None, cacheMode);
                         #endregion
                     }
                     break;
@@ -699,7 +700,7 @@ namespace Neutron.Core
                                             message.Write(cache.Buffer);
                                             #region Send
                                             if (isServer && fromPort != Port)
-                                                Remote(cache.rpcId, cache.fromId, cache.toId, isServer, message, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
+                                                Remote(cache.rpcId, cache.instanceId, cache.fromId, cache.toId, isServer, message, cache.channel, Target.Me, SubTarget.None, CacheMode.None);
                                             #endregion
                                         }
                                     }
@@ -956,12 +957,13 @@ namespace Neutron.Core
             message.Release();
         }
 
-        internal static void Remote(byte id, ushort fromId, ushort toId, bool fromServer, ByteStream msg, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal static void Remote(byte id, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             ByteStream message = ByteStream.Get(MessageType.Remote);
             message.Write(fromId);
             message.Write(toId);
             message.Write(id);
+            message.Write(instanceId);
             message.Write(msg);
             msg.Release();
             Intern_Send(message, toId, fromServer, channel, target, subTarget, cacheMode);
