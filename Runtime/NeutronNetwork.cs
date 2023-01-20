@@ -920,7 +920,7 @@ namespace Neutron.Core
             }
         }
 
-        public bool IsMine(ushort playerId) => Id == playerId;
+        public static bool IsMine(ushort playerId) => Id == playerId;
         public static bool Interval(ref double lastTime, double frequency, bool localTime = true)
         {
             if (localTime)

@@ -20,7 +20,6 @@ namespace Neutron.Core
     public class NeutronServerOwnership : MonoBehaviour
     {
         [SerializeField] private bool toDestroy = false;
-        [SerializeField] private bool inverse;
         [SerializeField] private Component[] components;
 
         private void Start()
