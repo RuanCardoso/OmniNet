@@ -14,7 +14,6 @@
 
 using Neutron.Core;
 using UnityEngine;
-using Logger = Neutron.Core.Logger;
 
 namespace Neutron.Tests
 {
@@ -26,20 +25,13 @@ namespace Neutron.Tests
         [Remote(1)]
         private void TestGlobalRPC(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
         {
-            Logger.PrintError("AHHAHAHHA");
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
-            if (Input.GetKeyDown(KeyCode.U))
-            {
-                Remote(1, new(0), false, cacheMode: Enums.CacheMode.Overwrite, subTarget: Enums.SubTarget.Server);
-            }
-
-            if (Input.GetKeyDown(KeyCode.V))
-            {
-                NeutronNetwork.GetCache(Enums.CacheType.GlobalRemote, true, 1, false, Enums.Channel.Unreliable);
-            }
+#if !UNITY_SERVER || UNITY_EDITOR
+            Remote(1, new(0), false, target: Enums.Target.All, cacheMode: Enums.CacheMode.None, subTarget: Enums.SubTarget.Server);
+#endif
         }
     }
 }

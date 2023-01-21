@@ -14,12 +14,20 @@
 
 using MessagePack;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using static Neutron.Core.Enums;
 
 namespace Neutron.Core
 {
     public static class NeutronExtensions
     {
+        internal static void RemoveAll<TKey, TValue>(this IDictionary<TKey, TValue> dict, Func<TKey, bool> predicate)
+        {
+            var items = dict.Keys.Where(predicate).ToList();
+            foreach (var item in items) dict.Remove(item);
+        }
+
         internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
         internal static bool IsInBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
         internal static void Read<T>(this SyncRef<T> value, ByteStream message) where T : class => value.Intern_Set(message.Deserialize<T>());

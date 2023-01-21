@@ -32,7 +32,7 @@ namespace Neutron.Core
         private static double offsetMax = double.MaxValue;
 
         public static double PacketLoss => Math.Abs(Math.Round(100d - (receivedMessages / messagesSent * 100d), MidpointRounding.ToEven));
-        public static double Latency => Math.Round((RoundTripTime * 0.5d) * 1000d);
+        public static double Latency => Math.Round(RoundTripTime * 0.5d * 1000d);
         public static double Ping => Math.Round(RoundTripTime * 1000d);
         public static double RoundTripTime => _rttExAvg.Avg;
         public static double Offset => _offsetExAvg.Avg;

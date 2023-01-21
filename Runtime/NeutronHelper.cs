@@ -14,9 +14,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using static Neutron.Core.Enums;
@@ -26,6 +30,29 @@ namespace Neutron.Core
 {
     internal static class NeutronHelper
     {
+        internal static int ReceiveFrom(Socket socket, byte[] buffer, EndPoint endPoint, out SocketError errorCode)
+        {
+#if !NEUTRON_MULTI_THREADED
+            try
+            {
+                errorCode = SocketError.Success;
+                return socket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
+            }
+            catch (IOException)
+            {
+                errorCode = SocketError.SocketError;
+                return 0; // Disconnected client!
+            }
+            catch (SocketException ex)
+            {
+                errorCode = ex.SocketErrorCode;
+                return 0; // Disconnected client!
+            }
+#else
+            return socket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
+#endif
+        }
+
         internal static int GetFreePort()
         {
             System.Net.Sockets.UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, 0));

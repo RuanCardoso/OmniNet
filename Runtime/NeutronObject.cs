@@ -28,7 +28,7 @@ namespace Neutron.Core
     [DefaultExecutionOrder(-0x62)]
     public class NeutronObject : ActionDispatcher
     {
-        private const byte SPAWN = 75;
+        protected const byte SPAWN_ID = 75;
         private const int SEPARATOR_HEIGHT = 1;
         private const int SEPARATOR = -(20 - SEPARATOR_HEIGHT);
 
@@ -172,7 +172,7 @@ namespace Neutron.Core
             message.Write(position);
             message.Write(rotation);
             parameters?.Invoke(message);
-            Remote(SPAWN, message, channel, target, subTarget, cacheMode);
+            Remote(SPAWN_ID, message, channel, target, subTarget, cacheMode);
         }
 
         protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
@@ -181,7 +181,7 @@ namespace Neutron.Core
             message.Write(position);
             message.Write(rotation);
             parameters?.Invoke(message);
-            Remote(SPAWN, message, toId, channel, target, subTarget, cacheMode);
+            Remote(SPAWN_ID, message, toId, channel, target, subTarget, cacheMode);
         }
 
         protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
@@ -190,10 +190,10 @@ namespace Neutron.Core
             message.Write(position);
             message.Write(rotation);
             parameters?.Invoke(message);
-            Remote(SPAWN, fromId, toId, message, channel, target, subTarget, cacheMode);
+            Remote(SPAWN_ID, fromId, toId, message, channel, target, subTarget, cacheMode);
         }
 
-        [Remote(SPAWN)]
+        [Remote(SPAWN_ID)]
         internal void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
         {
             Vector3 position = parameters.ReadVector3();

@@ -23,7 +23,7 @@ namespace Neutron.Core
 {
     public class NeutronBehaviour : MonoBehaviour
     {
-        private const byte GLOBAL_SPAWN_ID = 255;
+        protected const byte GLOBAL_SPAWN_ID = 255;
         private static readonly Dictionary<(byte, byte), Action<ByteStream, ushort, ushort, bool, RemoteStats>> remoteMethods = new(); // [rpc id, instance Id]
 
         protected virtual byte Id => 0;

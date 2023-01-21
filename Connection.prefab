@@ -66,7 +66,9 @@ MonoBehaviour:
   dontDestroy: 0
   loadNextScene: 0
   pingTime: 1
-  connectionTime: 1
+  reconnectionTime: 3
+  pingSweepTime: 60
+  maxPingRequestTime: 60
   port: 5055
   byteStreams: 128
   windowSize: 255
@@ -74,7 +76,8 @@ MonoBehaviour:
   agressiveRelay: 0
   multiThreaded: 0
   defined:
-  - 
+  - NEUTRON_LOCK_FPS
+  - STARTER_ASSETS_PACKAGES_CHECKED
   allPlatformSettings:
   - name: No Plataform!
     hosts:
@@ -297,7 +300,109 @@ MonoBehaviour:
     sendBufferSize: 8192
     recvTimeout: 0
     sendTimeout: 0
-  - name: Android
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      Ip: 127.0.0.1
+    - name: WSL
+      Ip: 0.0.0.0
+    - name: Cloud Server
+      Ip: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      Ip: 127.0.0.1
+    - name: WSL
+      Ip: 0.0.0.0
+    - name: Cloud Server
+      Ip: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      Ip: 127.0.0.1
+    - name: WSL
+      Ip: 0.0.0.0
+    - name: Cloud Server
+      Ip: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      Ip: 127.0.0.1
+    - name: WSL
+      Ip: 0.0.0.0
+    - name: Cloud Server
+      Ip: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      Ip: 127.0.0.1
+    - name: WSL
+      Ip: 0.0.0.0
+    - name: Cloud Server
+      Ip: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: No Plataform!
+    hosts:
+    - name: localhost
+      Ip: 127.0.0.1
+    - name: WSL
+      Ip: 0.0.0.0
+    - name: Cloud Server
+      Ip: 0.0.0.0
+    enabled: 0
+    maxFramerate: 60
+    recvMultiplier: 1
+    ackTimeout: 0.30000001192092896
+    ackSweep: 15
+    recvBufferSize: 8192
+    sendBufferSize: 8192
+    recvTimeout: 0
+    sendTimeout: 0
+  - name: StandaloneWindows64
     hosts:
     - name: localhost
       Ip: 127.0.0.1
@@ -824,110 +929,8 @@ MonoBehaviour:
     sendBufferSize: 8192
     recvTimeout: 0
     sendTimeout: 0
-  - name: No Plataform!
-    hosts:
-    - name: localhost
-      Ip: 127.0.0.1
-    - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
-      Ip: 0.0.0.0
-    enabled: 0
-    maxFramerate: 60
-    recvMultiplier: 1
-    ackTimeout: 0.30000001192092896
-    ackSweep: 15
-    recvBufferSize: 8192
-    sendBufferSize: 8192
-    recvTimeout: 0
-    sendTimeout: 0
-  - name: No Plataform!
-    hosts:
-    - name: localhost
-      Ip: 127.0.0.1
-    - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
-      Ip: 0.0.0.0
-    enabled: 0
-    maxFramerate: 60
-    recvMultiplier: 1
-    ackTimeout: 0.30000001192092896
-    ackSweep: 15
-    recvBufferSize: 8192
-    sendBufferSize: 8192
-    recvTimeout: 0
-    sendTimeout: 0
-  - name: No Plataform!
-    hosts:
-    - name: localhost
-      Ip: 127.0.0.1
-    - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
-      Ip: 0.0.0.0
-    enabled: 0
-    maxFramerate: 60
-    recvMultiplier: 1
-    ackTimeout: 0.30000001192092896
-    ackSweep: 15
-    recvBufferSize: 8192
-    sendBufferSize: 8192
-    recvTimeout: 0
-    sendTimeout: 0
-  - name: No Plataform!
-    hosts:
-    - name: localhost
-      Ip: 127.0.0.1
-    - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
-      Ip: 0.0.0.0
-    enabled: 0
-    maxFramerate: 60
-    recvMultiplier: 1
-    ackTimeout: 0.30000001192092896
-    ackSweep: 15
-    recvBufferSize: 8192
-    sendBufferSize: 8192
-    recvTimeout: 0
-    sendTimeout: 0
-  - name: No Plataform!
-    hosts:
-    - name: localhost
-      Ip: 127.0.0.1
-    - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
-      Ip: 0.0.0.0
-    enabled: 0
-    maxFramerate: 60
-    recvMultiplier: 1
-    ackTimeout: 0.30000001192092896
-    ackSweep: 15
-    recvBufferSize: 8192
-    sendBufferSize: 8192
-    recvTimeout: 0
-    sendTimeout: 0
-  - name: No Plataform!
-    hosts:
-    - name: localhost
-      Ip: 127.0.0.1
-    - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
-      Ip: 0.0.0.0
-    enabled: 0
-    maxFramerate: 60
-    recvMultiplier: 1
-    ackTimeout: 0.30000001192092896
-    ackSweep: 15
-    recvBufferSize: 8192
-    sendBufferSize: 8192
-    recvTimeout: 0
-    sendTimeout: 0
   platformSettings:
-    name: Android
+    name: StandaloneWindows64
     hosts:
     - name: localhost
       Ip: 127.0.0.1

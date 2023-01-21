@@ -15,7 +15,9 @@
 #if NEUTRON_MULTI_THREADED
 using System.Collections.Concurrent;
 #else
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using static Neutron.Core.Enums;
 #endif
 
@@ -40,25 +42,14 @@ namespace Neutron.Core
 
         protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
-            ushort uniqueId = (ushort)remoteEndPoint.GetPort();
             switch (messageType)
             {
                 case MessageType.Disconnect:
-                    {
-#if !NEUTRON_MULTI_THREADED
-                        if (clients.Remove(uniqueId, out UdpClient disconnected))
-#else
-                        if (clients.TryRemove(uniqueId, out UdpClient disconnected))
-#endif
-                        {
-                            disconnected.Close(true);
-                            Logger.Print($"The endpoint {remoteEndPoint} has been disconnected.");
-                        }
-                        else Logger.PrintError("Failed to disconnect client!");
-                    }
+                    Disconnect(remoteEndPoint);
                     break;
                 case MessageType.Connect:
                     {
+                        ushort uniqueId = (ushort)remoteEndPoint.GetPort();
                         if (uniqueId == NeutronNetwork.Port)
                         {
                             Logger.LogWarning($"Client denied! Exclusive port -> {NeutronNetwork.Port}");
@@ -99,6 +90,7 @@ namespace Neutron.Core
                         UdpClient client = GetClient(remoteEndPoint);
                         if (client != null)
                         {
+                            client.lastTimeReceivedPing = NeutronTime.LocalTime;
                             double timeOfClient = RECV_STREAM.ReadDouble();
                             ByteStream stream = ByteStream.Get(messageType);
                             stream.Write(timeOfClient);
@@ -196,11 +188,50 @@ namespace Neutron.Core
             else Logger.PrintError("Client not found! -> Check that the client is not sending the data using the server socket?");
         }
 
+        private bool RemoveClient(ushort uniqueId, out UdpClient disconnected)
+        {
+#if !NEUTRON_MULTI_THREADED
+            return clients.Remove(uniqueId, out disconnected);
+#else
+            return clients.TryRemove(uniqueId, out disconnected);
+#endif
+        }
+
         internal override void Close(bool fromServer = false)
         {
             base.Close();
             foreach (var udpClient in clients.Values)
                 udpClient.Close();
+        }
+
+        protected override void Disconnect(UdpEndPoint endPoint)
+        {
+            ushort uniqueId = (ushort)endPoint.GetPort();
+            if (RemoveClient(uniqueId, out UdpClient disconnected))
+            {
+                NeutronNetwork.ClearAllCaches(uniqueId);
+                disconnected.Close(true);
+                Logger.Print($"The endpoint {endPoint} has been disconnected.");
+            }
+            else Logger.PrintError("Failed to disconnect client!");
+        }
+
+        internal IEnumerator CheckTheLastReceivedPing(double maxPingRequestTime)
+        {
+            while (true)
+            {
+                UdpClient[] clients = this.clients.Values.ToArray();
+                for (int i = 0; i < clients.Length; i++)
+                {
+                    UdpClient client = clients[i];
+                    if (client.itSelf) continue;
+                    if ((NeutronTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
+                        Disconnect(client.remoteEndPoint);
+                    else continue;
+                }
+
+                yield return NeutronNetwork.WAIT_FOR_CHECK_REC_PING;
+            }
         }
     }
 }

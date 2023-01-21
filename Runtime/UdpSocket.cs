@@ -33,6 +33,7 @@ namespace Neutron.Core
         private readonly SentWindow SENT_WINDOW = new();
 
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
+        protected abstract void Disconnect(UdpEndPoint endPoint);
         protected abstract void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint);
 
         internal bool IsConnected { get; set; }
@@ -64,11 +65,8 @@ namespace Neutron.Core
 #if UNITY_SERVER || UNITY_EDITOR
                 if (IsServer) // Only work in Windows Server and Linux Server, Mac Os Server not support!
                 {
-                    if (Application.platform == RuntimePlatform.WindowsServer)
-                    {
-                        int SIO_UDP_CONNRESET = -1744830452;
-                        globalSocket.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
-                    }
+                    if (Application.platform == RuntimePlatform.WindowsServer || Application.platform == RuntimePlatform.WindowsEditor)
+                        globalSocket.IOControl(-1744830452, new byte[] { 0, 0, 0, 0 }, null);
 
                     switch (Application.platform) // [ONLY SERVER]
                     {
@@ -125,7 +123,7 @@ namespace Neutron.Core
         protected int SendReliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             if (IsServer)
-                Logger.PrintError("The server can't send data directly to a client, use the client object(UdpClient) to send data.");
+                Logger.PrintError($"The server cannot send data! Use {nameof(GetClient)} instead!");
             else
             {
                 ByteStream message = ByteStream.Get();
@@ -218,17 +216,19 @@ namespace Neutron.Core
                                 yield return null;
                                 break; // Let's prevent our loop from spending unnecessary processing(CPU).
                             }
-#endif
-                            int length = globalSocket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
-                            if (length > 0)
+#endif                            
+                            int totalBytesReceived = NeutronHelper.ReceiveFrom(globalSocket, buffer, endPoint, out SocketError errorCode);
+                            if (totalBytesReceived > 0)
                             {
                                 var remoteEndPoint = (UdpEndPoint)endPoint;
+                                // Slice the received bytes and read the payload.
                                 ByteStream RECV_STREAM = ByteStream.Get();
-                                RECV_STREAM.Write(buffer, 0, length);
+                                RECV_STREAM.Write(buffer, 0, totalBytesReceived);
                                 RECV_STREAM.Position = 0;
                                 RECV_STREAM.isRawBytes = true;
                                 RECV_STREAM.ReadPayload(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode);
-                                // check for corrupted bytes...
+                                // Check for corrupted payload.
+                                // Random data will not have a valid header.
                                 if ((byte)target > 0x3 || (byte)channel > 0x1)
                                 {
                                     Logger.PrintError($"{Name} - ReadData - Invalid target -> {channel} or channel -> {target}");
@@ -279,7 +279,7 @@ namespace Neutron.Core
                                                     ByteStream windowStream = ByteStream.Get();
                                                     windowStream.WritePacket(MessageType.Acknowledgement);
                                                     windowStream.Write(acknowledgment);
-                                                    SendUnreliable(windowStream, remoteEndPoint, Target.Me);
+                                                    SendUnreliable(windowStream, remoteEndPoint, Target.Me); // ACK IS SENT BY UNRELIABLE CHANNEL!
                                                     windowStream.Release();
                                                     #endregion
 
@@ -329,11 +329,21 @@ namespace Neutron.Core
                                             break;
                                     }
                                 }
-
                                 RECV_STREAM.Release();
                             }
                             else
-                                Logger.PrintError($"{Name} - Receive - Failed to receive {length} bytes from {endPoint}");
+                            {
+                                if (errorCode == SocketError.ConnectionReset)
+                                {
+                                    if (IsServer)
+                                        Logger.PrintError("WSAECONNRESET -> The last send operation failed because the host is unreachable.");
+                                    else Disconnect(null);
+                                }
+#if !NEUTRON_MULTI_THREADED
+                                yield return null;
+#endif
+                                continue;
+                            }
                         }
                     }
 #if NEUTRON_MULTI_THREADED

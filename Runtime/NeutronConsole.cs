@@ -57,7 +57,7 @@ namespace Neutron.Core
                                     break;
                                 case "fps":
                                 case "FPS":
-                                    Logger.Print($"FPS: {NeutronNetwork.framerate}");
+                                    Logger.Print($"FPS: {NeutronNetwork.Framerate}");
                                     break;
                                 case "Time":
                                 case "time":

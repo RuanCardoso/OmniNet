@@ -16,6 +16,7 @@ using System.Collections;
 using System.Net;
 using System.Net.Sockets;
 using static Neutron.Core.Enums;
+using static Neutron.Core.NeutronNetwork;
 
 namespace Neutron.Core
 {
@@ -27,6 +28,7 @@ namespace Neutron.Core
         protected override string Name => "Neutron_Client";
         protected override bool IsServer => false;
 
+        internal double lastTimeReceivedPing;
         internal bool itSelf;
         internal UdpEndPoint remoteEndPoint;
         internal UdpClient(bool itSelf = false)
@@ -34,8 +36,8 @@ namespace Neutron.Core
             this.itSelf = itSelf;
             if (itSelf)
             {
-                Id = NeutronNetwork.NetworkId;
-                remoteEndPoint = new UdpEndPoint(IPAddress.Loopback, NeutronNetwork.Port);
+                Id = NetworkId;
+                remoteEndPoint = new UdpEndPoint(IPAddress.Loopback, Port);
                 Player = new(Id, remoteEndPoint);
             }
             else { /*Client Player*/ }
@@ -46,6 +48,7 @@ namespace Neutron.Core
             Initialize();
             IsConnected = true;
             globalSocket = socket;
+            lastTimeReceivedPing = NeutronTime.LocalTime;
             Id = remoteEndPoint.GetPort();
             Player = new(Id, remoteEndPoint);
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), Id); // copy endpoint to avoid reference problems!
@@ -56,7 +59,7 @@ namespace Neutron.Core
         {
             this.remoteEndPoint = remoteEndPoint;
             WINDOW(this.remoteEndPoint);
-            NeutronNetwork.Instance.StartCoroutine(Connect());
+            Instance.StartCoroutine(Connect());
         }
 
         internal void Disconnect()
@@ -64,6 +67,15 @@ namespace Neutron.Core
             ByteStream message = ByteStream.Get(MessageType.Disconnect, true);
             Send(message, Channel.Reliable, Target.Me);
             message.Release();
+            OnDisconnected();
+        }
+
+        internal void OnDisconnected()
+        {
+            Instance.StopCoroutine(Connect());
+            Instance.StopCoroutine(Ping());
+            IsConnected = false;
+            remoteEndPoint = null;
         }
 
         private IEnumerator Connect()
@@ -77,7 +89,7 @@ namespace Neutron.Core
                 message.WritePacket(MessageType.Connect);
                 Send(message, Channel.Unreliable, Target.Me);
                 message.Release();
-                yield return NeutronNetwork.WAIT_FOR_CONNECT;
+                yield return WAIT_FOR_CONNECT;
             }
         }
 
@@ -90,7 +102,7 @@ namespace Neutron.Core
                 message.Write(NeutronTime.LocalTime);
                 Send(message, Channel.Unreliable, Target.Me);
                 message.Release();
-                yield return NeutronNetwork.WAIT_FOR_PING;
+                yield return WAIT_FOR_PING;
             }
         }
 
@@ -121,7 +133,7 @@ namespace Neutron.Core
                         {
                             Id = RECV_STREAM.ReadUShort();
                             IsConnected = true;
-                            NeutronNetwork.Instance.StartCoroutine(Ping());
+                            Instance.StartCoroutine(Ping());
                             NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                         }
                         else Logger.PrintError("The client is already connected!");
@@ -141,5 +153,6 @@ namespace Neutron.Core
         }
 
         internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => this;
+        protected override void Disconnect(UdpEndPoint endPoint) => OnDisconnected();
     }
 }
