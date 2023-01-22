@@ -19,11 +19,13 @@ using static Neutron.Core.Enums;
 namespace Neutron.Core
 {
     [Serializable]
-    public class SyncBase<T> : ISyncBase
+    public class SyncBase<T> : ISyncBase, ISyncBaseValue<T>
     {
         internal protected readonly byte id;
-        internal readonly TypeCode typeCode;
         internal static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._ as IValueTypeConverter<T>;
+
+        public TypeCode TypeCode { get; }
+        private Enum enumType;
 
         [SerializeField] private T value = default;
         private bool HasAuthority => authority switch
@@ -44,8 +46,9 @@ namespace Neutron.Core
         private readonly SubTarget subTarget;
         private readonly CacheMode cacheMode;
         private readonly AuthorityMode authority;
-        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority)
+        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, Enum enumType = null)
         {
+            this.enumType = enumType;
             this.value = value;
             this.@this = @this;
             this.channel = channel;
@@ -58,10 +61,10 @@ namespace Neutron.Core
             var type = value.GetType();
             isReferenceType = !type.IsValueType;
             isValueTypeSupported = ValueTypeConverter.Types.Contains(type);
-            typeCode = Type.GetTypeCode(type);
+            TypeCode = Type.GetTypeCode(type);
         }
 
-        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISyncCustom ISerialize = default)
+        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISyncCustom ISerialize)
         {
             this.value = value;
             this.@this = @this;
@@ -76,24 +79,55 @@ namespace Neutron.Core
             var type = value.GetType();
             isReferenceType = false;
             isValueTypeSupported = false;
-            typeCode = Type.GetTypeCode(type);
+            TypeCode = Type.GetTypeCode(type);
         }
 
-        public T Get() => value;
-        internal void Intern_Set(T value) => this.value = value;
-        public void Set(T value)
+        void ISyncBase.SetEnum(Enum enumValue)
+        {
+            if (enumType != enumValue)
+            {
+                enumType = enumValue;
+                int value = Convert.ToInt32(enumType);
+                SendEnumToNetwork((T)Convert.ChangeType(value, typeof(T)));
+            }
+        }
+
+        private void UpdateEnum(T value)
+        {
+#if UNITY_EDITOR
+            if (enumType != null)
+                enumType = (Enum)Enum.ToObject(enumType.GetType(), value);
+#endif
+        }
+
+        Enum ISyncBase.GetEnum() => enumType;
+        bool ISyncBase.IsEnum() => enumType != null;
+        void ISyncBase.OnSyncEditor() => SyncOnNetwork();
+        void ISyncBaseValue<T>.Intern_Set(T value)
+        {
+            UpdateEnum(value);
+            this.value = value;
+        }
+
+        private void SendEnumToNetwork(T value)
         {
             this.value = value;
             SyncOnNetwork();
         }
 
-        public void OnSyncEditor() // Editor Only
+        public T Get() => value;
+        public void Set(T value)
         {
-            if (Application.isPlaying) SyncOnNetwork();
+            UpdateEnum(value);
+            this.value = value;
+            SyncOnNetwork();
         }
 
         private void SyncOnNetwork()
         {
+            if (!Application.isPlaying)
+                return;
+
             if (@this == null)
             {
                 Logger.PrintError($"did you forget to initialize the variable? -> {GetType().Name}");
@@ -107,7 +141,7 @@ namespace Neutron.Core
                 {
                     try
                     {
-                        switch (typeCode)
+                        switch (TypeCode)
                         {
                             case TypeCode.Int32:
                                 message.Write(Converter.GetInt(value));
@@ -125,7 +159,7 @@ namespace Neutron.Core
                     }
                     catch (NullReferenceException)
                     {
-                        Logger.PrintError($"{typeCode} converter not implemented!");
+                        Logger.PrintError($"{TypeCode} converter not implemented!");
                     }
                 }
                 else

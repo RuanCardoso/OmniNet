@@ -30,11 +30,23 @@ namespace Neutron.Core
 
         internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
         internal static bool IsInBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
-        internal static void Read<T>(this SyncRef<T> value, ByteStream message) where T : class => value.Intern_Set(message.Deserialize<T>());
-        internal static void Read<T>(this SyncValue<T> value, ByteStream message) where T : unmanaged
+        internal static void Read<T>(this SyncRef<T> value, ByteStream message) where T : class
+        {
+            ISyncBaseValue<T> ISyncBaseValue = value as ISyncBaseValue<T>;
+            ISyncBaseValue.Intern_Set(message.Deserialize<T>());
+        }
+
+        internal static void Read<T>(this SyncCustom<T> value, ByteStream message) where T : class, ISyncCustom
+        {
+            ISyncCustom ISerialize = value.Get() as ISyncCustom;
+            if (ISerialize != null) ISerialize.Deserialize(message);
+            else Logger.PrintError("SyncCustom -> Deserialize fail!");
+        }
+
+        internal static void Read<T>(this ISyncBaseValue<T> value, ByteStream message) where T : unmanaged
         {
             var converter = SyncValue<T>.Converter;
-            switch (value.typeCode)
+            switch (value.TypeCode)
             {
                 case TypeCode.Int32:
                     value.Intern_Set(converter.GetInt(message.ReadInt()));
@@ -49,13 +61,6 @@ namespace Neutron.Core
                     value.Intern_Set(converter.GetByte(message.ReadByte()));
                     break;
             }
-        }
-
-        internal static void Read<T>(this SyncCustom<T> value, ByteStream message) where T : class, ISyncCustom
-        {
-            ISyncCustom ISerialize = value.Get() as ISyncCustom;
-            if (ISerialize != null) ISerialize.Deserialize(message);
-            else Logger.PrintError("SyncCustom -> Deserialize fail!");
         }
 
         public static T GetMessage<T>(this ReadOnlyMemory<byte> message, MessagePackSerializerOptions options = null) => MessagePackSerializer.Deserialize<T>(message, options);

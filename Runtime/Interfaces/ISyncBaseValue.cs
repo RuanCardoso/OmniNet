@@ -16,11 +16,9 @@ using System;
 
 namespace Neutron.Core
 {
-    public interface ISyncBase
+    internal interface ISyncBaseValue<T>
     {
-        void OnSyncEditor();
-        bool IsEnum();
-        Enum GetEnum();
-        void SetEnum(Enum enumValue);
+        TypeCode TypeCode { get; }
+        void Intern_Set(T value);
     }
 }

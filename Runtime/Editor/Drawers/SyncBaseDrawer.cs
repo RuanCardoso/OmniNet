@@ -28,6 +28,7 @@ namespace Neutron.Core.Inspector
         private SerializedProperty property;
         private object target;
 
+        private ISyncBase GetISyncBase(object target) => target as ISyncBase;
         private object GetTarget(SerializedProperty property) => target ??= PropertyUtility.GetTargetObjectWithProperty(property);
         private SerializedProperty GetProperty(SerializedProperty property) => this.property ??= property.FindPropertyRelative(FIELD_NAME);
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
@@ -45,8 +46,10 @@ namespace Neutron.Core.Inspector
             if (TValue != null)
             {
                 EditorGUI.BeginChangeCheck();
-                if (EditorGUI.PropertyField(position, TValue, label, true)) { }
-                if (EditorGUI.EndChangeCheck()) CallCallback(GetTarget(TValue), property.serializedObject);
+                ISyncBase ISyncBase = GetISyncBase(GetTarget(TValue));
+                if (!ISyncBase.IsEnum()) EditorGUI.PropertyField(position, TValue, label, true);
+                else ISyncBase.SetEnum(EditorGUI.EnumPopup(position, label, ISyncBase.GetEnum()));
+                if (EditorGUI.EndChangeCheck() && property.serializedObject.ApplyModifiedPropertiesWithoutUndo()) ISyncBase.OnSyncEditor();
             }
             else EditorGUI.LabelField(position, label);
         }
@@ -69,13 +72,6 @@ namespace Neutron.Core.Inspector
                 quadTexture.Apply();
             }
             return quadTexture;
-        }
-
-        private void CallCallback(object target, SerializedObject property)
-        {
-            property.ApplyModifiedPropertiesWithoutUndo();
-            ISyncBase ISyncBase = target as ISyncBase;
-            ISyncBase?.OnSyncEditor();
         }
     }
 }
