@@ -22,6 +22,9 @@ namespace Neutron.Core
     {
         public SyncValue(NeutronObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
         {
+            if (value.GetType().IsEnum)
+                throw new Exception($"Use \"SyncValue<Enum, T>\" instead \"SyncValue<T>\"");
+
             @this.OnSyncBase += (id, message) =>
             {
                 if (this.id == id)
