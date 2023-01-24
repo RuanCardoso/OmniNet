@@ -27,6 +27,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Compilation;
@@ -123,6 +124,7 @@ namespace Neutron.Core
         [Header("Plataforms")][SerializeField] internal LocalSettings platformSettings;
 
         private ActionDispatcher dispatcher;
+        private readonly CancellationTokenSource tokenSource = new();
 
         internal static WaitForSeconds WAIT_FOR_CONNECT;
         internal static WaitForSeconds WAIT_FOR_PING;
@@ -1067,9 +1069,13 @@ namespace Neutron.Core
 
         internal void OnApplicationQuit()
         {
-            udpClient.Disconnect();
-            udpClient.Close();
-            udpServer.Close();
+            tokenSource.Cancel();
+            using (tokenSource)
+            {
+                udpClient.Disconnect();
+                udpClient.Close();
+                udpServer.Close();
+            }
         }
     }
 }
