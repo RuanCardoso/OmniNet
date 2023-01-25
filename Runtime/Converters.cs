@@ -26,6 +26,7 @@ namespace Neutron.Core
             typeof(bool),
             typeof(float),
             typeof(byte),
+            typeof(Trigger),
         };
 
         #region _

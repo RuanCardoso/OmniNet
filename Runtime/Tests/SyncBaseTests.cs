@@ -16,7 +16,6 @@ using Neutron.Core;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static Neutron.Core.Enums;
 using Logger = Neutron.Core.Logger;
 
 namespace Neutron.Tests
@@ -24,81 +23,77 @@ namespace Neutron.Tests
     [AddComponentMenu("")]
     public class SyncBaseTests : NeutronObject
     {
-        enum TestSyncBaseEnum : int
-        {
-            A = 0,
-            B = 1,
-            C = 2,
-        }
-
-        [Serializable]
-        public class Person : ISyncCustom
-        {
-            public int value = 1;
-
-            public void Deserialize(ByteStream parameters)
-            {
-                value = parameters.ReadInt();
-            }
-
-            public void Serialize(ByteStream parameters)
-            {
-                parameters.Write(value);
-            }
-        }
-
-        [SerializeField] private SyncValue<byte> health;
+        [SerializeField] private SyncValue<float> health;
         [SerializeField] private SyncValue<int> points;
-        [SerializeField] private SyncValue<float> xAxis;
-        [SerializeField] private SyncValue<TestSyncBaseEnum, byte> enumBase;
+        [SerializeField] private SyncValue<double> time;
+        [SerializeField] private SyncValue trigger;
 
-        [SerializeField] private SyncRef<int[]> arrayOfInt;
-        [SerializeField] private SyncRef<List<float>> listOfFloat;
+        [SerializeField] private SyncValueCustom<Player> player;
+        [SerializeField] private SyncRefCustom<Child> child;
 
-        [SerializeField] private SyncCustom<Person> person;
-
-        private void Start()
+        private void Awake()
         {
-            SelfInitializeVariables();
-        }
-
-
-        private void Reset()
-        {
-            SelfInitializeVariables();
-        }
-
-        private void OnValidate()
-        {
-            if (!Application.isPlaying)
-                enumBase = new SyncValue<TestSyncBaseEnum, byte>(this, onChanged: OnEnumChanged);
-        }
-
-        private void SelfInitializeVariables()
-        {
-            health = new SyncValue<byte>(this, authority: AuthorityMode.Mine, target: Target.Me, subTarget: SubTarget.Server);
-            points = new SyncValue<int>(this, 10);
-            xAxis = new SyncValue<float>(this);
-            enumBase = new SyncValue<TestSyncBaseEnum, byte>(this, onChanged: OnEnumChanged);
-            arrayOfInt = new SyncRef<int[]>(this, new int[] { });
-            listOfFloat = new SyncRef<List<float>>(this, new List<float> { });
-            person = new SyncCustom<Person>(this, new Person
-            {
-                value = 1
-            });
+            health = new(this);
+            points = new(this);
+            time = new(this);
+            trigger = new(this, OnJumpTriggered);
+            player = new(this, new(10));
+            child = new(this, new(10));
         }
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Input.GetKeyDown(KeyCode.Tab))
             {
-                enumBase.Set(TestSyncBaseEnum.C);
+                trigger.Get();
             }
         }
 
-        private void OnEnumChanged(TestSyncBaseEnum obj)
+        private void OnJumpTriggered()
         {
-            Logger.PrintError("aaaa");
+            Logger.PrintError("Jump Triggered");
+        }
+    }
+
+    [Serializable]
+    public struct Player : ISyncCustom
+    {
+        public int id;
+
+        public Player(int id)
+        {
+            this.id = id;
+        }
+
+        public void Deserialize(ByteStream parameters)
+        {
+            id = parameters.ReadInt();
+        }
+
+        public void Serialize(ByteStream parameters)
+        {
+            parameters.Write(id);
+        }
+    }
+
+    [Serializable]
+    public class Child : ISyncCustom
+    {
+        public int id;
+
+        public Child(int id)
+        {
+            this.id = id;
+        }
+
+        public void Deserialize(ByteStream parameters)
+        {
+            id = parameters.ReadInt();
+        }
+
+        public void Serialize(ByteStream parameters)
+        {
+            parameters.Write(id);
         }
     }
 }

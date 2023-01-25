@@ -36,10 +36,21 @@ namespace Neutron.Core
             ISyncBaseValue.Intern_Set(message.Deserialize<T>());
         }
 
-        internal static void Read<T>(this SyncCustom<T> value, ByteStream message) where T : class, ISyncCustom
+        internal static void Read<T>(this SyncRefCustom<T> value, ByteStream message) where T : class, ISyncCustom
         {
-            ISyncCustom ISerialize = value.Get() as ISyncCustom;
-            if (ISerialize != null) ISerialize.Deserialize(message);
+            if (value.Get() is ISyncCustom ISerialize)
+                ISerialize.Deserialize(message);
+            else Logger.PrintError("SyncCustom -> Deserialize fail!");
+        }
+
+        internal static void Read<T>(this SyncValueCustom<T> value, ByteStream message) where T : unmanaged, ISyncCustom
+        {
+            T get_value = value.Get();
+            if (get_value is ISyncCustom ISerialize)
+            {
+                ISerialize.Deserialize(message);
+                ((ISyncBaseValue<T>)value).Intern_Set((T)ISerialize);
+            }
             else Logger.PrintError("SyncCustom -> Deserialize fail!");
         }
 

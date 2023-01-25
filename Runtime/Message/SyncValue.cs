@@ -22,8 +22,11 @@ namespace Neutron.Core
     {
         public SyncValue(NeutronObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
         {
-            if (value.GetType().IsEnum)
+            Type _ = value.GetType();
+            if (_.IsEnum)
                 throw new Exception($"Use \"SyncValue<Enum, T>\" instead \"SyncValue<T>\"");
+            if (_ == typeof(Trigger))
+                throw new Exception($"Use \"SyncValue\" instead \"SyncValue<T>\"");
 
             @this.OnSyncBase += (id, message) =>
             {
@@ -34,6 +37,26 @@ namespace Neutron.Core
                 }
             };
         }
+    }
+
+    [Serializable]
+    public class SyncValue : SyncBase<Trigger>
+    {
+        public SyncValue(NeutronObject @this, Action onChanged, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, default, channel, target, subTarget, cacheMode, authority)
+        {
+            @this.OnSyncBase += (id, message) =>
+            {
+                if (this.id == id)
+                {
+                    this.Read(message);
+                    onChanged?.Invoke();
+                }
+            };
+        }
+
+        public void Set() => base.Set(default);
+        public new void Set(Trigger _) { throw new NotImplementedException(); }
+        public new Trigger Get() { throw new NotImplementedException(); }
     }
 
     [Serializable]

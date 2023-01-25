@@ -18,9 +18,9 @@ using static Neutron.Core.Enums;
 namespace Neutron.Core
 {
     [Serializable]
-    public class SyncCustom<T> : SyncBase<T> where T : class, ISyncCustom
+    public class SyncValueCustom<T> : SyncBase<T> where T : unmanaged, ISyncCustom
     {
-        public SyncCustom(NeutronObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority, value)
+        public SyncValueCustom(NeutronObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority, value)
         {
             @this.OnSyncBase += (id, message) =>
             {

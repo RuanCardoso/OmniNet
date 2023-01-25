@@ -37,6 +37,7 @@ namespace Neutron.Core
             _ => default,
         };
 
+        private readonly bool isStruct;
         private readonly bool isReferenceType;
         private readonly bool isValueTypeSupported;
         private readonly NeutronObject @this;
@@ -59,6 +60,7 @@ namespace Neutron.Core
             id = @this.OnSyncBaseId++;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
+            isStruct = type.IsValueType;
             isReferenceType = !type.IsValueType;
             isValueTypeSupported = ValueTypeConverter.Types.Contains(type);
             TypeCode = Type.GetTypeCode(type);
@@ -77,6 +79,7 @@ namespace Neutron.Core
             id = @this.OnSyncBaseId++;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
+            isStruct = type.IsValueType;
             isReferenceType = false;
             isValueTypeSupported = false;
             TypeCode = Type.GetTypeCode(type);
@@ -102,7 +105,7 @@ namespace Neutron.Core
 
         Enum ISyncBase.GetEnum() => enumType;
         bool ISyncBase.IsEnum() => enumType != null;
-        void ISyncBase.OnSyncEditor() => SyncOnNetwork();
+        void ISyncBase.OnValueChanged() => SyncOnNetwork();
         void ISyncBaseValue<T>.Intern_Set(T value)
         {
             UpdateEnum(value);
@@ -155,6 +158,9 @@ namespace Neutron.Core
                             case TypeCode.Byte:
                                 message.Write(Converter.GetByte(value));
                                 break;
+                            default:
+                                message.Write((byte)0x00000000);
+                                break;
                         }
                     }
                     catch (NullReferenceException)
@@ -164,8 +170,9 @@ namespace Neutron.Core
                 }
                 else
                 {
+                    ISyncCustom ISerialize = isStruct ? (ISyncCustom)Get() : this.ISerialize;
                     if (ISerialize != null) ISerialize.Serialize(message);
-                    else Logger.PrintError("SyncValue -> Custom type is not supported, use SyncCustom instead!");
+                    else Logger.PrintError($"SyncValue -> Custom type is not supported, use {nameof(ISyncCustom)} instead!");
                 }
             }
             else message.Serialize(value);

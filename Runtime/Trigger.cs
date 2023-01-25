@@ -16,11 +16,6 @@ using System;
 
 namespace Neutron.Core
 {
-    public interface ISyncBase
-    {
-        void OnValueChanged();
-        bool IsEnum();
-        Enum GetEnum();
-        void SetEnum(Enum enumValue);
-    }
+    [Serializable]
+    public struct Trigger { }
 }
