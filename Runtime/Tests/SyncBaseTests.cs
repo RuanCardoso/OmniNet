@@ -45,7 +45,7 @@ namespace Neutron.Tests
         {
             if (Input.GetKeyDown(KeyCode.Tab))
             {
-                trigger.Get();
+                Logger.PrintError(NeutronTime.Latency);
             }
         }
 

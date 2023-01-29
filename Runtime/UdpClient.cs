@@ -15,6 +15,7 @@
 using System.Collections;
 using System.Net;
 using System.Net.Sockets;
+using UnityEngine;
 using static Neutron.Core.Enums;
 using static Neutron.Core.NeutronNetwork;
 
@@ -95,6 +96,8 @@ namespace Neutron.Core
 
         private IEnumerator Ping()
         {
+            yield return new WaitForSeconds(1f);
+            // Send the ping to server to keep alive and calc de RTT.
             while (IsConnected)
             {
                 ByteStream message = ByteStream.Get();

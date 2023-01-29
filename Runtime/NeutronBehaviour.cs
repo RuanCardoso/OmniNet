@@ -142,13 +142,13 @@ namespace Neutron.Core
         {
             Vector3 position = parameters.ReadVector3();
             Quaternion rotation = parameters.ReadQuaternion();
-            NeutronIdentity identity = OnSpawnedObject(position, rotation, parameters, fromId, toId, stats);
+            NeutronIdentity identity = OnSpawnedObject(position, rotation, parameters, fromId, toId, isServer, stats);
             if (identity.objectType == ObjectType.Dynamic)
                 throw new NotImplementedException("Dynamic object not supported Id!");
             else identity.Register(isServer, fromId);
         }
 
-        protected virtual NeutronIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        protected virtual NeutronIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
         {
             throw new NotImplementedException($"Override the {nameof(OnSpawnedObject)} method!");
         }

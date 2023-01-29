@@ -55,6 +55,7 @@ namespace Neutron.Core
         }
 
         public void Set() => base.Set(default);
+        public new void SetIfChanged(Trigger value) { throw new NotImplementedException(); }
         public new void Set(Trigger _) { throw new NotImplementedException(); }
         public new Trigger Get() { throw new NotImplementedException(); }
     }
@@ -79,6 +80,7 @@ namespace Neutron.Core
 
         public static implicit operator Enum(SyncValue<Enum, T> value) => value.ToEnum();
         public void Set(Enum value) => Set((T)Convert.ChangeType(value, typeof(T)));
+        public void SetIfChanged(Enum value) => SetIfChanged((T)Convert.ChangeType(value, typeof(T)));
         public new Enum Get() => ToEnum();
         private Enum ToEnum() => (Enum)System.Enum.ToObject(typeof(Enum), base.Get());
     }

@@ -126,6 +126,16 @@ namespace Neutron.Core
             SyncOnNetwork();
         }
 
+        public void SetIfChanged(T value)
+        {
+            if (!value.Equals(this.value))
+            {
+                UpdateEnum(value);
+                this.value = value;
+                SyncOnNetwork();
+            }
+        }
+
         private void SyncOnNetwork()
         {
             if (!Application.isPlaying)
