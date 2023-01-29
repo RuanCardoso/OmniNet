@@ -43,7 +43,7 @@ namespace Neutron.Core
 
         public static void SetTime(double clientTime, double serverTime)
         {
-            double now = Math.Abs(LocalTime - ((double)InternalTime.deltaTime));
+            double now = LocalTime - ((double)InternalTime.deltaTime);
             double rtt = now - clientTime;
             double halfRtt = rtt * 0.5d;
             double offset = now - halfRtt - serverTime;
