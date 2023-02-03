@@ -33,7 +33,7 @@ namespace Neutron.Core
         internal static void Read<T>(this SyncRef<T> value, ByteStream message) where T : class
         {
             ISyncBaseValue<T> ISyncBaseValue = value as ISyncBaseValue<T>;
-            ISyncBaseValue.Intern_Set(message.Deserialize<T>());
+            ISyncBaseValue.Intern_Set(message.DeserializeWithMsgPack<T>());
         }
 
         internal static void Read<T>(this SyncRefCustom<T> value, ByteStream message) where T : class, ISyncCustom

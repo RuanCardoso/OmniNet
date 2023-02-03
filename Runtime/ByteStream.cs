@@ -16,6 +16,7 @@
 using System.Threading;
 #endif
 using MessagePack;
+using Newtonsoft.Json;
 using System;
 using UnityEngine;
 using static Neutron.Core.Enums;
@@ -140,7 +141,8 @@ namespace Neutron.Core
             Write(color.a);
         }
 
-        public void Serialize<T>(T data, MessagePackSerializerOptions options = null)
+        public void SerializeWithJsonNet<T>(T data, JsonSerializerSettings options = null) => Write(JsonConvert.SerializeObject(data, options));
+        public void SerializeWithMsgPack<T>(T data, MessagePackSerializerOptions options = null)
         {
             byte[] _data_ = MessagePackSerializer.Serialize(data, options);
             int length = _data_.Length;
@@ -385,7 +387,8 @@ namespace Neutron.Core
             return new Color32(r, g, b, a);
         }
 
-        public T Deserialize<T>(MessagePackSerializerOptions options = null)
+        public T DeserializeWithJsonNet<T>(JsonSerializerSettings options = null) => JsonConvert.DeserializeObject<T>(ReadString(), options);
+        public T DeserializeWithMsgPack<T>(MessagePackSerializerOptions options = null)
         {
             int length = Read7BitEncodedInt();
             byte[] _data_ = new byte[length];

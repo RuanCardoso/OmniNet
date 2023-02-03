@@ -185,7 +185,7 @@ namespace Neutron.Core
                     else Logger.PrintError($"SyncValue -> Custom type is not supported, use {nameof(ISyncCustom)} instead!");
                 }
             }
-            else message.Serialize(value);
+            else message.SerializeWithMsgPack(value);
             @this.SentOnSyncBase(id, message, HasAuthority, channel, target, subTarget, cacheMode);
         }
 
