@@ -141,6 +141,7 @@ namespace Neutron.Core
             Write(color.a);
         }
 
+        public void SerializeWithCustom<T>(ISyncCustom ISyncCustom) where T : class => ISyncCustom.Serialize(this);
         public void SerializeWithJsonNet<T>(T data, JsonSerializerSettings options = null) => Write(JsonConvert.SerializeObject(data, options));
         public void SerializeWithMsgPack<T>(T data, MessagePackSerializerOptions options = null)
         {
@@ -387,6 +388,7 @@ namespace Neutron.Core
             return new Color32(r, g, b, a);
         }
 
+        public void DeserializeWithCustom<T>(ISyncCustom ISyncCustom) where T : class => ISyncCustom.Deserialize(this);
         public T DeserializeWithJsonNet<T>(JsonSerializerSettings options = null) => JsonConvert.DeserializeObject<T>(ReadString(), options);
         public T DeserializeWithMsgPack<T>(MessagePackSerializerOptions options = null)
         {
