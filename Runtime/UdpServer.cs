@@ -45,7 +45,7 @@ namespace Neutron.Core
             switch (messageType)
             {
                 case MessageType.Disconnect:
-                    Disconnect(remoteEndPoint);
+                    Disconnect(remoteEndPoint, "The endpoint {0} has been disconnected!");
                     break;
                 case MessageType.Connect:
                     {
@@ -204,14 +204,14 @@ namespace Neutron.Core
                 udpClient.Close();
         }
 
-        protected override void Disconnect(UdpEndPoint endPoint)
+        protected override void Disconnect(UdpEndPoint endPoint, string msg = "")
         {
             ushort uniqueId = (ushort)endPoint.GetPort();
             if (RemoveClient(uniqueId, out UdpClient disconnected))
             {
                 NeutronNetwork.ClearAllCaches(uniqueId);
                 disconnected.Close(true);
-                Logger.Print($"The endpoint {endPoint} has been disconnected.");
+                Logger.Print(string.Format(msg, endPoint));
             }
             else Logger.PrintError("Failed to disconnect client!");
         }
@@ -226,7 +226,7 @@ namespace Neutron.Core
                     UdpClient client = clients[i];
                     if (client.itSelf) continue;
                     if ((NeutronTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
-                        Disconnect(client.remoteEndPoint);
+                        Disconnect(client.remoteEndPoint, "The endpoint {0} has been disconnected! Note: Because the server got no response from it.");
                     else continue;
                 }
 

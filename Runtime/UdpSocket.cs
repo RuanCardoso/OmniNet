@@ -33,7 +33,7 @@ namespace Neutron.Core
         private readonly SentWindow SENT_WINDOW = new();
 
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
-        protected abstract void Disconnect(UdpEndPoint endPoint);
+        protected abstract void Disconnect(UdpEndPoint endPoint, string msg = "");
         protected abstract void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint);
 
         internal bool IsConnected { get; set; }
@@ -337,7 +337,7 @@ namespace Neutron.Core
                                 {
                                     if (IsServer)
                                         Logger.PrintError("WSAECONNRESET -> The last send operation failed because the host is unreachable.");
-                                    else Disconnect(null);
+                                    else Disconnect(null, "There was an unexpected disconnection!");
                                 }
 #if !NEUTRON_MULTI_THREADED
                                 yield return null;

@@ -155,7 +155,8 @@ namespace Neutron.Core
             }
         }
 
+        internal UdpClient GetClient(ushort playerId) => null;
         internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => this;
-        protected override void Disconnect(UdpEndPoint endPoint) => OnDisconnected();
+        protected override void Disconnect(UdpEndPoint endPoint, string msg = "") => OnDisconnected();
     }
 }

@@ -37,6 +37,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Scripting;
 using static Neutron.Core.Enums;
+using EventType = Neutron.Core.Enums.EventType;
 using LocalPhysicsMode = Neutron.Core.Enums.LocalPhysicsMode;
 using MessageType = Neutron.Core.Enums.MessageType;
 
@@ -1055,6 +1056,20 @@ namespace Neutron.Core
             message.Release();
         }
 
+        internal static void FireEvent(ByteStream msg, EventType eventType, Target target = Target.All)
+        {
+#if UNITY_EDITOR || UNITY_SERVER
+            ByteStream message = ByteStream.Get(MessageType.FireEvent);
+            message.Write((byte)eventType);
+            message.Write(msg);
+            msg.Release();
+            Intern_Send(message, NetworkId, true, Channel.Reliable, target, SubTarget.None, CacheMode.None);
+            message.Release();
+#else
+            Logger.PrintError("Fire Event not work on client side!");
+#endif
+        }
+
         internal static void ClearAllCaches(ushort playerId)
         {
             globalCache.RemoveAll(x => x.playerId == playerId);
@@ -1065,7 +1080,21 @@ namespace Neutron.Core
             syncCache.RemoveAll(x => x.playerId == playerId);
         }
 
-        public static Player GetPlayer(ushort playerId, bool isServer = true) => isServer ? udpServer.GetClient(playerId).Player : udpClient.Player;
+        public static Player GetPlayerFromServer(ushort playerId)
+        {
+            Player player = udpServer.GetClient(playerId).Player;
+            if (player == null)
+                Logger.PrintError("Player not found!");
+            return player;
+        }
+
+        public static Player GetPlayerFromClient(ushort playerId)
+        {
+            Player player = udpClient.GetClient(playerId).Player;
+            if (player == null)
+                Logger.PrintError("Player not found!");
+            return player;
+        }
 
         internal void OnApplicationQuit()
         {

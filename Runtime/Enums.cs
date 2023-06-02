@@ -16,6 +16,12 @@ namespace Neutron.Core
 {
     public static class Enums
     {
+        internal enum EventType : byte
+        {
+            OnPlayerConnected,
+            OnPlayerDisconnected
+        }
+
         internal enum MessageType : byte
         {
             None = 0,
@@ -49,6 +55,7 @@ namespace Neutron.Core
             LocalMessageScene = 22,
             //......................
             Remote = 23,
+            FireEvent = 24,
             Connect = 254,
             Disconnect = 255,
         }
