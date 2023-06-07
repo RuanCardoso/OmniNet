@@ -1,4 +1,4 @@
-# Neutron - Um framework de Unity para criar jogos multiplayer
+# Neutron - Um Framework Unity para Desenvolvimento de Jogos Multiplayer
 
 A Neutron é um framework de Unity criado com o objetivo de proporcionar um alto desempenho no desenvolvimento de jogos multiplayer.
 
@@ -12,7 +12,7 @@ A documentação completa será disponibilizada em breve. Fique atento!
 
 _______________________________________________________________________________
 
-# Neutron - A Unity Framework for Creating Multiplayer Games
+# Neutron - A Unity Framework for Multiplayer Game Development
 
 Neutron is a Unity framework created with a strong focus on achieving high-performance in the development of multiplayer games.
 
