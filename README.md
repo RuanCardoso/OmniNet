@@ -1,4 +1,5 @@
-AtomNet - Networking at the Subatomic Level in Unity
+AtomNet - Networking at the Subatomic Level in Unity.
+AtomNet - Networking em Nível Subatômico no Unity.
 _______________________________________________________________________________
 
 # AtomNet - Um Framework Unity para Desenvolvimento de Jogos Multiplayer
