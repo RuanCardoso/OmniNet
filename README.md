@@ -1,3 +1,5 @@
+[![pt-br](https://img.shields.io/badge/lang-pt--br-green.svg)](https://github.com/RuanCardoso/AtomNet/blob/main/README.pt-br.md)
+
 AtomNet - Networking at the Subatomic Level in Unity.
 _______________________________________________________________________________
 
