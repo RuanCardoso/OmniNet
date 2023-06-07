@@ -9,3 +9,17 @@ Decidi aproveitar essas novas funcionalidades para criar um framework de network
 ## Documentação
 
 A documentação completa será disponibilizada em breve. Fique atento!
+
+_______________________________________________________________________________
+
+# Neutron - A Unity Framework for Creating Multiplayer Games
+
+Neutron is a Unity framework created with a strong focus on achieving high-performance in the development of multiplayer games.
+
+**Requirements**: Neutron is limited to Unity version 2021.2 or newer. This is because Unity introduced Support for .Net Standard 2.1 starting from version 2021.2, which brings improvements to the Network Socket and introduces new features like Span, Memory, ArrayPool, and more.
+
+I decided to leverage these new features to create a high-performance networking framework.
+
+## Documentation
+
+Full documentation will be coming soon. Stay tuned!
