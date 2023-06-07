@@ -11,4 +11,4 @@ Decidi aproveitar essas novas funcionalidades para criar um framework de network
 
 ## Documentação
 
-A documentação completa será disponibilizada em breve. Fique atento!
+[Documentação](../../wiki) - Aqui está a documentação completa do projeto.
