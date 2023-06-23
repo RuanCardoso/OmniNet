@@ -53,6 +53,37 @@ namespace Neutron.Core
 #endif
         }
 
+        internal static void CreateCache<TKey, TValue>(IDictionary<TKey, TValue> dict, TKey key, CacheMode cacheMode, ByteStream message, ushort sourceId, ushort destinationId, byte sceneId, ushort identityId, byte remoteId, byte instanceId, MessageType msgType, Channel channel, ObjectType objType)
+        where TValue : NeutronCache
+        where TKey : System.Runtime.CompilerServices.ITuple
+        {
+            switch (cacheMode)
+            {
+                case CacheMode.Append:
+                    Logger.PrintError("Cache System -> Append is not supported yet. Support will be added in a future update.");
+                    Logger.PrintWarning("Warning: The 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption. This is caused by sending all stored states when using the 'Append' mode. Please use 'Overwrite' mode instead.");
+                    break;
+                case CacheMode.Overwrite:
+                    {
+                        if (dict.TryGetValue(key, out TValue value))
+                        {
+                            value.SetData(message.Buffer, message.BytesWritten);
+                        }
+                        else
+                        {
+                            byte[] data = new byte[NeutronNetwork.Instance.udpPacketSize];
+                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
+                            TValue newCache = new NeutronCache(data, message.BytesWritten, sourceId, destinationId, sceneId, identityId, remoteId, instanceId, msgType, channel, objType) as TValue;
+                            if (!dict.TryAdd(key, newCache))
+                            {
+                                Logger.PrintError("Could not create cache, hash key already exists?");
+                            }
+                        }
+                        break;
+                    }
+            }
+        }
+
         internal static int GetFreePort()
         {
             System.Net.Sockets.UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, 0));

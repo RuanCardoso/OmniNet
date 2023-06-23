@@ -62,11 +62,11 @@ MonoBehaviour:
   physicsMode: 2
   encoding: 3
   fpsUpdateRate: 4
-  consoleInput: 0
+  isConsoleInputEnabled: 0
   dontDestroy: 0
   loadNextScene: 0
   pingTime: 1
-  reconnectionTime: 3
+  reconnectionTime: 1
   pingSweepTime: 60
   maxPingRequestTime: 60
   port: 5055
@@ -75,9 +75,7 @@ MonoBehaviour:
   udpPacketSize: 128
   agressiveRelay: 0
   multiThreaded: 0
-  defined:
-  - NEUTRON_LOCK_FPS
-  - STARTER_ASSETS_PACKAGES_CHECKED
+  defines: []
   allPlatformSettings:
   - name: No Plataform!
     hosts:
@@ -404,11 +402,11 @@ MonoBehaviour:
     sendTimeout: 0
   - name: StandaloneWindows64
     hosts:
+    - name: Cloud Server
+      Ip: 54.233.188.163
     - name: localhost
       Ip: 127.0.0.1
     - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
       Ip: 0.0.0.0
     enabled: 1
     maxFramerate: 60
@@ -776,7 +774,7 @@ MonoBehaviour:
     sendBufferSize: 8192
     recvTimeout: 0
     sendTimeout: 0
-  - name: No Plataform!
+  - name: Server
     hosts:
     - name: localhost
       Ip: 127.0.0.1
@@ -784,7 +782,7 @@ MonoBehaviour:
       Ip: 0.0.0.0
     - name: Cloud Server
       Ip: 0.0.0.0
-    enabled: 0
+    enabled: 1
     maxFramerate: 60
     recvMultiplier: 1
     ackTimeout: 0.30000001192092896
@@ -932,11 +930,11 @@ MonoBehaviour:
   platformSettings:
     name: StandaloneWindows64
     hosts:
+    - name: Cloud Server
+      Ip: 54.233.188.163
     - name: localhost
       Ip: 127.0.0.1
     - name: WSL
-      Ip: 0.0.0.0
-    - name: Cloud Server
       Ip: 0.0.0.0
     enabled: 1
     maxFramerate: 60

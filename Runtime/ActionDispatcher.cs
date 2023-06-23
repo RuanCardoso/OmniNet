@@ -23,8 +23,14 @@ namespace Neutron.Core
     public class ActionDispatcher : MonoBehaviour
     {
         [Header("Client & Editor")]
+#if !NEUTRON_MULTI_THREADED
+        [HideInInspector]
+#endif
         [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int CLIENT_APF = 1; // Client
         [Header("Server")]
+#if !NEUTRON_MULTI_THREADED
+        [HideInInspector]
+#endif
         [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int SERVER_APF = 1; // Server
 
         private readonly object syncRoot = new();

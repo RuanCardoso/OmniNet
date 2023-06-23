@@ -22,6 +22,7 @@ using System;
 using System.Collections.Concurrent;
 #else
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 #endif
 using System.Net;
@@ -48,15 +49,18 @@ namespace Neutron.Core
     [RequireComponent(typeof(ActionDispatcher))]
     public class NeutronNetwork : MonoBehaviour
     {
+        // Constants
         private const byte SETTINGS_SIZE = 50;
 
+        // Enums
         [Header("Enums")]
         [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
         [SerializeField] private EncodingType encoding = EncodingType.ASCII;
 
+        // Other Variables
         [Header("Others")]
-        [SerializeField][Range(0, 10)][Label("FPS Update Rate")] private int fpsUpdateRate = 4;
-        [SerializeField] private bool consoleInput;
+        [SerializeField][MaxValue(10)] private uint fpsUpdateRate = 4;
+        [SerializeField] private bool isConsoleInputEnabled;
         [SerializeField] private bool dontDestroy = false;
         [SerializeField] private bool loadNextScene = false;
         private Encoding _encoding = Encoding.ASCII;
@@ -64,31 +68,43 @@ namespace Neutron.Core
         private static int frameCount = 0;
         private static float deltaTime = 0f;
 
-        private static readonly Dictionary<(ushort, ushort, bool, byte, ObjectType), NeutronIdentity> identities = new(); // [Identity Id, Player Id, IsServer, Scene Id, Object Type]
+        // Dictionaries
+        private static readonly Dictionary<(ushort, ushort, bool, byte, ObjectType), NeutronIdentity> identities = new();
         private static readonly Dictionary<int, Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats>> handlers = new();
+        private static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> remoteCache = new();
+        private static readonly Dictionary<(byte remoteId, byte instanceId, ushort playerId), NeutronCache> globalRemoteCache = new();
+        private static readonly Dictionary<(ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> serializeCache = new();
+        private static readonly Dictionary<(byte varId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> syncCache = new();
+        private static readonly Dictionary<(byte id, ushort playerId), NeutronCache> globalCache = new();
+        private static readonly Dictionary<(byte id, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> localCache = new();
+
+        // Networking
         private static readonly UdpServer udpServer = new();
         private static readonly UdpClient udpClient = new();
 
+        // Events
         #region Events
         public static event Action<bool, IPEndPoint, ByteStream> OnConnected;
         #endregion
 
+        // Singleton Instance
         internal static NeutronNetwork Instance { get; private set; }
 
         #region Properties
         public static float Framerate { get; private set; }
-        public static float CpuMs { get; private set; }
+        public static float CpuTimeMs { get; private set; }
         internal Encoding Encoding => _encoding;
 #if UNITY_EDITOR
         internal static Scene Scene { get; private set; }
-        internal static PhysicsScene PhysicsScene { get; private set; }
-        internal static PhysicsScene2D PhysicsScene2D { get; private set; }
+        public static PhysicsScene PhysicsScene { get; private set; }
+        public static PhysicsScene2D PhysicsScene2D { get; private set; }
 #endif
         public static Player Player => udpClient.Player;
         internal static int Port { get; private set; }
         internal static ushort NetworkId { get; } = ushort.MaxValue;
 
-        public static bool IsBind => udpServer.IsConnected;
+        internal static bool IsBind => udpServer.IsConnected;
+
 #if !UNITY_SERVER || UNITY_EDITOR
         public static int Id => udpClient.Id;
         public static bool IsConnected => udpClient.IsConnected;
@@ -103,26 +119,32 @@ namespace Neutron.Core
         [Header("Timers")]
         [InfoBox("Ping Time impacts clock sync between client and server.", EInfoBoxType.Warning)]
         [SerializeField][Range(0.01f, 60f)][Label("Ping")] private float pingTime = 1f; // seconds
-        [SerializeField][Range(0.1f, 5f)][Label("Reconnection")] private float reconnectionTime = 3f; // seconds
+        [SerializeField][Range(0.1f, 5f)][Label("Reconnection")] private float reconnectionTime = 1f; // seconds
         [SerializeField][Range(1f, 300f)][Label("Ping Sweep")] private float pingSweepTime = 1f; // seconds
         [SerializeField][Range(1f, 300f)][Label("Max Ping Request")] private double maxPingRequestTime = 60d; // seconds
+
         [Header("Socket")]
         [SerializeField] private int port = 5055;
         [SerializeField][Range(1, ushort.MaxValue)] private int byteStreams = 128;
         [SerializeField][Range(byte.MaxValue, ushort.MaxValue)] internal int windowSize = byte.MaxValue;
         [SerializeField][Range(1, 1500)] internal int udpPacketSize = 64 * 2;
+
         // defines
         [Header("Pre-Processor's")]
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField][ReadOnly] private bool multiThreaded = false;
-        [SerializeField][ReadOnly] private string[] defined;
+        [SerializeField][ReadOnly] private string[] defines;
         #endregion
 
         //* Multi-Threading
         //internal static double timeAsDouble;
 
-        [SerializeField][HideInInspector] private LocalSettings[] allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
-        [Header("Plataforms")][SerializeField] internal LocalSettings platformSettings;
+        [SerializeField]
+        [HideInInspector]
+        private LocalSettings[] allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
+
+        [Header("Plataforms")]
+        [SerializeField] internal LocalSettings platformSettings;
 
         private ActionDispatcher dispatcher;
         private readonly CancellationTokenSource tokenSource = new();
@@ -131,52 +153,56 @@ namespace Neutron.Core
         internal static WaitForSeconds WAIT_FOR_PING;
         internal static WaitForSeconds WAIT_FOR_CHECK_REC_PING;
 
-        private static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> remoteCache = new(); // [Remote Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
-        private static readonly Dictionary<(byte remoteId, byte instanceId, ushort playerId), NeutronCache> globalRemoteCache = new(); // [Remote Id, Player Id]
-        private static readonly Dictionary<(ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> serializeCache = new(); // [Identity Id, Instance Id, Player Id, Scene Id, Object Type]
-        private static readonly Dictionary<(byte varId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> syncCache = new(); // [Var Id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
-        private static readonly Dictionary<(byte id, ushort playerId), NeutronCache> globalCache = new(); // [Id, Player Id]
-        private static readonly Dictionary<(byte id, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), NeutronCache> localCache = new(); // [id, Identity Id, Instance Id, Player Id, Scene Id, Object Type]
+        private static IFormatterResolver Formatter { get; set; }
 
-        public static IFormatterResolver Formatter { get; private set; }
-        public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver = null, [CallerMemberName] string _ = "")
+        public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver, [CallerMemberName] string methodName = "")
         {
-            if (_ != "Awake")
-                Logger.PrintError($"{nameof(AddResolver)} must be called from Awake!");
-            else
+            const string expectedMethodName = "Awake";
+
+            if (methodName != expectedMethodName)
             {
-                Formatter = resolver == null
-                    ? (resolver = CompositeResolver.Create(UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance))
-                    : (resolver = CompositeResolver.Create(resolver, Formatter));
-                return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
+                Logger.PrintError($"{nameof(AddResolver)} must be called from {expectedMethodName}!");
+                return MessagePackSerializer.DefaultOptions;
             }
-            return MessagePackSerializer.DefaultOptions;
+
+            if (resolver == default)
+            {
+                resolver = CompositeResolver.Create(UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance);
+            }
+
+            Formatter = CompositeResolver.Create(resolver, Formatter);
+
+            return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
         }
 
         private void Awake()
         {
             Instance = this;
             dispatcher = GetComponent<ActionDispatcher>();
-            AddResolver(null);
-            if (dontDestroy) DontDestroyOnLoad(gameObject);
+            AddResolver(default);
+            if (dontDestroy)
+            {
+                DontDestroyOnLoad(gameObject);
+            }
             ByteStream.streams = new(byteStreams);
-            //----------------------------------------------------
+
+            // Wait for Seconds
             WAIT_FOR_CONNECT = new(reconnectionTime);
             WAIT_FOR_PING = new(pingTime);
             WAIT_FOR_CHECK_REC_PING = new(pingSweepTime);
-            //----------------------------------------------------
-            #region Registers
-            OnConnected += NeutronNetwork_OnConnected;
-            #endregion
 
-            #region Framerate
+            // Registers
+            OnConnected += NeutronNetwork_OnConnected;
+
+            // Framerate
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = platformSettings.maxFramerate;
-            #endregion
 
+            // Bind and Connect
             LocalSettings.Host lHost = platformSettings.hosts[0];
             Port = port;
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, Port);
+
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
             if (IsBind)
@@ -185,10 +211,12 @@ namespace Neutron.Core
                 StartCoroutine(udpServer.CheckTheLastReceivedPing(maxPingRequestTime));
             }
 #endif
+
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, NeutronHelper.GetFreePort()));
             udpClient.Connect(new UdpEndPoint(IPAddress.Parse(lHost.Ip), remoteEndPoint.GetPort()));
 #endif
+
 #if UNITY_EDITOR
             if (IsBind)
             {
@@ -198,7 +226,7 @@ namespace Neutron.Core
             }
 #endif
 
-            #region Define Encoding
+            // Define Encoding
             _encoding = encoding switch
             {
                 EncodingType.UTF8 => Encoding.UTF8,
@@ -208,42 +236,33 @@ namespace Neutron.Core
                 EncodingType.Unicode => Encoding.Unicode,
                 _ => Encoding.ASCII,
             };
-            #endregion
         }
 
-        private void NeutronNetwork_OnConnected(bool isServer, IPEndPoint endPoint, ByteStream parameters)
+        private void Start()
         {
-            if (loadNextScene)
+            // Inicia o método Main após um atraso de 1 segundo
+            Invoke(nameof(Main), 1f);
+        }
+
+        private void Update()
+        {
+            // Atualizar o contador de tempo e quadros
+            deltaTime += Time.unscaledDeltaTime;
+            frameCount++;
+
+            // Calcular a taxa de quadros e o tempo de CPU quando for necessário
+            if (deltaTime > 1f / fpsUpdateRate)
             {
-                int currentIndex = SceneManager.GetActiveScene().buildIndex;
-                int nextIndex = currentIndex + 1;
-#if UNITY_EDITOR
-                if (!isServer)
-                {
-                    SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
-                    OnConnected -= NeutronNetwork_OnConnected;
-                }
-#else
-                SceneManager.LoadScene(nextIndex, LoadSceneMode.Additive);
-                OnConnected -= NeutronNetwork_OnConnected;
-#endif
-            }
-        }
+                Framerate = frameCount / deltaTime;
+                CpuTimeMs = deltaTime / frameCount * 1000f;
 
-        private void Start() => Invoke(nameof(Main), 1f);
-        private void Main()
-        {
-#if UNITY_SERVER && !UNITY_EDITOR
-            Console.Clear();
-            if (consoleInput) NeutronConsole.Initialize(tokenSource.Token, this);
-#endif
-            if (!GarbageCollector.isIncremental) Logger.PrintWarning("Tip: Enable \"Incremental GC\" for maximum performance!");
-#if !NETSTANDARD2_1
-            Logger.PrintWarning("Tip: Change API Mode to \".NET Standard 2.1\" for maximum performance!");
-#endif
-#if !ENABLE_IL2CPP && !UNITY_EDITOR
-            Logger.PrintWarning("Tip: Change API Mode to \"IL2CPP\" for maximum performance!");
-#endif
+                // Reiniciar os contadores
+                deltaTime = 0f;
+                frameCount = 0;
+            }
+
+            //* Seção de Multi-Threading
+            //timeAsDouble = Time.timeAsDouble;
         }
 
 #if UNITY_EDITOR
@@ -251,135 +270,260 @@ namespace Neutron.Core
         {
             if (IsBind)
             {
-                switch (physicsMode)
+                if (physicsMode == LocalPhysicsMode.Physics3D)
                 {
-                    case LocalPhysicsMode.Physics3D:
-                        PhysicsScene.Simulate(Time.fixedDeltaTime);
-                        break;
-                    case LocalPhysicsMode.Physics2D:
-                        PhysicsScene2D.Simulate(Time.fixedDeltaTime);
-                        break;
+                    PhysicsScene.Simulate(Time.fixedDeltaTime);
+                }
+                else if (physicsMode == LocalPhysicsMode.Physics2D)
+                {
+                    PhysicsScene2D.Simulate(Time.fixedDeltaTime);
                 }
             }
         }
 #endif
-        private void Update()
-        {
-            deltaTime += Time.unscaledDeltaTime;
-            frameCount++;
-            if (deltaTime > 1f / fpsUpdateRate)
-            {
-                Framerate = frameCount / deltaTime;
-                CpuMs = deltaTime / frameCount * 1000f;
-                deltaTime = 0f;
-                frameCount = 0;
-            }
 
-            //* Multi-Threading
-            //timeAsDouble = Time.timeAsDouble;
+        private void NeutronNetwork_OnConnected(bool isServer, IPEndPoint endPoint, ByteStream parameters)
+        {
+            if (loadNextScene)
+            {
+                LoadNextScene(isServer);
+            }
+        }
+
+        private void LoadNextScene(bool isServer)
+        {
+            int currentIndex = SceneManager.GetActiveScene().buildIndex;
+            int nextIndex = currentIndex + 1;
+
+#if UNITY_EDITOR
+            if (!isServer)
+            {
+                LoadScene(nextIndex);
+                UnsubscribeOnConnected();
+            }
+#else
+            LoadScene(nextIndex);
+            UnsubscribeOnConnected();
+#endif
+        }
+
+        private void LoadScene(int sceneIndex)
+        {
+            SceneManager.LoadScene(sceneIndex, LoadSceneMode.Additive);
+        }
+
+        private void UnsubscribeOnConnected()
+        {
+            OnConnected -= NeutronNetwork_OnConnected;
+        }
+
+        private void Main()
+        {
+            InitializeConsole();
+            CheckGarbageCollectorSettings();
+            CheckApiModeSettings();
+        }
+
+        private void InitializeConsole()
+        {
+#if UNITY_SERVER && !UNITY_EDITOR
+            Console.Clear();
+            if (isConsoleInputEnabled)
+            {
+                NeutronConsole.Initialize(tokenSource.Token, this);
+            }
+#endif
+        }
+
+        private void CheckGarbageCollectorSettings()
+        {
+            if (!GarbageCollector.isIncremental)
+            {
+                Logger.PrintWarning("Consider enabling \"Incremental Garbage Collection\" for improved performance. This option can maximize performance by efficiently managing memory usage during runtime.");
+            }
+        }
+
+        private void CheckApiModeSettings()
+        {
+#if !NETSTANDARD2_1
+            Logger.PrintWarning("Consider changing the API Mode to \".NET Standard 2.1\" for improved performance and compatibility. .NET Standard 2.1 offers enhanced features, performance optimizations, and broader library support, resulting in better performance and increased functionality for your application.");
+#endif
+#if !ENABLE_IL2CPP && !UNITY_EDITOR
+            Logger.PrintWarning("Consider changing the API Mode to \"IL2CPP\" for optimal performance. IL2CPP provides enhanced performance and security by converting your code into highly optimized C++ during the build process.");
+#endif
         }
 
 #if UNITY_EDITOR
-        [ContextMenu("Neutron/Reload Scripts", false)]
-        [Button("Reload Scripts", EButtonEnableMode.Editor)]
+        [ContextMenu("Neutron/Request Script Compilation", false)]
+        [Button("Request Script Compilation", EButtonEnableMode.Editor)]
         private void RequestScriptCompilation()
         {
-            for (int i = 0; i < allPlatformSettings.Length; i++)
+            foreach (var platformSettings in allPlatformSettings)
             {
-                if (allPlatformSettings[i] != null)
-                    allPlatformSettings[i].enabled = false;
-                else continue;
+                if (platformSettings != null)
+                {
+                    platformSettings.enabled = false;
+                }
             }
 
-            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
-            else Logger.PrintError("RequestScriptCompilation -> Failed");
+            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
+                CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
+            }
+            else
+            {
+                Logger.PrintError("RequestScriptCompilation -> Failed");
+            }
         }
 
         [ContextMenu("Neutron/Set Preprocessor", false)]
         [Button("Set Pre-Processor's", EButtonEnableMode.Editor)]
         private void SetDefines()
         {
-            NeutronDefine MULTI_THREADED_DEFINE = new()
+            NeutronDefine multiThreadedDefine = new NeutronDefine
             {
                 define = "NEUTRON_MULTI_THREADED",
                 enabled = multiThreaded
             };
 
-            NeutronDefine AGRESSIVE_RELAY_DEFINE = new()
+            NeutronDefine aggressiveRelayDefine = new NeutronDefine
             {
                 define = "NEUTRON_AGRESSIVE_RELAY",
                 enabled = agressiveRelay
             };
 
-            NeutronHelper.SetDefines(MULTI_THREADED_DEFINE, AGRESSIVE_RELAY_DEFINE);
+            NeutronHelper.SetDefines(multiThreadedDefine, aggressiveRelayDefine);
         }
+
 
         private void Reset() => OnValidate();
         private void OnValidate()
         {
-            defined = NeutronHelper.GetDefines(out _).Where(x => x.StartsWith("NEUTRON_")).ToArray();
-#if UNITY_SERVER
-            BuildTarget buildTarget = BuildTarget.LinuxHeadlessSimulation;
-#else
-            BuildTarget buildTarget = EditorUserBuildSettings.activeBuildTarget;
-#endif
-            int index = (int)buildTarget;
-            allPlatformSettings ??= new LocalSettings[SETTINGS_SIZE];
-            if (allPlatformSettings.Length == SETTINGS_SIZE)
-            {
-                if (allPlatformSettings.IsInBounds(index))
-                {
-                    if (allPlatformSettings[index] != null)
-                    {
-                        if (!allPlatformSettings[index].enabled)
-                        {
-                            string name = buildTarget.ToString();
-#if UNITY_SERVER
-                            name = "Server";
-#endif
-                            allPlatformSettings[index].enabled = true;
-                            allPlatformSettings[index].name = name;
-                        }
+            defines = GetNeutronDefines();
 
-                        if (platformSettings != allPlatformSettings[index])
-                            platformSettings = allPlatformSettings[index];
-                    }
-                    else RequestScriptCompilation();
-                }
+            BuildTarget activeBuildTarget = GetActiveBuildTarget();
+
+            int buildTargetIndex = (int)activeBuildTarget;
+            if (allPlatformSettings == null)
+            {
+                allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
+            }
+
+            if (allPlatformSettings.Length != SETTINGS_SIZE)
+                return;
+
+            if (!allPlatformSettings.IsInBounds(buildTargetIndex))
+                return;
+
+            if (allPlatformSettings[buildTargetIndex] != null)
+            {
+                UpdatePlatformSettings(activeBuildTarget, buildTargetIndex);
+            }
+            else
+            {
+                RequestScriptCompilation();
             }
         }
+
+        private string[] GetNeutronDefines()
+        {
+            return NeutronHelper.GetDefines(out _)
+                .Where(x => x.StartsWith("NEUTRON_"))
+                .ToArray();
+        }
+
+        private BuildTarget GetActiveBuildTarget()
+        {
+#if UNITY_SERVER
+            return BuildTarget.LinuxHeadlessSimulation;
+#else
+            return EditorUserBuildSettings.activeBuildTarget;
+#endif
+        }
+
+        private void UpdatePlatformSettings(BuildTarget buildTarget, int index)
+        {
+            LocalSettings currentSettings = allPlatformSettings[index];
+
+            if (!currentSettings.enabled)
+            {
+                string name = buildTarget.ToString();
+#if UNITY_SERVER
+                name = "Server";
+#endif
+                currentSettings.enabled = true;
+                currentSettings.name = name;
+            }
+
+            if (platformSettings != currentSettings)
+            {
+                platformSettings = currentSettings;
+            }
+        }
+
 #endif
         internal static void AddIdentity(NeutronIdentity identity)
         {
             var key = (identity.id, identity.playerId, identity.isItFromTheServer, identity.sceneId, identity.objectType);
-            if (!identities.TryAdd(key, identity))
-                Logger.PrintError($"the identity already exists -> {key}");
+            if (identities.TryGetValue(key, out var existingIdentity))
+            {
+                Logger.PrintError($"The identity already exists: ID={identity.id}, PlayerID={identity.playerId}, IsFromServer={identity.isItFromTheServer}, SceneID={identity.sceneId}, ObjectType={identity.objectType}");
+                return;
+            }
+            identities.TryAdd(key, identity);
         }
 
         private static NeutronIdentity GetIdentity(ushort identityId, ushort playerId, bool isServer, byte sceneId, ObjectType objType)
         {
-            if (!identities.TryGetValue((identityId, playerId, isServer, sceneId, objType), out NeutronIdentity identity))
-                Logger.PrintWarning($"Indentity not found! -> [IsServer]={isServer}");
+            if (!identities.TryGetValue((identityId, playerId, isServer, sceneId, objType), out var identity))
+            {
+                Logger.PrintWarning($"Identity not found! -> ID={identityId}, PlayerID={playerId}, IsServer={isServer}, SceneID={sceneId}, ObjectType={objType}");
+                return null;
+            }
+
+            if (identity == null)
+            {
+                Logger.PrintWarning($"Identity is null! -> ID={identityId}, PlayerID={playerId}, IsServer={isServer}, SceneID={sceneId}, ObjectType={objType}");
+            }
+
             return identity;
         }
 
-        private static Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> GetHandler(byte id) => handlers.TryGetValue(id, out var handler) ? handler : null;
+        private static Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> GetHandler(byte id)
+        {
+            if (handlers.TryGetValue(id, out var handler))
+            {
+                return handler;
+            }
+
+            return null;
+        }
+
         public static byte AddHandler<T>(Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> handler) where T : IMessage, new()
         {
             T instance = new();
+            if (handlers.ContainsKey(instance.Id))
+            {
+                Logger.PrintError($"Handler for ID={instance.Id} already exists!");
+                return instance.Id;
+            }
+
             if (!handlers.TryAdd(instance.Id, handler))
-                Logger.PrintError($"Handler for {instance.Id} already exists!");
-            else
+            {
+                Logger.PrintError($"Failed to add handler for ID={instance.Id}!");
+                return instance.Id;
+            }
+
+            using (MemoryStream stream = new())
             {
                 try
                 {
-                    MessagePackSerializer.Serialize(instance);
+                    MessagePackSerializer.Serialize(stream, instance);
                 }
                 catch (Exception ex)
                 {
-                    ex = ex.InnerException;
-                    Logger.PrintError(ex.Message);
-                    Logger.PrintError("It is necessary to generate the AOT code and register the type.");
+                    Logger.PrintError($"Failed to serialize {typeof(T).Name}: {ex.Message}");
+                    Logger.PrintError("It is necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
                 }
             }
 
@@ -389,26 +533,26 @@ namespace Neutron.Core
         private static void ThrowErrorIfWrongSocket(bool fromServer)
         {
 #if UNITY_SERVER && !UNITY_EDITOR
-            if (!fromServer)
-                throw new Exception("The server cannot send data through the client socket!");
+    if (!fromServer)
+        throw new InvalidOperationException("The server cannot send data through the client socket. Make sure to use the server socket for sending data from the server side.");
 #elif !UNITY_SERVER && !UNITY_EDITOR
-            if (fromServer)
-                throw new Exception("The client cannot send data through the server socket!");
+    if (fromServer)
+        throw new InvalidOperationException("The client cannot send data through the server socket. Make sure to use the client socket for sending data from the client side.");
 #endif
         }
 
-        private static void Intern_Send(ByteStream byteStream, ushort id, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        private static void SendDataViaSocket(ByteStream byteStream, ushort id, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             ThrowErrorIfWrongSocket(fromServer);
-            if (fromServer && IsBind) udpServer.Send(byteStream, channel, target, subTarget, cacheMode, id);
-            else udpClient.Send(byteStream, channel, target, subTarget, cacheMode);
-        }
 
-        private static void Intern_Send(ByteStream byteStream, UdpEndPoint remoteEndPoint, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
-        {
-            ThrowErrorIfWrongSocket(fromServer);
-            if (fromServer && IsBind) udpServer.Send(byteStream, channel, target, subTarget, cacheMode, remoteEndPoint);
-            else udpClient.Send(byteStream, channel, target, subTarget, cacheMode);
+            if (fromServer && IsBind)
+            {
+                udpServer.Send(byteStream, channel, target, subTarget, cacheMode, id);
+            }
+            else
+            {
+                udpClient.Send(byteStream, channel, target, subTarget, cacheMode);
+            }
         }
 
         internal static void OnMessage(ByteStream parameters, MessageType messageType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpEndPoint remoteEndPoint, bool isServer)
@@ -419,14 +563,21 @@ namespace Neutron.Core
             switch (messageType)
             {
                 case MessageType.Connect:
-                    if (isServer)
-                        Logger.Print($"The endpoint {remoteEndPoint} has been established.");
-                    OnConnected?.Invoke(isServer, new IPEndPoint(new IPAddress(remoteEndPoint.GetIPAddress()), remoteEndPoint.GetPort()), parameters);
-                    break;
+                    {
+                        if (isServer)
+                        {
+                            Logger.Print($"The endpoint {remoteEndPoint} has been successfully established.");
+                        }
+
+                        var ipAddress = new IPAddress(remoteEndPoint.GetIPAddress());
+                        var remoteIPEndPoint = new IPEndPoint(ipAddress, remoteEndPoint.GetPort());
+                        OnConnected?.Invoke(isServer, remoteIPEndPoint, parameters);
+                        break;
+                    }
                 case MessageType.Remote:
                     {
-                        ushort fromId = parameters.ReadUShort();
-                        ushort toId = parameters.ReadUShort();
+                        ushort sourceId = parameters.ReadUShort();
+                        ushort destinationId = parameters.ReadUShort();
                         byte remoteId = parameters.ReadByte();
                         byte instanceId = parameters.ReadByte();
 
@@ -440,44 +591,54 @@ namespace Neutron.Core
                             switch (cacheMode)
                             {
                                 case CacheMode.Append:
-                                    Logger.PrintError("Cache System -> Append is not supported!");
+                                    Logger.PrintError("Cache System -> Append is not supported yet. Support will be added in a future update.");
+                                    Logger.PrintWarning("Warning: The 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption. This is caused by sending all stored states when using the 'Append' mode. Please use 'Overwrite' mode instead.");
                                     break;
                                 case CacheMode.Overwrite:
                                     {
-                                        var key = (remoteId, instanceId, fromId);
+                                        var key = (remoteId, instanceId, sourceId);
                                         if (globalRemoteCache.TryGetValue(key, out NeutronCache cache))
+                                        {
                                             cache.SetData(message.Buffer, message.BytesWritten);
+                                        }
                                         else
                                         {
                                             byte[] data = new byte[Instance.udpPacketSize];
                                             Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            NeutronCache globalRemoteCache = new(data, message.BytesWritten, fromId, toId, 0, 0, remoteId, instanceId, default, channel, default);
-                                            if (!NeutronNetwork.globalRemoteCache.TryAdd(key, globalRemoteCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                            NeutronCache newCache = new(data, message.BytesWritten, sourceId, destinationId, 0, 0, remoteId, instanceId, default, channel, default);
+                                            if (!globalRemoteCache.TryAdd(key, newCache))
+                                            {
+                                                Logger.PrintError("Could not create cache, hash key already exists?");
+                                            }
                                         }
+                                        break;
                                     }
-                                    break;
                             }
 #endif
                         }
                         #endregion
 
                         #region Process RPC
-                        switch (NeutronHelper.GetSubTarget(isServer, subTarget))
+                        SubTarget processedSubTarget = NeutronHelper.GetSubTarget(isServer, subTarget);
+                        switch (processedSubTarget)
                         {
                             case SubTarget.Server:
                                 {
                                     var rpc = NeutronBehaviour.GetRpc(remoteId, instanceId, isServer);
-                                    rpc?.Invoke(parameters, fromId, toId, isServer, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
+                                    rpc?.Invoke(parameters, sourceId, destinationId, isServer, new RemoteStats(NeutronTime.Time, parameters.BytesRemaining));
+                                    break;
                                 }
-                                break;
                         }
                         #endregion
 
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            Remote(remoteId, instanceId, fromId, toId, isServer, message, channel, target, SubTarget.None, cacheMode);
+                        {
+                            Remote(remoteId, instanceId, sourceId, destinationId, isServer, message, channel, target, SubTarget.None, cacheMode);
+                        }
                         #endregion
+
                     }
                     break;
                 case MessageType.RemoteStatic:
@@ -976,7 +1137,7 @@ namespace Neutron.Core
             message.Write(instanceId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
+            SendDataViaSocket(message, NeutronHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
@@ -989,7 +1150,7 @@ namespace Neutron.Core
             message.Write(instanceId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
+            SendDataViaSocket(message, NeutronHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
@@ -1002,7 +1163,7 @@ namespace Neutron.Core
             message.Write(sceneId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
+            SendDataViaSocket(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
@@ -1016,7 +1177,7 @@ namespace Neutron.Core
             message.Write(sceneId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
+            SendDataViaSocket(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
@@ -1027,7 +1188,7 @@ namespace Neutron.Core
             message.Write((byte)cacheType);
             message.Write(cacheId);
             message.Write(ownerCache);
-            Intern_Send(message, playerId, fromServer, channel, Target.Me, SubTarget.None, CacheMode.None);
+            SendDataViaSocket(message, playerId, fromServer, channel, Target.Me, SubTarget.None, CacheMode.None);
             message.Release();
         }
 
@@ -1038,7 +1199,7 @@ namespace Neutron.Core
             message.Write(playerId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
+            SendDataViaSocket(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
@@ -1052,7 +1213,7 @@ namespace Neutron.Core
             message.Write(sceneId);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
+            SendDataViaSocket(message, NeutronHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
             message.Release();
         }
 
@@ -1063,7 +1224,7 @@ namespace Neutron.Core
             message.Write((byte)eventType);
             message.Write(msg);
             msg.Release();
-            Intern_Send(message, NetworkId, true, Channel.Reliable, target, SubTarget.None, CacheMode.None);
+            SendDataViaSocket(message, NetworkId, true, Channel.Reliable, target, SubTarget.None, CacheMode.None);
             message.Release();
 #else
             Logger.PrintError("Fire Event not work on client side!");

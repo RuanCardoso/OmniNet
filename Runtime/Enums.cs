@@ -97,7 +97,7 @@ namespace Neutron.Core
             Overwrite = 2,
         }
 
-        internal enum ObjectType : byte
+        public enum ObjectType : byte
         {
             Player = 0,
             Dynamic = 1,

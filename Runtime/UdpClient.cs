@@ -15,6 +15,7 @@
 using System.Collections;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using UnityEngine;
 using static Neutron.Core.Enums;
 using static Neutron.Core.NeutronNetwork;
@@ -61,6 +62,17 @@ namespace Neutron.Core
             this.remoteEndPoint = remoteEndPoint;
             WINDOW(this.remoteEndPoint);
             Instance.StartCoroutine(Connect());
+
+            // Check if the host is available
+            Task.Run(async () =>
+            {
+                await Task.Delay(10000);
+                if (!IsConnected)
+                {
+                    Logger.LogError("Sorry, it seems that the host is currently unavailable. Please try again later.");
+                    Instance.StopCoroutine(Connect());
+                }
+            });
         }
 
         internal void Disconnect()
@@ -75,6 +87,7 @@ namespace Neutron.Core
         {
             Instance.StopCoroutine(Connect());
             Instance.StopCoroutine(Ping());
+
             IsConnected = false;
             remoteEndPoint = null;
         }
@@ -91,6 +104,7 @@ namespace Neutron.Core
                 Send(message, Channel.Unreliable, Target.Me);
                 message.Release();
                 yield return WAIT_FOR_CONNECT;
+                Logger.Log("Retrying to establish connection...");
             }
         }
 

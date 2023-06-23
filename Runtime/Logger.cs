@@ -28,6 +28,7 @@ namespace Neutron.Core
         public static void LogWarning(object message) => Debug.LogFormat(LogType.Warning, LogOption.None, null, "{0}", message);
         public static void LogStacktrace(Exception message) => Debug.LogException(message);
         public static void Inline(object message) => Print(string.Format("\r{0}", message));
+        public static void Clear() => Debug.ClearDeveloperConsole();
 #else
         public static void Print(object message) => Console.WriteLine(message);
         public static void PrintError(object message) => Console.WriteLine(message);
@@ -37,6 +38,7 @@ namespace Neutron.Core
         public static void LogWarning(object message) => Console.WriteLine(message);
         public static void LogStacktrace(Exception message) => Console.WriteLine(message);
         public static void Inline(object message) => Console.Write("\r{0}", message);
+        public static void Clear() => Console.Clear();
 #endif
     }
 }

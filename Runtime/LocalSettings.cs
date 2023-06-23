@@ -28,7 +28,7 @@ namespace Neutron.Core
             [SerializeField] internal string Ip;
         }
 
-        [InfoBox("Click \"Reload scripts\" before build!", EInfoBoxType.Warning)]
+        [InfoBox("Please ensure that the active platform in 'Build Settings' matches the platform displayed by Atom. If they don't match, click on 'Request Script Compilation'.", EInfoBoxType.Warning)]
         [ReadOnly][AllowNesting][Label("")][Space(3)] public string name = "No Plataform!";
 
         public Host[] hosts = {
