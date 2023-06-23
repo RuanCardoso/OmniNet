@@ -9,6 +9,25 @@ A AtomNet é um framework de Unity criado com o objetivo de proporcionar um alto
 
 Decidi aproveitar essas novas funcionalidades para criar um framework de networking de alto desempenho.
 
+## Pré-requisitos
+
+Antes de usar este projeto, certifique-se de ter a seguinte dependência instalada:
+
+- [com.unity.nuget.newtonsoft-json](https://github.com/jilleJr/Newtonsoft.Json-for-Unity)
+
+Este pacote é necessário para lidar com a serialização e deserialização de JSON no projeto AtomNet. No entanto, é importante ressaltar que o AtomNet utiliza serialização binária para alcançar alta performance em suas operações.
+
+Você pode instalá-lo através do Unity Package Manager seguindo estes passos:
+
+1. Abra o Unity Editor.
+2. Vá para **Window > Package Manager**.
+3. Clique no botão **+** no canto superior esquerdo da janela do Package Manager.
+4. Selecione **Add package by name...**.
+5. Insira `com.unity.nuget.newtonsoft-json` como o nome do pacote.
+6. Clique em **Add**.
+
+No entanto, para obter um desempenho otimizado com o AtomNet, ele utiliza serialização binária em vez de JSON para suas operações principais.
+
 ## Documentação
 
 [Documentação](../../wiki) - Aqui está a documentação completa do projeto.
