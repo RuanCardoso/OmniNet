@@ -104,7 +104,11 @@ namespace Neutron.Core
                 Send(message, Channel.Unreliable, Target.Me);
                 message.Release();
                 yield return WAIT_FOR_CONNECT;
-                Logger.Log("Retrying to establish connection...");
+
+                if (!IsConnected)
+                {
+                    Logger.Log("Retrying to establish connection...");
+                }
             }
         }
 
