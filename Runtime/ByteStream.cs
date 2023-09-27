@@ -577,8 +577,17 @@ namespace Neutron.Core
             return true;
         }
 
+        private static void ThrowIfNotInitialized()
+        {
+            if (streams == null)
+            {
+                Logger.PrintError("Atom is not initialized?");
+            }
+        }
+
         public static ByteStream Get()
         {
+            ThrowIfNotInitialized();
             ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
@@ -588,6 +597,7 @@ namespace Neutron.Core
 
         internal static ByteStream Get(MessageType msgType)
         {
+            ThrowIfNotInitialized();
             ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
@@ -600,12 +610,7 @@ namespace Neutron.Core
         internal static ByteStream Get(MessageType msgType, bool isEmpty)
 #pragma warning restore IDE0060
         {
-            if (streams == null)
-            {
-                Logger.PrintError("Atom is not initialized?");
-                return new ByteStream(0, false);
-            }
-
+            ThrowIfNotInitialized();
             ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
