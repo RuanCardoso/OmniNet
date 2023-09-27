@@ -600,6 +600,12 @@ namespace Neutron.Core
         internal static ByteStream Get(MessageType msgType, bool isEmpty)
 #pragma warning restore IDE0060
         {
+            if (streams == null)
+            {
+                Logger.PrintError("Atom is not initialized?");
+                return new ByteStream(0, false);
+            }
+
             ByteStream _get_ = streams.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
