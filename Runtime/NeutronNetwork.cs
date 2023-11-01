@@ -295,14 +295,14 @@ namespace Neutron.Core
         private void OnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
         {
 #if UNITY_SERVER && !UNITY_EDITOR
-           Logger.Log("The scene X was loaded.");
+            Logger.Log($"The scene X was loaded -> {scene.name}");
 #endif
         }
 
         private void OnSceneUnloaded(Scene scene)
         {
 #if UNITY_SERVER && !UNITY_EDITOR
-            Logger.Log("The scene X was unloaded.");
+            Logger.Log($"The scene X was unloaded -> {scene.name}");
 #endif
         }
 
