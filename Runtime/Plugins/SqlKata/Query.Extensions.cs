@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+using Newtonsoft.Json;
 using System;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 using System.Data;
 using System.Threading;
-using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 namespace Neutron.Database
 {
@@ -343,9 +343,11 @@ namespace Neutron.Database
             return await query.AggregateAsync<T>("max", new[] { column }, transaction, timeout, cancellationToken);
         }
 
-        public static T Deserialize<T>(this object obj)
+        public static T To<T>(this Query query)
         {
-            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj));
+            var toJsonObject = query.First<object>();
+            var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
+            return JsonConvert.DeserializeObject<T>(fromJsonObject);
         }
 
         internal static XQuery CastToXQuery(Query query, string method = null)

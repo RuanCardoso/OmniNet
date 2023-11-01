@@ -17,6 +17,7 @@ using MessagePack.Resolvers;
 using MessagePack.Unity;
 using MessagePack.Unity.Extension;
 using NaughtyAttributes;
+using Newtonsoft.Json.Utilities;
 using System;
 #if NEUTRON_MULTI_THREADED
 using System.Collections.Concurrent;
@@ -178,13 +179,16 @@ namespace Neutron.Core
         private void Awake()
         {
             Instance = this;
+            ByteStream.bsPool = new(byteStreams);
             dispatcher = GetComponent<ActionDispatcher>();
-            AddResolver(default);
+
+            var msgOptions = AddResolver(default);
+            AotHelper.EnsureDictionary<string, object>();
+
             if (dontDestroy)
             {
                 DontDestroyOnLoad(gameObject);
             }
-            ByteStream.streams = new(byteStreams);
 
             // Wait for Seconds
             WAIT_FOR_CONNECT = new(reconnectionTime);

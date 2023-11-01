@@ -25,7 +25,7 @@ namespace Neutron.Core
 {
     public sealed class ByteStream
     {
-        internal static ByteStreamPool streams;
+        internal static ByteStreamPool bsPool;
         internal bool isRawBytes;
 
         private int position;
@@ -579,7 +579,7 @@ namespace Neutron.Core
 
         private static void ThrowIfNotInitialized()
         {
-            if (streams == null)
+            if (bsPool == null)
             {
                 Logger.PrintError("Atom is not initialized?");
             }
@@ -588,7 +588,7 @@ namespace Neutron.Core
         public static ByteStream Get()
         {
             ThrowIfNotInitialized();
-            ByteStream _get_ = streams.Get();
+            ByteStream _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
@@ -598,7 +598,7 @@ namespace Neutron.Core
         internal static ByteStream Get(MessageType msgType)
         {
             ThrowIfNotInitialized();
-            ByteStream _get_ = streams.Get();
+            ByteStream _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
@@ -611,7 +611,7 @@ namespace Neutron.Core
 #pragma warning restore IDE0060
         {
             ThrowIfNotInitialized();
-            ByteStream _get_ = streams.Get();
+            ByteStream _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
@@ -633,7 +633,7 @@ namespace Neutron.Core
                 else
                 {
                     isRelease = true;
-                    streams.Release(this);
+                    bsPool.Release(this);
                 }
             }
             else Write();
