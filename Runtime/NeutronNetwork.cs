@@ -192,6 +192,8 @@ namespace Neutron.Core
             WAIT_FOR_CHECK_REC_PING = new(pingSweepTime);
 
             // Registers
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
             OnConnected += NeutronNetwork_OnConnected;
 
             // Framerate
@@ -288,6 +290,20 @@ namespace Neutron.Core
             {
                 LoadNextScene(isServer);
             }
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
+        {
+#if UNITY_SERVER && !UNITY_EDITOR
+           Logger.Log("The scene X was loaded.");
+#endif
+        }
+
+        private void OnSceneUnloaded(Scene scene)
+        {
+#if UNITY_SERVER && !UNITY_EDITOR
+            Logger.Log("The scene X was unloaded.");
+#endif
         }
 
         private void LoadNextScene(bool isServer)

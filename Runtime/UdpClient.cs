@@ -69,7 +69,7 @@ namespace Neutron.Core
                 await Task.Delay(10000);
                 if (!IsConnected)
                 {
-                    Logger.LogError("Sorry, it seems that the host is currently unavailable. Please try again later.");
+                    Logger.LogError($"Sorry, it seems that the host is currently unavailable. Please try again later -> {remoteEndPoint}");
                     Instance.StopCoroutine(Connect());
                 }
             });
