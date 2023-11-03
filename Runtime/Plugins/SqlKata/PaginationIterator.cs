@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class PaginationIterator<T> : IEnumerable<PaginationResult<T>>
     {

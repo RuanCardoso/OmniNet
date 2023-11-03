@@ -2,7 +2,7 @@ using System;
 using System.Data;
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class XQuery : Query
     {

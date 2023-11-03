@@ -13,14 +13,14 @@
     ===========================================================*/
 
 using System;
-using static Neutron.Core.Enums;
+using static Omni.Core.Enums;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     [Serializable]
     public class SyncRefCustom<T> : SyncBase<T> where T : class, ISyncCustom
     {
-        public SyncRefCustom(NeutronObject @this, T value, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority, value)
+        public SyncRefCustom(OmniObject @this, T value, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority, value)
         {
             @this.OnSyncBase += (id, message) =>
             {

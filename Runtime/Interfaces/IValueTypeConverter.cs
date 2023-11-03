@@ -12,7 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal interface IValueTypeConverter<T>
     {

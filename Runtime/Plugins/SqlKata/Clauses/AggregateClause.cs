@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     /// <summary>
     /// Represents aggregate clause like "COUNT", "MAX" or etc.

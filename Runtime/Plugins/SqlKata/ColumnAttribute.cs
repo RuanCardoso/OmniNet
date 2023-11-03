@@ -1,6 +1,6 @@
 using System;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     /// <summary>
     /// This class is used as metadata on a property to generate different name in the output query.

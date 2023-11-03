@@ -15,7 +15,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal class ValueTypeConverter : IValueTypeConverter<int>, IValueTypeConverter<bool>, IValueTypeConverter<float>, IValueTypeConverter<byte>
     {

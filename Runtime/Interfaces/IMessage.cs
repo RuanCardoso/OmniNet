@@ -14,7 +14,7 @@
 
 using MessagePack;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public interface IMessage
     {

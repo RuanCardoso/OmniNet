@@ -1,6 +1,6 @@
 using System;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public static class QueryForExtensions
     {

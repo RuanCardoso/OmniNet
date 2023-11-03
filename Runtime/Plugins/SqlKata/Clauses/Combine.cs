@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public abstract class AbstractCombine : AbstractClause
     {

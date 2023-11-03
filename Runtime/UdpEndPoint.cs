@@ -16,7 +16,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal class UdpEndPoint : IPEndPoint
     {
@@ -100,7 +100,7 @@ namespace Neutron.Core
         }
 
         public override int GetHashCode() => socketAddress.GetHashCode();
-        public override string ToString() => $"{NeutronHelper.ToAddress(GetIPAddress())}:{GetPort()}";
+        public override string ToString() => $"{OmniHelper.ToAddress(GetIPAddress())}:{GetPort()}";
         public override bool Equals(object obj) => obj is UdpEndPoint other && GetIPAddress() == other.GetIPAddress() && GetPort() == other.GetPort();
     }
 }

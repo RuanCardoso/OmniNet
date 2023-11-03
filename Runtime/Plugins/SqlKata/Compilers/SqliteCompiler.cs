@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class SqliteCompiler : Compiler
     {

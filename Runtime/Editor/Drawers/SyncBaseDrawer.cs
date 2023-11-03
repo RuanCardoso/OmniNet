@@ -17,7 +17,7 @@ using NaughtyAttributes.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Neutron.Core.Inspector
+namespace Omni.Core.Inspector
 {
     [CustomPropertyDrawer(typeof(SyncBase<>), true)]
     [CanEditMultipleObjects]

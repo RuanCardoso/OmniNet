@@ -12,23 +12,23 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
 using System.Collections.Concurrent;
 #else
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using static Neutron.Core.Enums;
+using static Omni.Core.Enums;
 #endif
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal sealed class UdpServer : UdpSocket
     {
-        protected override string Name => "Neutron_Server";
+        protected override string Name => "Omni_Server";
         protected override bool IsServer => true;
 
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         private readonly ConcurrentDictionary<ushort, UdpClient> clients = new();
 #else
         private readonly Dictionary<ushort, UdpClient> clients = new();
@@ -50,9 +50,9 @@ namespace Neutron.Core
                 case MessageType.Connect:
                     {
                         ushort uniqueId = (ushort)remoteEndPoint.GetPort();
-                        if (uniqueId == NeutronNetwork.Port)
+                        if (uniqueId == OmniNetwork.Port)
                         {
-                            Logger.LogWarning($"Client denied! Exclusive port -> {NeutronNetwork.Port}");
+                            Logger.LogWarning($"Client denied! Exclusive port -> {OmniNetwork.Port}");
                             return;
                         }
 
@@ -67,7 +67,7 @@ namespace Neutron.Core
                             #endregion
 
                             #region Process Message
-                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                            OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                             #endregion
                         }
                         else
@@ -90,11 +90,11 @@ namespace Neutron.Core
                         UdpClient client = GetClient(remoteEndPoint);
                         if (client != null)
                         {
-                            client.lastTimeReceivedPing = NeutronTime.LocalTime;
+                            client.lastTimeReceivedPing = OmniTime.LocalTime;
                             double timeOfClient = RECV_STREAM.ReadDouble();
                             ByteStream stream = ByteStream.Get(messageType);
                             stream.Write(timeOfClient);
-                            stream.Write(NeutronTime.LocalTime);
+                            stream.Write(OmniTime.LocalTime);
                             client.Send(stream, channel, target);
                             stream.Release();
                         }
@@ -102,7 +102,7 @@ namespace Neutron.Core
                     }
                     break;
                 default:
-                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                    OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                     break;
             }
         }
@@ -190,7 +190,7 @@ namespace Neutron.Core
 
         private bool RemoveClient(ushort uniqueId, out UdpClient disconnected)
         {
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
             return clients.Remove(uniqueId, out disconnected);
 #else
             return clients.TryRemove(uniqueId, out disconnected);
@@ -209,7 +209,7 @@ namespace Neutron.Core
             ushort uniqueId = (ushort)endPoint.GetPort();
             if (RemoveClient(uniqueId, out UdpClient disconnected))
             {
-                NeutronNetwork.ClearAllCaches(uniqueId);
+                OmniNetwork.ClearAllCaches(uniqueId);
                 disconnected.Close(true);
                 Logger.Print(string.Format(msg, endPoint));
             }
@@ -225,12 +225,12 @@ namespace Neutron.Core
                 {
                     UdpClient client = clients[i];
                     if (client.itSelf) continue;
-                    if ((NeutronTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
+                    if ((OmniTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
                         Disconnect(client.remoteEndPoint, "The endpoint {0} has been disconnected! Note: Because the server got no response from it.");
                     else continue;
                 }
 
-                yield return NeutronNetwork.WAIT_FOR_CHECK_REC_PING;
+                yield return OmniNetwork.WAIT_FOR_CHECK_REC_PING;
             }
         }
     }

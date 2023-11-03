@@ -14,7 +14,7 @@
 
 using System;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public interface ISyncBase
     {

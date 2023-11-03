@@ -12,7 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public struct RemoteStats
     {

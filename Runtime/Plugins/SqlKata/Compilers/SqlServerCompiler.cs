@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class SqlServerCompiler : Compiler
     {

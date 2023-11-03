@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class SqlResult
     {

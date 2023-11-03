@@ -1,4 +1,4 @@
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class MySqlCompiler : Compiler
     {

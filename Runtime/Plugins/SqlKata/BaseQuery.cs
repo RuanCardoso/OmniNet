@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public abstract class AbstractQuery
     {

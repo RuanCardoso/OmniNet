@@ -5,7 +5,7 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public static class QueryExtensions
     {

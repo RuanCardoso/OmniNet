@@ -12,14 +12,14 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
 using System.Collections.Concurrent;
 #else
 using System.Collections.Generic;
 #endif
 using System.Net;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public class Player
     {
@@ -27,7 +27,7 @@ namespace Neutron.Core
         public string Name { get; private set; }
         public IPEndPoint IPEndPoint { get; }
         public int DatabaseId { get; private set; }
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         public readonly ConcurrentDictionary<ushort, object> properties = new();
 #else
         public readonly Dictionary<ushort, object> properties = new();

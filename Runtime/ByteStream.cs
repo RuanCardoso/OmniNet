@@ -19,9 +19,9 @@ using MessagePack;
 using Newtonsoft.Json;
 using System;
 using UnityEngine;
-using static Neutron.Core.Enums;
+using static Omni.Core.Enums;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public sealed class ByteStream
     {
@@ -215,7 +215,7 @@ namespace Neutron.Core
 
         public void Write(string value)
         {
-            var encoding = NeutronNetwork.Instance.Encoding;
+            var encoding = OmniNetwork.Instance.Encoding;
             int length = encoding.GetByteCount(value);
             byte[] encoded = encoding.GetBytes(value);
             // write the length of string.
@@ -466,7 +466,7 @@ namespace Neutron.Core
 
         public string ReadString()
         {
-            var encoding = NeutronNetwork.Instance.Encoding;
+            var encoding = OmniNetwork.Instance.Encoding;
             // Read the length of string.
             int length = Read7BitEncodedInt();
             // Initialize new Matrix with the specified length.
@@ -581,7 +581,7 @@ namespace Neutron.Core
         {
             if (bsPool == null)
             {
-                Logger.PrintError("Atom is not initialized?");
+                Logger.PrintError("Omni is not initialized?");
             }
         }
 

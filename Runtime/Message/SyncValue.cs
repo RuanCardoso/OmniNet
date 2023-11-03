@@ -13,14 +13,14 @@
     ===========================================================*/
 
 using System;
-using static Neutron.Core.Enums;
+using static Omni.Core.Enums;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     [Serializable]
     public class SyncValue<T> : SyncBase<T> where T : unmanaged
     {
-        public SyncValue(NeutronObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
+        public SyncValue(OmniObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
         {
             Type _ = value.GetType();
             if (_.IsEnum)
@@ -42,7 +42,7 @@ namespace Neutron.Core
     [Serializable]
     public class SyncValue : SyncBase<Trigger>
     {
-        public SyncValue(NeutronObject @this, Action onChanged, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, default, channel, target, subTarget, cacheMode, authority)
+        public SyncValue(OmniObject @this, Action onChanged, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, default, channel, target, subTarget, cacheMode, authority)
         {
             @this.OnSyncBase += (id, message) =>
             {
@@ -66,7 +66,7 @@ namespace Neutron.Core
         where T : unmanaged
     {
         public T Value => base.Get();
-        public SyncValue(NeutronObject @this, Enum value = default, Action<Enum> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, (T)Convert.ChangeType(value, typeof(T)), channel, target, subTarget, cacheMode, authority, value)
+        public SyncValue(OmniObject @this, Enum value = default, Action<Enum> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, (T)Convert.ChangeType(value, typeof(T)), channel, target, subTarget, cacheMode, authority, value)
         {
             @this.OnSyncBase += (id, message) =>
             {

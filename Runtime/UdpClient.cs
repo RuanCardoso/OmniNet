@@ -17,17 +17,17 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using UnityEngine;
-using static Neutron.Core.Enums;
-using static Neutron.Core.NeutronNetwork;
+using static Omni.Core.Enums;
+using static Omni.Core.OmniNetwork;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal sealed class UdpClient : UdpSocket
     {
         public Player Player { get; }
         internal int Id { get; private set; }
 
-        protected override string Name => "Neutron_Client";
+        protected override string Name => "Omni_Client";
         protected override bool IsServer => false;
 
         internal double lastTimeReceivedPing;
@@ -50,7 +50,7 @@ namespace Neutron.Core
             Initialize();
             IsConnected = true;
             globalSocket = socket;
-            lastTimeReceivedPing = NeutronTime.LocalTime;
+            lastTimeReceivedPing = OmniTime.LocalTime;
             Id = remoteEndPoint.GetPort();
             Player = new(Id, remoteEndPoint);
             this.remoteEndPoint = new(remoteEndPoint.GetIPAddress(), Id); // copy endpoint to avoid reference problems!
@@ -120,7 +120,7 @@ namespace Neutron.Core
             {
                 ByteStream message = ByteStream.Get();
                 message.WritePacket(MessageType.Ping);
-                message.Write(NeutronTime.LocalTime);
+                message.Write(OmniTime.LocalTime);
                 Send(message, Channel.Unreliable, Target.Me);
                 message.Release();
                 yield return WAIT_FOR_PING;
@@ -155,7 +155,7 @@ namespace Neutron.Core
                             Id = RECV_STREAM.ReadUShort();
                             IsConnected = true;
                             Instance.StartCoroutine(Ping());
-                            NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                            OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                         }
                         else Logger.PrintError("The client is already connected!");
                     }
@@ -164,11 +164,11 @@ namespace Neutron.Core
                     {
                         double timeOfClient = RECV_STREAM.ReadDouble();
                         double timeOfServer = RECV_STREAM.ReadDouble();
-                        NeutronTime.SetTime(timeOfClient, timeOfServer);
+                        OmniTime.SetTime(timeOfClient, timeOfServer);
                     }
                     break;
                 default:
-                    NeutronNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                    OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                     break;
             }
         }

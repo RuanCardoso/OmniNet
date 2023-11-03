@@ -64,7 +64,7 @@ namespace MessagePack
 
         private static void Throw(Type t, IFormatterResolver resolver)
         {
-            throw new FormatterNotRegisteredException($"Formatter for type {t.FullName} is not registered. Please call NeutronNetwork.AddResolver(resolver) before. If it is already registered, verify that the serialized type is public.");
+            throw new FormatterNotRegisteredException($"Formatter for type {t.FullName} is not registered. Please call OmniNetwork.AddResolver(resolver) before. If it is already registered, verify that the serialized type is public.");
         }
 
         private static readonly ThreadsafeTypeKeyHashTable<Func<IFormatterResolver, IMessagePackFormatter>> FormatterGetters =

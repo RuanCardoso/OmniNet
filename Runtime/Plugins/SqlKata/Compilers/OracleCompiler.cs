@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class OracleCompiler : Compiler
     {

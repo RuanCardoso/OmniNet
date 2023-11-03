@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class FirebirdCompiler : Compiler
     {

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public partial class Query
     {

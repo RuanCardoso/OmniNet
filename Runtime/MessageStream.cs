@@ -13,9 +13,9 @@
     ===========================================================*/
 
 using System.IO;
-using static Neutron.Core.NeutronNetwork;
+using static Omni.Core.PlatformSettings;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public class MessageStream : Stream
     {
@@ -26,7 +26,7 @@ namespace Neutron.Core
         public override long Position { get => msgStream.Position; set => msgStream.Position = (int)value; }
 
         private readonly ByteStream msgStream;
-        public MessageStream() => msgStream = new(Instance.udpPacketSize);
+        public MessageStream() => msgStream = new(ServerSettings.maxPacketSize);
 
         public override void Write(byte[] buffer, int offset, int count) => msgStream.Write(buffer, offset, count);
         public override int Read(byte[] buffer, int offset, int count)
@@ -38,6 +38,6 @@ namespace Neutron.Core
         public ByteStream GetStream() => msgStream;
         public override void Flush() => msgStream.Write();
         public override long Seek(long offset, SeekOrigin origin) => throw new System.NotImplementedException("This operation is not supported, but you can modify the Position property!");
-        public override void SetLength(long value) => throw new System.NotImplementedException("This operation is not supported as a neutron buffer is not resizable!");
+        public override void SetLength(long value) => throw new System.NotImplementedException("This operation is not supported as a omni buffer is not resizable!");
     }
 }

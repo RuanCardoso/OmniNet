@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public static class Helper
     {

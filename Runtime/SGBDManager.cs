@@ -15,7 +15,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public class SGBDManager
     {

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Dapper;
 using Humanizer;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class QueryFactory : IDisposable
     {

@@ -15,7 +15,7 @@
 using System;
 using UnityEngine;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public static class Logger
     {

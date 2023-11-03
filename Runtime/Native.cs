@@ -16,7 +16,7 @@ using System;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal static class Native
     {

@@ -12,7 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
 using System.Collections;
 using UnityEngine;
 #else
@@ -20,9 +20,9 @@ using System.Threading.Tasks;
 #endif
 using System.Threading;
 using System;
-using static Neutron.Core.NeutronNetwork;
+using static Omni.Core.PlatformSettings;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public class Window
     {
@@ -34,7 +34,7 @@ namespace Neutron.Core
         {
             if (window == null)
             {
-                windowSize = Instance.windowSize;
+                windowSize = ServerSettings.windowSize;
                 window = new ByteStream[windowSize];
                 Resize(window.Length - 1);
             }
@@ -48,7 +48,7 @@ namespace Neutron.Core
                 Array.Resize(ref window, window.Length + size);
             }
 
-            for (int i = lastIndex; i < window.Length; i++) window[i] = new(Instance.udpPacketSize);
+            for (int i = lastIndex; i < window.Length; i++) window[i] = new(ServerSettings.maxPacketSize);
             if (lastIndex != window.Length) lastIndex = window.Length;
         }
     }
@@ -60,7 +60,7 @@ namespace Neutron.Core
         private const int WINDOW_SIZE_COMPENSATION = 2;
 #pragma warning restore IDE0051
         private int sequence = -1;
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         private readonly object window_resize_lock = new();
 #endif
         #endregion
@@ -73,14 +73,14 @@ namespace Neutron.Core
             }
             else Logger.PrintError($"Ack: Discarded, it's out of window limits -> {sequence}:{window.Length}");
         }
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         internal int GetSequence() => Interlocked.Increment(ref sequence);
 #else
         internal int GetSequence() => ++sequence;
 #endif
         internal ByteStream GetWindow(int sequence)
         {
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
             lock (window_resize_lock)
 #endif
             {
@@ -89,26 +89,26 @@ namespace Neutron.Core
             }
         }
 
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
 #else
         internal IEnumerator Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
 #endif
         {
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
             ThreadPool.QueueUserWorkItem(async (o) =>
 #endif
             {
                 int nextSequence = 0;
-                double timeout = Instance.platformSettings.ackTimeout;
-                int sweep = Instance.platformSettings.ackSweep;
-#if !NEUTRON_MULTI_THREADED
+                double timeout = ServerSettings.ackTimeout;
+                int sweep = ServerSettings.ackSweep;
+#if !OMNI_MULTI_THREADED
                 var yieldSec = new WaitForSeconds(sweep / 1000f); // avoid gc alloc;
 #endif
                 while (!token.IsCancellationRequested)
                 {
-#if NEUTRON_AGRESSIVE_RELAY
-#if NEUTRON_MULTI_THREADED
+#if OMNI_AGRESSIVE_RELAY
+#if OMNI_MULTI_THREADED
                     int sequence = Interlocked.CompareExchange(ref this.sequence, 0, 0) + WINDOW_SIZE_COMPENSATION;
 #else
                     int sequence = this.sequence + WINDOW_SIZE_COMPENSATION;
@@ -118,7 +118,7 @@ namespace Neutron.Core
                     {
                         try
                         {
-#if NEUTRON_AGRESSIVE_RELAY
+#if OMNI_AGRESSIVE_RELAY
                             ByteStream window = this.window[i];
 #else
                             ByteStream window = this.window[nextSequence];
@@ -127,7 +127,7 @@ namespace Neutron.Core
                             {
                                 if (window.IsAcked == true)
                                 {
-#if !NEUTRON_AGRESSIVE_RELAY
+#if !OMNI_AGRESSIVE_RELAY
                                     nextSequence++;
                                     // remove the references to make it eligible for the garbage collector.
                                     this.window[nextSequence - 1] = null;
@@ -157,7 +157,7 @@ namespace Neutron.Core
                         }
                         catch (Exception ex)
                         {
-#if NEUTRON_AGRESSIVE_RELAY
+#if OMNI_AGRESSIVE_RELAY
                             Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
 #else
                             Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
@@ -166,14 +166,14 @@ namespace Neutron.Core
                         }
                     }
 
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
                     await Task.Delay(sweep); // gc alloc
 #else
                     yield return yieldSec; // gc alloc
 #endif
                 }
             }
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
             );
 #endif
         }

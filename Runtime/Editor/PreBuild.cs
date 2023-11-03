@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
-using Neutron.Core;
+using Omni.Core;
 
 public class PreBuildMessage : IPreprocessBuildWithReport
 {
@@ -14,7 +14,7 @@ public class PreBuildMessage : IPreprocessBuildWithReport
         if (PreBuildUtils.CheckNetworkManagerInScene())
         {
             // Exibe a mensagem antes da construção e verifica a resposta
-            bool shouldCancelBuild = EditorUtility.DisplayDialog("Atom", "Please ensure that the active platform in 'Build Settings' matches the platform displayed by Atom. If they don't match, click on 'Request Script Compilation'.", "Continue", "Cancel");
+            bool shouldCancelBuild = EditorUtility.DisplayDialog("Omni", "Please ensure that the active platform in 'Build Settings' matches the platform displayed by Omni. If they don't match, click on 'Request Script Compilation'.", "Continue", "Cancel");
 
             if (!shouldCancelBuild)
             {
@@ -24,7 +24,7 @@ public class PreBuildMessage : IPreprocessBuildWithReport
         }
         else
         {
-            throw new BuildFailedException("'AtomNetwork object not found!'");
+            throw new BuildFailedException("'OmniNetwork object not found!'");
         }
     }
 }
@@ -36,7 +36,7 @@ public class PreSwitchPlatformMessage : IActiveBuildTargetChanged
 
     public void OnActiveBuildTargetChanged(BuildTarget previousTarget, BuildTarget newTarget)
     {
-        EditorUtility.DisplayDialog("Atom", "Please ensure that the active platform in 'Build Settings' matches the platform displayed by Atom. If they don't match, click on 'Request Script Compilation'.", "Ok");
+        EditorUtility.DisplayDialog("Omni", "Please ensure that the active platform in 'Build Settings' matches the platform displayed by Omni. If they don't match, click on 'Request Script Compilation'.", "Ok");
     }
 }
 
@@ -44,9 +44,9 @@ public class PreBuildUtils
 {
     public static bool CheckNetworkManagerInScene()
     {
-        if (GameObject.FindObjectOfType<NeutronNetwork>() == null)
+        if (GameObject.FindObjectOfType<OmniNetwork>() == null)
         {
-            EditorUtility.DisplayDialog("Operation Error", "You need to have the 'AtomNetwork' object in the scene for this operation. Please switch to the scene that contains the 'AtomNetwork' object.", "Ok");
+            EditorUtility.DisplayDialog("Operation Error", "You need to have the 'OmniNetwork' object in the scene for this operation. Please switch to the scene that contains the 'OmniNetwork' object.", "Ok");
             return false;
         }
 

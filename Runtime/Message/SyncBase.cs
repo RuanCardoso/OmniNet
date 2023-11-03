@@ -14,9 +14,9 @@
 
 using System;
 using UnityEngine;
-using static Neutron.Core.Enums;
+using static Omni.Core.Enums;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     [Serializable]
     public class SyncBase<T> : ISyncBase, ISyncBaseValue<T>
@@ -40,14 +40,14 @@ namespace Neutron.Core
         private readonly bool isStruct;
         private readonly bool isReferenceType;
         private readonly bool isValueTypeSupported;
-        private readonly NeutronObject @this;
+        private readonly OmniObject @this;
         private readonly ISyncCustom ISerialize;
         private readonly Channel channel;
         private readonly Target target;
         private readonly SubTarget subTarget;
         private readonly CacheMode cacheMode;
         private readonly AuthorityMode authority;
-        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, Enum enumType = null)
+        public SyncBase(OmniObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, Enum enumType = null)
         {
             this.enumType = enumType;
             this.value = value;
@@ -66,7 +66,7 @@ namespace Neutron.Core
             TypeCode = Type.GetTypeCode(type);
         }
 
-        public SyncBase(NeutronObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISyncCustom ISerialize)
+        public SyncBase(OmniObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISyncCustom ISerialize)
         {
             this.value = value;
             this.@this = @this;

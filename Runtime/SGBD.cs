@@ -14,12 +14,12 @@
 
 using Mono.Data.Sqlite;
 using MySqlConnector;
-using Neutron.Database;
+using Omni.Database;
 using System;
 using System.Data;
 using UnityEngine;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public class SGBD : IDisposable
     {
@@ -75,7 +75,7 @@ namespace Neutron.Core
             }
         }
 
-        public void Initialize(string tableName, SGDBType dBType = SGDBType.SQLite, string connectionString = "Data Source=neutron_server_db.sqlite3", int timeout = 30)
+        public void Initialize(string tableName, SGDBType dBType = SGDBType.SQLite, string connectionString = "Data Source=omni_server_db.sqlite3", int timeout = 30)
         {
             try
             {

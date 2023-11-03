@@ -25,7 +25,7 @@ namespace MessagePack.Unity.Editor
 
         MpcArgument mpcArgument;
 
-        //[MenuItem("Neutron/Open CodeGen %F11")]
+        //[MenuItem("Omni/Open CodeGen %F11")]
         public static void OpenWindow()
         {
             if (window != null)
@@ -97,13 +97,13 @@ namespace MessagePack.Unity.Editor
                                 csProjFile = asmDef.Name.Replace(".asmdef", ".csproj");
                                 string inputPath = $"../{csProjFile}";
 
-                                bool mapMode = EditorUtility.DisplayDialog("Neutron", "Generate with map mode?", "Yes", "No");
+                                bool mapMode = EditorUtility.DisplayDialog("Omni", "Generate with map mode?", "Yes", "No");
                                 MpcArgument argument = new()
                                 {
                                     Input = inputPath,
                                     Output = $"../{outputPath}/code-gen",
                                     ResolverName = csProjFile.Replace(".csproj", "Resolver").Replace("Assembly-CSharp", "AssemblyCSharp"),
-                                    Namespace = "Neutron",
+                                    Namespace = "Omni",
                                     UseMapMode = mapMode,
                                 };
 

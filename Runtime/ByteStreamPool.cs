@@ -13,13 +13,13 @@
     ===========================================================*/
 
 using System.Collections.Generic;
-using static Neutron.Core.NeutronNetwork;
+using static Omni.Core.PlatformSettings;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal class ByteStreamPool
     {
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         private readonly object _lock = new();
 #endif
         private readonly Stack<ByteStream> pool = new();
@@ -27,23 +27,23 @@ namespace Neutron.Core
         public ByteStreamPool(int length = 128)
         {
             for (int i = 0; i < length; i++)
-                pool.Push(new ByteStream(Instance.udpPacketSize, true));
+                pool.Push(new ByteStream(ServerSettings.maxPacketSize, true));
         }
 
         public ByteStream Get()
         {
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
             lock (_lock)
 #endif
             {
-                return pool.Count == 0 ? new ByteStream(Instance.udpPacketSize, true) : pool.Pop();
+                return pool.Count == 0 ? new ByteStream(ServerSettings.maxPacketSize, true) : pool.Pop();
             }
         }
 
         public void Release(ByteStream stream)
         {
             stream.Write();
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
             lock (_lock)
 #endif
             {

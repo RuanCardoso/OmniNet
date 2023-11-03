@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public abstract class AbstractFrom : AbstractClause
     {

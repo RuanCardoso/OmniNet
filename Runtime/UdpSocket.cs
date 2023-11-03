@@ -13,7 +13,7 @@
     ===========================================================*/
 
 using System;
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
 using System.Collections;
 #else
 using ThreadPriority = System.Threading.ThreadPriority;
@@ -22,10 +22,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
-using static Neutron.Core.Enums;
-using static Neutron.Core.NeutronNetwork;
+using static Omni.Core.Enums;
+using static Omni.Core.OmniNetwork;
+using static Omni.Core.PlatformSettings;
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     internal abstract class UdpSocket
     {
@@ -55,8 +56,8 @@ namespace Neutron.Core
         {
             globalSocket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
             {
-                ReceiveBufferSize = Instance.platformSettings.recvBufferSize,
-                SendBufferSize = Instance.platformSettings.sendBufferSize,
+                ReceiveBufferSize = ClientSettings.recvBufferSize,
+                SendBufferSize = ClientSettings.sendBufferSize,
             };
 
             try
@@ -85,7 +86,7 @@ namespace Neutron.Core
                 Initialize();
                 globalSocket.ExclusiveAddressUse = true;
                 globalSocket.Bind(localEndPoint);
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
                 ReadData(); // Globally, used for all clients, not dispose or cancel this!
 #else
                 Instance.StartCoroutine(ReadData()); // Globally, used for all clients, do not dispose or cancel this!
@@ -105,7 +106,7 @@ namespace Neutron.Core
             }
         }
 
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         protected void WINDOW(UdpEndPoint remoteEndPoint) => SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
 #else
         protected void WINDOW(UdpEndPoint remoteEndPoint) => WINDOW_COROUTINE = Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
@@ -180,44 +181,44 @@ namespace Neutron.Core
             catch (ObjectDisposedException) { return 0; }
         }
 
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
         private void ReadData()
 #else
         private IEnumerator ReadData()
 #endif
         {
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
             new Thread(() =>
 #endif
             {
                 byte[] buffer = new byte[0x5DC];
                 EndPoint endPoint = new UdpEndPoint(0, 0);
-                int multiplier = Instance.platformSettings.recvMultiplier;
+                int multiplier = ClientSettings.recvMultiplier;
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                     if (globalSocket.Available <= 0) // prevents blocking of the main thread.
                     {
                         yield return null;
                         continue; // If there is no data we will just skip the execution.
                     }
 #endif
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
                     try
 #endif
                     {
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                         for (int i = 0; i < multiplier; i++)
 #endif
                         {
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                             if (globalSocket.Available <= 0) // prevents blocking of the main thread.
                             {
                                 yield return null;
                                 break; // Let's prevent our loop from spending unnecessary processing(CPU).
                             }
 #endif                            
-                            int totalBytesReceived = NeutronHelper.ReceiveFrom(globalSocket, buffer, endPoint, out SocketError errorCode);
+                            int totalBytesReceived = OmniHelper.ReceiveFrom(globalSocket, buffer, endPoint, out SocketError errorCode);
                             if (totalBytesReceived > 0)
                             {
                                 var remoteEndPoint = (UdpEndPoint)endPoint;
@@ -234,7 +235,7 @@ namespace Neutron.Core
                                     Logger.PrintError($"{Name} - ReadData - Invalid target -> {channel} or channel -> {target}");
                                     //*************************************************************************************************
                                     RECV_STREAM.Release();
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                                     yield return null;
 #endif
                                     continue; // skip
@@ -269,7 +270,7 @@ namespace Neutron.Core
                                                     if (msgRoute == RecvWindow.MessageRoute.Unk)
                                                     {
                                                         RECV_STREAM.Release();
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                                                         yield return null;
 #endif
                                                         continue; // skip
@@ -286,7 +287,7 @@ namespace Neutron.Core
                                                     if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
                                                     {
                                                         RECV_STREAM.Release();
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                                                         yield return null;
 #endif
                                                         continue; // skip
@@ -318,7 +319,7 @@ namespace Neutron.Core
                                                 else
                                                 {
                                                     RECV_STREAM.Release();
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                                                     yield return null;
 #endif
                                                     continue; // skip
@@ -339,14 +340,14 @@ namespace Neutron.Core
                                         Logger.PrintError("WSAECONNRESET -> The last send operation failed because the host is unreachable.");
                                     else Disconnect(null, "There was an unexpected disconnection!");
                                 }
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                                 yield return null;
 #endif
                                 continue;
                             }
                         }
                     }
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
                     catch (ThreadAbortException) { continue; }
                     catch (ObjectDisposedException) { continue; }
                     catch (SocketException ex)
@@ -364,12 +365,12 @@ namespace Neutron.Core
                         continue;
                     }
 #endif
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                     yield return null;
 #endif
                 }
             }
-#if NEUTRON_MULTI_THREADED
+#if OMNI_MULTI_THREADED
             )
             {
                 Name = Name,
@@ -383,7 +384,7 @@ namespace Neutron.Core
         {
             try
             {
-#if !NEUTRON_MULTI_THREADED
+#if !OMNI_MULTI_THREADED
                 Instance.StopCoroutine(WINDOW_COROUTINE);
 #endif
                 cancellationTokenSource.Cancel();

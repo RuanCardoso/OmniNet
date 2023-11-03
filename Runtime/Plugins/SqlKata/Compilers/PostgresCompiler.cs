@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace Neutron.Database
+namespace Omni.Database
 {
     public class PostgresCompiler : Compiler
     {

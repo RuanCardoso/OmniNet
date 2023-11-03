@@ -6,7 +6,7 @@
     Thanks: https://github.com/vis2k/Mirror/blob/master/Assets/Mirror/Runtime/ExponentialMovingAverage.cs
     ===========================================================*/
 
-namespace Neutron.Core
+namespace Omni.Core
 {
     public struct ExponentialMovingAverage
     {
