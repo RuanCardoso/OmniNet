@@ -1,13 +1,13 @@
-[![pt-br](https://img.shields.io/badge/lang-pt--br-green.svg)](https://github.com/RuanCardoso/AtomNet/blob/main/README.pt-br.md)
+[![pt-br](https://img.shields.io/badge/lang-pt--br-green.svg)](https://github.com/RuanCardoso/OmniNet/blob/main/README.pt-br.md)
 
-AtomNet - Networking at the Subatomic Level in Unity.
+OmniNet - Networking at the Subatomic Level in Unity.
 _______________________________________________________________________________
 
-# AtomNet - A Unity Framework for Multiplayer Game Development
+# OmniNet - A Unity Framework for Multiplayer Game Development
 
-AtomNet is a Unity framework created with a strong focus on achieving high-performance in the development of multiplayer games.
+OmniNet is a Unity framework created with a strong focus on achieving high-performance in the development of multiplayer games.
 
-**Requirements**: AtomNet is limited to Unity version 2021.2 or newer. This is because Unity introduced Support for .Net Standard 2.1 starting from version 2021.2, which brings improvements to the Network Socket and introduces new features like Span, Memory, ArrayPool, and more.
+**Requirements**: OmniNet is limited to Unity version 2021.2 or newer. This is because Unity introduced Support for .Net Standard 2.1 starting from version 2021.2, which brings improvements to the Network Socket and introduces new features like Span, Memory, ArrayPool, and more.
 
 I decided to leverage these new features to create a high-performance networking framework.
 
@@ -17,7 +17,7 @@ Before using this project, make sure you have the following dependency installed
 
 - [com.unity.nuget.newtonsoft-json](https://github.com/jilleJr/Newtonsoft.Json-for-Unity)
 
-This package is required for handling JSON serialization and deserialization in the AtomNet project. However, it's important to note that AtomNet utilizes binary serialization to achieve high performance in its operations.
+This package is required for handling JSON serialization and deserialization in the OmniNet project. However, it's important to note that OmniNet utilizes binary serialization to achieve high performance in its operations.
 
 You can install it through the Unity Package Manager by following these steps:
 
@@ -28,7 +28,7 @@ You can install it through the Unity Package Manager by following these steps:
 5. Enter `com.unity.nuget.newtonsoft-json` as the package name.
 6. Click **Add**.
 
-However, for optimized performance with AtomNet, it utilizes binary serialization instead of JSON for its core operations.
+However, for optimized performance with OmniNet, it utilizes binary serialization instead of JSON for its core operations.
 
 ## Documentation
 
