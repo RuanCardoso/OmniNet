@@ -14,6 +14,7 @@
 
 using NaughtyAttributes;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 #if UNITY_EDITOR
@@ -32,13 +33,15 @@ namespace Omni.Core
         public event Action OnAfterRegistered;
 
         [SerializeField][HideInInspector] internal bool itIsRegistered;
-        [ValidateInput("WarnIfNotRoot", "Root mode is enabled, but the identity is not on the root object.")]
+        [ValidateInput("WarnIfNotRoot", "Error: Root mode is enabled, but the current identity is not associated with the root object.")]
+
         [Header("Registration")]
         [SerializeField][ReadOnly] internal ushort id;
         [SerializeField][ReadOnly] internal ushort playerId;
         [SerializeField][ReadOnly][ShowIf("objectType", ObjectType.Scene)] internal byte sceneId;
         [SerializeField][Label("Mode")] internal ObjectType objectType = ObjectType.Player;
         [SerializeField][ReadOnly] private OmniObject[] networks;
+
 #if UNITY_SERVER && !UNITY_EDITOR
         [NonSerialized]
         internal bool isItFromTheServer = true;
@@ -47,55 +50,58 @@ namespace Omni.Core
         [HideInInspector]
         internal bool isItFromTheServer;
 #endif
+
         [Header("Editor")]
         [SerializeField] private bool simulateServerObj = true;
         [SerializeField] private bool drawGizmos = true;
-        [SerializeField] internal bool rootMode = true;
+        [SerializeField] private bool rootMode = true;
+
 #if UNITY_EDITOR
-        [SerializeField][HideInInspector] private bool loop = false;
+        [SerializeField][HideInInspector] private bool selfLooping = false;
 #endif
 
         private bool isInRoot = false;
-        private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, ushort, ushort, RemoteStats>> remoteMethods = new(); // [rpc id, instanceId]
         private Dictionary<byte, OmniObject> omniObjects;
+        private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, ushort, ushort, RemoteStats>> RPCMethods = new(); // [RPC ID, Instance Id]
 
         private Transform RootOr() => rootMode ? transform.root : transform;
 #pragma warning disable IDE0051
         private bool WarnIfNotRoot() => !rootMode || transform == transform.root;
 #pragma warning restore IDE0051
-        private void Awake()
+        private void Awake() => StartCoroutine(OmniAwake());
+        private IEnumerator OmniAwake()
         {
-            if (!OmniNetwork.IsConnected)
+            yield return new WaitUntil(() => OmniNetwork.IsConnected);
+            if (networks != null && networks.Length > 0)
             {
-                Logger.PrintError("Omni is not connected!");
-                Destroy(RootOr().gameObject);
-            }
-            else
-            {
-                if (networks != null && networks.Length > 0)
+                omniObjects = networks.Where(x => x != null).ToDictionary(k => k.id, v => v);
+                foreach (var nO in omniObjects.Values)
                 {
-                    omniObjects = networks.Where(x => x != null).ToDictionary(k => k.id, v => v);
-                    foreach (var nO in omniObjects.Values)
-                        nO.OnAwake();
+                    nO.OnAwake();
                 }
-                else { }
-#if UNITY_EDITOR
-                Clone();
-#endif
-                Register();
-                isInRoot = transform == RootOr();
             }
+#if UNITY_EDITOR
+            Clone();
+#endif
+            Register();
+            isInRoot = transform == RootOr();
         }
 
-#if UNITY_EDITOR // Visuale
+#if UNITY_EDITOR // Visuale only!
         private void DrawGizmos()
         {
             if (drawGizmos)
             {
                 Vector3 position = transform.position;
-                if (!isItFromTheServer) position.y += 0.1f;
-                else position.y -= 0.1f;
-                //----------------------------------------------------------
+                if (!isItFromTheServer)
+                {
+                    position.y += 0.1f;
+                }
+                else
+                {
+                    position.y -= 0.1f;
+                }
+
                 GameObject @object = new("@object");
                 @object.transform.position = position;
                 @object.transform.localScale = new(0.01f, 0.01f, 0.01f);
@@ -120,9 +126,9 @@ namespace Omni.Core
                 {
                     if (simulateServerObj)
                     {
-                        if (!loop)
+                        if (!selfLooping)
                         {
-                            loop = true;
+                            selfLooping = true;
                             Instantiate(gameObject);
                             name = $"{gameObject.name} -> [Client]";
                         }
@@ -145,7 +151,16 @@ namespace Omni.Core
                 if (!itIsRegistered)
                 {
                     itIsRegistered = true;
-                    playerId = isItFromTheServer ? OmniNetwork.NetworkId : (ushort)OmniNetwork.Id;
+#pragma warning disable IDE0045
+                    if (isItFromTheServer)
+                    {
+                        playerId = OmniNetwork.NetworkId;
+                    }
+                    else
+                    {
+                        playerId = (ushort)OmniNetwork.Id;
+                    }
+#pragma warning restore IDE0045
                     OmniNetwork.AddIdentity(this);
                     OnAfterRegistered?.Invoke();
                     OnAfterRegistered = null;
@@ -154,7 +169,10 @@ namespace Omni.Core
                     DrawGizmos();
 #endif
                 }
-                else Logger.PrintError("This object is already registered!");
+                else
+                {
+                    Logger.PrintError("Error: This object has already been registered.");
+                }
             }
         }
 
@@ -165,7 +183,7 @@ namespace Omni.Core
             {
                 if (objectType == ObjectType.Dynamic && id == 0)
                 {
-                    Debug.LogError("it is necessary to register a unique id for the dynamically instantiated object!");
+                    Logger.PrintError("Error: Dynamic objects require a unique ID for registration. The object will be destroyed.");
                     Destroy(gameObject);
                 }
                 else
@@ -176,11 +194,9 @@ namespace Omni.Core
                         itIsRegistered = true;
                         this.playerId = playerId;
                         this.id = objectType == ObjectType.Player ? playerId : id;
-                        #region Visuale
-#if UNITY_EDITOR
+#if UNITY_EDITOR // Visuale Only
                         name = isServer ? $"{gameObject.name.Replace("(Clone)", "")} -> [Server]" : $"{gameObject.name.Replace("(Clone)", "")} -> [Client]";
 #endif
-                        #endregion
                         OmniNetwork.AddIdentity(this);
                         OnAfterRegistered?.Invoke();
                         OnAfterRegistered = null;
@@ -189,23 +205,34 @@ namespace Omni.Core
                         DrawGizmos();
 #endif
                     }
-                    else Logger.PrintError("This object is already registered!");
+                    else
+                    {
+                        Logger.PrintError("Error: This object has already been registered.");
+                    }
                 }
             }
-            else Logger.PrintError("Scene or Static object does not support dynamic registration.");
+            else
+            {
+                Logger.PrintError("Error: Scene or Static objects do not support dynamic registration.");
+            }
         }
 
         internal void AddRpc(byte instanceId, byte rpcId, Action<ByteStream, ushort, ushort, RemoteStats> method)
         {
-            if (!remoteMethods.TryAdd((rpcId, instanceId), method))
+            if (!RPCMethods.TryAdd((rpcId, instanceId), method))
+            {
                 Logger.PrintError($"The RPC {instanceId}:{rpcId} is already registered.");
+            }
         }
 
         internal Action<ByteStream, ushort, ushort, RemoteStats> GetRpc(byte instanceId, byte rpcId)
         {
             var key = (rpcId, instanceId);
-            if (!remoteMethods.TryGetValue(key, out Action<ByteStream, ushort, ushort, RemoteStats> value))
+            if (!RPCMethods.TryGetValue(key, out Action<ByteStream, ushort, ushort, RemoteStats> value))
+            {
                 Logger.PrintWarning($"RPC does not exist! -> {key} -> [IsServer]={isItFromTheServer}");
+            }
+
             return value;
         }
 
@@ -223,7 +250,9 @@ namespace Omni.Core
             {
                 networks = transform.GetComponentsInChildren<OmniObject>();
                 if (!(isInRoot = transform == RootOr()))
-                    Logger.PrintWarning($"{gameObject.name} -> Only root objects can have a OmniIdentity component.");
+                {
+                    Logger.PrintWarning($"{gameObject.name} -> Error: Only root objects can have an OmniIdentity component.");
+                }
 
                 byte sceneId = (byte)SceneManager.GetActiveScene().buildIndex;
                 this.sceneId = objectType == ObjectType.Scene ? sceneId : (byte)255;
@@ -238,16 +267,28 @@ namespace Omni.Core
                     if (isInRoot)
                     {
                         OmniIdentity[] identities = FindObjectsOfType<OmniIdentity>(true).Where(x => x.objectType == objectType).ToArray();
-                        if (id == 0) id = (ushort)OmniHelper.GetAvailableId(identities, x => x.id, short.MaxValue);
+                        if (id == 0)
+                        {
+                            id = (ushort)OmniHelper.GetAvailableId(identities, x => x.id, short.MaxValue);
+                        }
                         else
                         {
                             int count = identities.Count(x => x.id == id);
-                            if (count > 1) id = 0;
+                            if (count > 1)
+                            {
+                                id = 0;
+                            }
                         }
                     }
-                    else Logger.PrintWarning($"{transform.name} -> [IsRoot]={isInRoot}");
+                    else
+                    {
+                        Logger.PrintWarning($"{transform.name} -> [IsRoot]={isInRoot}");
+                    }
                 }
-                else id = 0;
+                else
+                {
+                    id = 0;
+                }
             }
         }
 

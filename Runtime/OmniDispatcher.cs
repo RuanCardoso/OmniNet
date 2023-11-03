@@ -51,7 +51,9 @@ namespace Omni.Core
                 int apf = SERVER_APF; // server
 #endif
                 for (int i = 0; i < apf && actions.Count > 0; i++)
+                {
                     actions.Dequeue()();
+                }
             }
         }
 

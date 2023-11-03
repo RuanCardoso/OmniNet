@@ -22,7 +22,7 @@ namespace Omni.Core
     public class SyncBase<T> : ISyncBase, ISyncBaseValue<T>
     {
         internal protected readonly byte id;
-        internal static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._ as IValueTypeConverter<T>;
+        internal static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._self as IValueTypeConverter<T>;
 
         public TypeCode TypeCode { get; }
         private Enum enumType;
@@ -62,7 +62,7 @@ namespace Omni.Core
             var type = value.GetType();
             isStruct = type.IsValueType;
             isReferenceType = !type.IsValueType;
-            isValueTypeSupported = ValueTypeConverter.Types.Contains(type);
+            isValueTypeSupported = ValueTypeConverter.types.Contains(type);
             TypeCode = Type.GetTypeCode(type);
         }
 

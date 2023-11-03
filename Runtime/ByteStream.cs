@@ -15,6 +15,7 @@
 #if UNITY_SERVER && !UNITY_EDITOR
 using System.Threading;
 #endif
+
 using MessagePack;
 using Newtonsoft.Json;
 using System;
@@ -25,7 +26,6 @@ namespace Omni.Core
 {
     public sealed class ByteStream
     {
-        internal static ByteStreamPool bsPool;
         internal bool isRawBytes;
 
         private int position;
@@ -35,22 +35,33 @@ namespace Omni.Core
         private readonly bool isPoolObject;
         private DateTime lastWriteTime;
 
-        public byte[] Buffer => buffer;
-        public int BytesWritten => bytesWritten;
+        internal bool IsAcked
+        {
+            get => isAcked;
+            set => isAcked = value;
+        }
         internal DateTime LastWriteTime => lastWriteTime;
+
+        public int Position
+        {
+            get => position;
+            set => position = value;
+        }
+        public int BytesWritten => bytesWritten;
         public int BytesRemaining => bytesWritten - position;
-        public int Position { get => position; set => position = value; }
-        internal bool IsAcked { get => isAcked; set => isAcked = value; }
+        public byte[] Buffer => buffer;
 
 #if UNITY_SERVER && !UNITY_EDITOR
         static int allocated = 0;
 #endif
+        internal static ByteStreamPool bsPool;
+        internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
         public ByteStream(int size, bool isPoolObject = false)
         {
             buffer = new byte[size];
             this.isPoolObject = isPoolObject;
 #if UNITY_SERVER && !UNITY_EDITOR
-            Logger.Inline($"Allocated: {Interlocked.Increment(ref allocated)} ByteStream!");
+            Logger.Inline($"Allocated: {Interlocked.Increment(ref allocated)} ByteStream!\r\n");
 #endif
         }
 
@@ -99,9 +110,13 @@ namespace Omni.Core
         internal void WritePacket(MessageType value)
         {
             if (position != 0 || bytesWritten != 0)
+            {
                 Logger.PrintError($"The ByteStream is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
+            }
             else
+            {
                 Write((byte)value);
+            }
         }
 
         public void Write(Vector3 vector)
@@ -227,38 +242,50 @@ namespace Omni.Core
         public void Write(Span<byte> value)
         {
             for (int i = 0; i < value.Length; i++)
+            {
                 Write(value[i]);
+            }
         }
 
         public void Write(Memory<byte> value)
         {
             for (int i = 0; i < value.Length; i++)
+            {
                 Write(value.Span[i]);
+            }
         }
 
         public void Write(ReadOnlySpan<byte> value)
         {
             for (int i = 0; i < value.Length; i++)
+            {
                 Write(value[i]);
+            }
         }
 
         public void Write(ReadOnlyMemory<byte> value)
         {
             for (int i = 0; i < value.Length; i++)
+            {
                 Write(value.Span[i]);
+            }
         }
 
         public void Write(byte[] value)
         {
             for (int i = 0; i < value.Length; i++)
+            {
                 Write(value[i]);
+            }
         }
 
         public void Write(byte[] value, int offset, int size)
         {
             int available = size - offset;
             for (int i = 0; i < available; i++)
+            {
                 Write(value[offset + i]);
+            }
         }
 
         public void Write(ByteStream value)
@@ -276,16 +303,14 @@ namespace Omni.Core
             Write(value.buffer, offset, size);
         }
 
-        internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
         public byte ReadByte() => ThrowIfNotEnoughData(sizeof(byte)) ? buffer[position++] : default;
         internal void ReadPayload(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode)
         {
-            byte payload = ReadByte();
-            // Unpack..........................
-            channel = (Channel)(payload & 0x1);
-            target = (Target)((payload >> 1) & 0x3);
-            subTarget = (SubTarget)((payload >> 3) & 0x1);
-            cacheMode = (CacheMode)((payload >> 4) & 0x3);
+            byte bPackedPayload = ReadByte();
+            channel = (Channel)(bPackedPayload & 0x1);
+            target = (Target)((bPackedPayload >> 1) & 0x3);
+            subTarget = (SubTarget)((bPackedPayload >> 3) & 0x1);
+            cacheMode = (CacheMode)((bPackedPayload >> 4) & 0x3);
         }
 
         internal MessageType ReadPacket()
@@ -480,80 +505,82 @@ namespace Omni.Core
         {
             int available = size - offset;
             for (int i = 0; i < available; i++)
+            {
                 value[offset + i] = ReadByte();
+            }
         }
 
         #region Slice Memory
         public ReadOnlyMemory<byte> ReadAsReadOnlyMemory()
         {
-            ReadOnlyMemory<byte> span = buffer;
-            return span[position..bytesWritten];
+            ReadOnlyMemory<byte> _ = buffer;
+            return _[position..bytesWritten];
         }
 
         public ReadOnlyMemory<byte> ReadAsReadOnlyMemory(int offset, int size)
         {
-            ReadOnlyMemory<byte> span = buffer;
-            return span[offset..size];
+            ReadOnlyMemory<byte> _ = buffer;
+            return _[offset..size];
         }
 
         public ReadOnlyMemory<byte> ReadAsReadOnlyMemory(int size)
         {
-            ReadOnlyMemory<byte> span = buffer;
-            return span[position..size];
+            ReadOnlyMemory<byte> _ = buffer;
+            return _[position..size];
         }
 
         public ReadOnlySpan<byte> ReadAsReadOnlySpan()
         {
-            ReadOnlySpan<byte> span = buffer;
-            return span[position..bytesWritten];
+            ReadOnlySpan<byte> _ = buffer;
+            return _[position..bytesWritten];
         }
 
         public ReadOnlySpan<byte> ReadAsReadOnlySpan(int offset, int size)
         {
-            ReadOnlySpan<byte> span = buffer;
-            return span[offset..size];
+            ReadOnlySpan<byte> _ = buffer;
+            return _[offset..size];
         }
 
         public ReadOnlySpan<byte> ReadAsReadOnlySpan(int size)
         {
-            ReadOnlySpan<byte> span = buffer;
-            return span[position..size];
+            ReadOnlySpan<byte> _ = buffer;
+            return _[position..size];
         }
 
         public Memory<byte> ReadAsMemory()
         {
-            Memory<byte> span = buffer;
-            return span[position..bytesWritten];
+            Memory<byte> _ = buffer;
+            return _[position..bytesWritten];
         }
 
         public Memory<byte> ReadAsMemory(int offset, int size)
         {
-            Memory<byte> span = buffer;
-            return span[offset..size];
+            Memory<byte> _ = buffer;
+            return _[offset..size];
         }
 
         public Memory<byte> ReadAsMemory(int size)
         {
-            Memory<byte> span = buffer;
-            return span[position..size];
+            Memory<byte> _ = buffer;
+            return _[position..size];
         }
 
         public Span<byte> ReadAsSpan()
         {
-            Span<byte> span = buffer;
-            return span[position..bytesWritten];
+            Span<byte> _ = buffer;
+            return _[position..bytesWritten];
         }
 
         public Span<byte> ReadAsSpan(int offset, int size)
         {
-            Span<byte> span = buffer;
-            return span[offset..size];
+            Span<byte> _ = buffer;
+            return _[offset..size];
         }
 
         public Span<byte> ReadAsSpan(int size)
         {
-            Span<byte> span = buffer;
-            return span[position..size];
+            Span<byte> _ = buffer;
+            return _[position..size];
         }
         #endregion
 
@@ -564,6 +591,7 @@ namespace Omni.Core
                 Logger.PrintError($"Byte Stream: Not enough space to write! you are writing {size} bytes -> pos: {position + size}");
                 return false;
             }
+
             return true;
         }
 
@@ -574,6 +602,7 @@ namespace Omni.Core
                 Logger.PrintError($"Byte Stream: Not enough data to read!");
                 return false;
             }
+
             return true;
         }
 
@@ -629,14 +658,19 @@ namespace Omni.Core
             if (isPoolObject)
             {
                 if (isRelease)
+                {
                     Logger.PrintError($"The ByteStream is already released!");
+                }
                 else
                 {
                     isRelease = true;
                     bsPool.Release(this);
                 }
             }
-            else Write();
+            else
+            {
+                Write();
+            }
         }
     }
 }

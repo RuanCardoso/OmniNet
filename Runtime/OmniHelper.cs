@@ -33,7 +33,6 @@ namespace Omni.Core
     {
         internal static int ReceiveFrom(Socket socket, byte[] buffer, EndPoint endPoint, out SocketError errorCode)
         {
-#if !OMNI_MULTI_THREADED
             try
             {
                 errorCode = SocketError.Success;
@@ -49,35 +48,36 @@ namespace Omni.Core
                 errorCode = ex.SocketErrorCode;
                 return 0; // Disconnected client!
             }
-#else
-            return socket.ReceiveFrom(buffer, SocketFlags.None, ref endPoint);
-#endif
         }
 
-        internal static void CreateCache<TKey, TValue>(IDictionary<TKey, TValue> dict, TKey key, CacheMode cacheMode, ByteStream message, ushort sourceId, ushort destinationId, byte sceneId, ushort identityId, byte remoteId, byte instanceId, MessageType msgType, Channel channel, ObjectType objType)
+        internal static void CreateCache<TKey, TValue>(IDictionary<TKey, TValue> dict, TKey key, CacheMode cacheMode, ByteStream data, ushort sourceId,
+        ushort destinationId, byte sceneId, ushort identityId, byte remoteId, byte instanceId, MessageType msgType, Channel channel, ObjectType objType)
         where TValue : OmniCache
         where TKey : System.Runtime.CompilerServices.ITuple
         {
             switch (cacheMode)
             {
                 case CacheMode.Append:
-                    Logger.PrintError("Cache System -> Append is not supported yet. Support will be added in a future update.");
-                    Logger.PrintWarning("Warning: The 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption. This is caused by sending all stored states when using the 'Append' mode. Please use 'Overwrite' mode instead.");
+                    {
+                        Logger.PrintError("Error: Append mode is not currently supported. It will be added in a future update.");
+                        Logger.PrintWarning("Warning: Using 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption.");
+                        Logger.PrintWarning("This is caused by sending all stored states when using the 'Append' mode. We recommend using 'Overwrite' mode instead.");
+                    }
                     break;
                 case CacheMode.Overwrite:
                     {
                         if (dict.TryGetValue(key, out TValue value))
                         {
-                            value.SetData(message.Buffer, message.BytesWritten);
+                            value.SetData(data.Buffer, data.BytesWritten);
                         }
                         else
                         {
-                            byte[] data = new byte[ServerSettings.maxPacketSize];
-                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                            TValue newCache = new OmniCache(data, message.BytesWritten, sourceId, destinationId, sceneId, identityId, remoteId, instanceId, msgType, channel, objType) as TValue;
-                            if (!dict.TryAdd(key, newCache))
+                            byte[] packet = new byte[ServerSettings.maxPacketSize];
+                            if (packet.Length > 0)
                             {
-                                Logger.PrintError("Could not create cache, hash key already exists?");
+                                Buffer.BlockCopy(data.Buffer, 0, packet, 0, data.BytesWritten);
+                                TValue _ = new OmniCache(packet, data.BytesWritten, sourceId, destinationId, sceneId, identityId, remoteId, instanceId, msgType, channel, objType) as TValue;
+                                dict.Add(key, _);
                             }
                         }
                         break;
@@ -195,7 +195,9 @@ namespace Omni.Core
         internal static void MoveToServer(bool isServer, GameObject gameObject)
         {
             if (isServer && OmniNetwork.IsBind)
+            {
                 SceneManager.MoveGameObjectToScene(gameObject, OmniNetwork.Scene);
+            }
         }
 
         internal static List<string> GetDefines(out BuildTargetGroup targetGroup)
@@ -218,13 +220,17 @@ namespace Omni.Core
                 OmniDef define = defines[i];
                 if (define.enabled)
                 {
-                    if (!definedSymbols.Contains(define.define)) definedSymbols.Add(define.define);
-                    else { /* the symbol has already been defined */ }
+                    if (!definedSymbols.Contains(define.define))
+                    {
+                        definedSymbols.Add(define.define);
+                    }
                 }
                 else
                 {
-                    if (definedSymbols.Contains(define.define)) definedSymbols.Remove(define.define);
-                    else { /* the symbol has already been removed */ }
+                    if (definedSymbols.Contains(define.define))
+                    {
+                        definedSymbols.Remove(define.define);
+                    }
                 }
             }
 

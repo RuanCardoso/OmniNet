@@ -133,7 +133,9 @@ namespace Omni.Core
                                     sender.Send(byteStream);
                             }
                             else if (subTarget != SubTarget.Server)
-                                Logger.PrintError("Are you trying to run the instruction on yourself? Use SubTarget.Server");
+                            {
+                                Logger.PrintError("Are you trying to execute this instruction on yourself? Please use SubTarget.Server or verify if 'IsMine' is being used correctly.");
+                            }
                         }
                         break;
                     case Target.All:

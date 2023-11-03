@@ -22,7 +22,7 @@ namespace Omni.Core
 {
     internal class OmniConsole
     {
-        internal static void Initialize(CancellationToken token, OmniNetwork network)
+        internal static void Initialize(CancellationToken cancellationToken, OmniNetwork self)
         {
             new Thread(() =>
             {
@@ -30,84 +30,109 @@ namespace Omni.Core
                 Logger.Print("Press 'Enter' to write a command!");
                 Logger.Print("Ex: Ban -user Ruan -days 300");
                 Logger.Print("Press 'ESC' to exit!");
-                while (!token.IsCancellationRequested)
+
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     var key = Console.ReadKey(true).Key;
                     switch (key)
                     {
                         case ConsoleKey.Enter:
-                            Logger.Print("Write the command:");
-                            string command = Console.ReadLine();
-                            commands.Clear();
-                            switch (command)
                             {
-                                case "Clear":
-                                case "clear":
-                                    Console.Clear();
-                                    break;
-                                case "GC Collect":
-                                case "gc collect":
-                                    GC.Collect();
-                                    Logger.Print("Collected");
-                                    break;
-                                case "Memory":
-                                case "memory":
-                                    long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
-                                    Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.GB)} GB");
-                                    break;
-                                case "fps":
-                                case "FPS":
-                                    Logger.Print($"FPS: {OmniNetwork.Framerate}");
-                                    break;
-                                case "Time":
-                                case "time":
-                                    Logger.Print($"Time: {OmniTime.LocalTime}");
-                                    Logger.Print($"Date/Hour: {DateTime.UtcNow}");
-                                    break;
-                                default:
-                                    {
-                                        if (!string.IsNullOrEmpty(command))
+                                Logger.Print("Write the command:");
+                                string command = Console.ReadLine();
+                                commands.Clear();
+                                switch (command)
+                                {
+                                    case "Clear":
+                                    case "clear":
                                         {
-                                            int paramsCount = 0;
-                                            string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
-                                            if (parameters.Length <= 1) Logger.Print("Continuous execution without parameters!");
-                                            else
+                                            Console.Clear();
+                                        }
+                                        break;
+                                    case "GC Collect":
+                                    case "gc collect":
+                                        {
+                                            GC.Collect();
+                                            Logger.Print("GC: Collected memory!");
+                                        }
+                                        break;
+                                    case "Memory":
+                                    case "memory":
+                                        {
+                                            long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
+                                            Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.GB)} GB");
+                                        }
+                                        break;
+                                    case "fps":
+                                    case "FPS":
+                                        {
+                                            Logger.Print($"FPS: {OmniNetwork.Framerate}");
+                                        }
+                                        break;
+                                    case "Time":
+                                    case "time":
+                                        {
+                                            Logger.Print($"Time: {OmniTime.LocalTime}");
+                                            Logger.Print($"Date/Hour: {DateTime.UtcNow}");
+                                        }
+                                        break;
+                                    default:
+                                        {
+                                            if (!string.IsNullOrEmpty(command))
                                             {
-                                                for (int i = 1; i < parameters.Length; i++)
+                                                int paramsCount = 0;
+                                                string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
+                                                if (parameters.Length <= 1)
                                                 {
-                                                    if (parameters[i].IsInBounds(0) && parameters[i].IsInBounds(1))
+                                                    Logger.Print("Continuing execution without provided parameters.");
+                                                }
+                                                else
+                                                {
+                                                    for (int i = 1; i < parameters.Length; i++)
                                                     {
-                                                        string parameter = parameters[i][0];
-                                                        string value = parameters[i][1];
-                                                        if (string.IsNullOrEmpty(parameter) || string.IsNullOrEmpty(value))
-                                                            Logger.Print("Continuous execution without parameters!");
+                                                        if (parameters[i].IsInBounds(0) && parameters[i].IsInBounds(1))
+                                                        {
+                                                            string parameter = parameters[i][0];
+                                                            string value = parameters[i][1];
+                                                            if (string.IsNullOrEmpty(parameter) || string.IsNullOrEmpty(value))
+                                                            {
+                                                                Logger.Print("Continuing execution without provided parameters.");
+                                                            }
+                                                            else
+                                                            {
+                                                                paramsCount++;
+                                                                if (!commands.TryAdd(parameter, value))
+                                                                {
+                                                                    commands[parameter] = value;
+                                                                }
+                                                            }
+                                                        }
                                                         else
                                                         {
-                                                            paramsCount++;
-                                                            if (!commands.TryAdd(parameter, value))
-                                                                commands[parameter] = value;
+                                                            Logger.PrintError("Invalid parameters!");
+                                                            break;
                                                         }
                                                     }
-                                                    else
-                                                    {
-                                                        Logger.PrintError("Invalid parameters!");
-                                                        break;
-                                                    }
                                                 }
-                                            }
 
-                                            command = parameters[0][0];
-                                            Logger.Print($"Command executed: '{command}' | parameter count: {paramsCount}");
+                                                command = parameters[0][0];
+                                                Logger.Print($"Command executed: '{command}' | parameter count: {paramsCount}");
+                                            }
+                                            else
+                                            {
+                                                Logger.PrintError("There are no commands!");
+                                            }
                                         }
-                                        else Logger.PrintError("There are no commands!");
-                                    }
-                                    break;
+                                        break;
+                                }
                             }
                             break;
                         case ConsoleKey.Escape:
-                            Logger.Print("Exiting...");
-                            network.OnApplicationQuit();
-                            UnityEngine.Application.Quit(0);
+                            {
+                                Logger.Print("Exiting...");
+                                self.OnApplicationQuit();
+                                UnityEngine.Application.Quit(0);
+                            }
                             break;
                         default:
                             Logger.Print($"There is no command for the '{key}' key");

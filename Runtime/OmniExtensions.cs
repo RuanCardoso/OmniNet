@@ -25,7 +25,10 @@ namespace Omni.Core
         internal static void RemoveAll<TKey, TValue>(this IDictionary<TKey, TValue> dict, Func<TKey, bool> predicate)
         {
             var items = dict.Keys.Where(predicate).ToList();
-            foreach (var item in items) dict.Remove(item);
+            foreach (var item in items)
+            {
+                dict.Remove(item);
+            }
         }
 
         internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
@@ -39,8 +42,13 @@ namespace Omni.Core
         internal static void Read<T>(this SyncRefCustom<T> value, ByteStream message) where T : class, ISyncCustom
         {
             if (value.Get() is ISyncCustom ISerialize)
+            {
                 ISerialize.Deserialize(message);
-            else Logger.PrintError("SyncCustom -> Deserialize fail!");
+            }
+            else
+            {
+                Logger.PrintError("Error: Failed to deserialize SyncCustom object. Make sure it implements ISyncCustom.");
+            }
         }
 
         internal static void Read<T>(this SyncValueCustom<T> value, ByteStream message) where T : unmanaged, ISyncCustom
@@ -51,7 +59,10 @@ namespace Omni.Core
                 ISerialize.Deserialize(message);
                 ((ISyncBaseValue<T>)value).Intern_Set((T)ISerialize);
             }
-            else Logger.PrintError("SyncCustom -> Deserialize fail!");
+            else
+            {
+                Logger.PrintError("Error: Failed to deserialize SyncCustom object. Make sure it implements ISyncCustom.");
+            }
         }
 
         internal static void Read<T>(this ISyncBaseValue<T> value, ByteStream message) where T : unmanaged
@@ -60,16 +71,29 @@ namespace Omni.Core
             switch (value.TypeCode)
             {
                 case TypeCode.Int32:
-                    value.Intern_Set(converter.GetInt(message.ReadInt()));
+                    {
+                        value.Intern_Set(converter.GetInt(message.ReadInt()));
+                    }
                     break;
                 case TypeCode.Boolean:
-                    value.Intern_Set(converter.GetBool(message.ReadBool()));
+                    {
+                        value.Intern_Set(converter.GetBool(message.ReadBool()));
+                    }
                     break;
                 case TypeCode.Single:
-                    value.Intern_Set(converter.GetFloat(message.ReadFloat()));
+                    {
+                        value.Intern_Set(converter.GetFloat(message.ReadFloat()));
+                    }
                     break;
                 case TypeCode.Byte:
-                    value.Intern_Set(converter.GetByte(message.ReadByte()));
+                    {
+                        value.Intern_Set(converter.GetByte(message.ReadByte()));
+                    }
+                    break;
+                default:
+                    {
+                        Logger.PrintError("Error: Unsupported TypeCode for deserialization -> ISyncBaseValue<T>");
+                    }
                     break;
             }
         }

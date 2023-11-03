@@ -27,7 +27,9 @@ namespace Omni.Core
         public ByteStreamPool(int length = 128)
         {
             for (int i = 0; i < length; i++)
+            {
                 pool.Push(new ByteStream(ServerSettings.maxPacketSize, true));
+            }
         }
 
         public ByteStream Get()
@@ -36,7 +38,16 @@ namespace Omni.Core
             lock (_lock)
 #endif
             {
-                return pool.Count == 0 ? new ByteStream(ServerSettings.maxPacketSize, true) : pool.Pop();
+#pragma warning disable IDE0046
+                if (pool.Count == 0)
+                {
+                    return new ByteStream(ServerSettings.maxPacketSize, true);
+                }
+                else
+                {
+                    return pool.Pop();
+                }
+#pragma warning restore IDE0046
             }
         }
 

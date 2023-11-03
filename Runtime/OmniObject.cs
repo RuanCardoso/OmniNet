@@ -37,7 +37,7 @@ namespace Omni.Core
         private MessageType LOCAL_MESSAGE_MSG_TYPE = MessageType.None;
 
         [Header("Registration")]
-        [SerializeField][ReadOnly][Required("It is necessary to register this instance in the identity!")] internal OmniIdentity identity;
+        [SerializeField][ReadOnly][Required("Error: This instance must be registered in the OmniIdentity.")] internal OmniIdentity identity;
         [SerializeField][ReadOnly][HorizontalLine(SEPARATOR_HEIGHT, below: true)][Space(SEPARATOR)] internal byte id;
 
         internal byte Id => id;
@@ -63,6 +63,12 @@ namespace Omni.Core
 
         internal void OnAwake()
         {
+            if (identity == null)
+            {
+                Logger.PrintError("Error: This instance must be registered in the OmniIdentity.");
+                return;
+            }
+
             REMOTE_MSG_TYPE = OmniHelper.GetMessageTypeToRemote(identity.objectType);
             SYNC_BASE_MSG_TYPE = OmniHelper.GetMessageTypeToOnSyncBase(identity.objectType);
             LOCAL_MESSAGE_MSG_TYPE = OmniHelper.GetMessageTypeToLocalMessage(identity.objectType);
@@ -81,8 +87,8 @@ namespace Omni.Core
 
             void ThrowErrorIfSignatureIsIncorret(byte id, string name)
             {
-                Logger.PrintError($"The signature of method with Id: {id} | name: {name} | type: {GetType().Name} is incorrect!");
-                Logger.PrintError($"Correct -> private public void METHOD_NAME({string.Join(",", parametersSignature.Select(x => x.ToString()))});");
+                Logger.PrintError($"The signature of method with Id: {id}, name: {name}, type: {GetType().Name} is incorrect!");
+                Logger.PrintError($"Correct: void {name}({string.Join(",", parametersSignature.Select(x => x.ToString()))});");
             }
             #endregion
 

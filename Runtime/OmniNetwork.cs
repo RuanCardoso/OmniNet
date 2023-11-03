@@ -22,7 +22,6 @@ using System;
 #if OMNI_MULTI_THREADED
 using System.Collections.Concurrent;
 #else
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 #endif
@@ -31,7 +30,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 #if UNITY_EDITOR
-using UnityEditor;
 #endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -50,15 +48,10 @@ namespace Omni.Core
     [RequireComponent(typeof(PlatformSettings))]
     public class OmniNetwork : MonoBehaviour
     {
-        // Constants
-        private const byte SETTINGS_SIZE = 50;
-
-        // Enums
         [Header("Enums")]
         [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
         [SerializeField] private EncodingType encoding = EncodingType.ASCII;
 
-        // Other Variables
         [Header("Others")]
         [SerializeField][MaxValue(10)] private uint fpsUpdateRate = 4;
         private Encoding _encoding = Encoding.ASCII;
@@ -66,26 +59,13 @@ namespace Omni.Core
         private static int frameCount = 0;
         private static float deltaTime = 0f;
 
-        // Dictionaries
-        private static readonly Dictionary<(ushort, ushort, bool, byte, ObjectType), OmniIdentity> identities = new();
-        private static readonly Dictionary<int, Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats>> handlers = new();
-        private static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), OmniCache> remoteCache = new();
-        private static readonly Dictionary<(byte remoteId, byte instanceId, ushort playerId), OmniCache> globalRemoteCache = new();
-        private static readonly Dictionary<(ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), OmniCache> serializeCache = new();
-        private static readonly Dictionary<(byte varId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), OmniCache> syncCache = new();
-        private static readonly Dictionary<(byte id, ushort playerId), OmniCache> globalCache = new();
-        private static readonly Dictionary<(byte id, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), OmniCache> localCache = new();
-
-        // Networking
         private static readonly UdpServer udpServer = new();
         private static readonly UdpClient udpClient = new();
 
-        // Events
         #region Events
         public static event Action<bool, IPEndPoint, ByteStream> OnConnected;
         #endregion
 
-        // Singleton Instance
         internal static OmniNetwork Instance { get; private set; }
 
         #region Properties
@@ -100,7 +80,6 @@ namespace Omni.Core
         public static Player Player => udpClient.Player;
         internal static int Port { get; private set; }
         internal static ushort NetworkId { get; } = ushort.MaxValue;
-
         internal static bool IsBind => udpServer.IsConnected;
 
 #if !UNITY_SERVER || UNITY_EDITOR
@@ -121,15 +100,11 @@ namespace Omni.Core
         [SerializeField][Range(1f, 300f)][Label("Ping Sweep")] private float pingSweepTime = 1f; // seconds
         [SerializeField][Range(1f, 300f)][Label("Max Ping Request")] private double maxPingRequestTime = 60d; // seconds
 
-        // defines
         [Header("Pre-Processor's")]
         [SerializeField] private bool agressiveRelay = false;
         [SerializeField][ReadOnly] private bool multiThreaded = false;
         [SerializeField][ReadOnly] private string[] defines;
         #endregion
-
-        //* Multi-Threading
-        //internal static double timeAsDouble;
 
         private OmniDispatcher dispatcher;
         private readonly CancellationTokenSource tokenSource = new();
@@ -138,8 +113,7 @@ namespace Omni.Core
         internal static WaitForSeconds WAIT_FOR_PING;
         internal static WaitForSeconds WAIT_FOR_CHECK_REC_PING;
 
-        private static IFormatterResolver Formatter { get; set; }
-
+        static IFormatterResolver Formatter { get; set; }
         public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver, [CallerMemberName] string methodName = "")
         {
             const string expectedMethodName = "Awake";
@@ -156,19 +130,16 @@ namespace Omni.Core
             }
 
             Formatter = CompositeResolver.Create(resolver, Formatter);
-
             return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
         }
 
         private void Awake()
         {
             Instance = this;
-
-            dispatcher = GetComponent<OmniDispatcher>();
-
             ByteStream.bsPool = new ByteStreamPool(ServerSettings.bSPoolSize);
 
-            var msgOptions = AddResolver(default);
+            _ = AddResolver(default);
+            dispatcher = GetComponent<OmniDispatcher>();
             AotHelper.EnsureDictionary<string, object>();
 
             if (ServerSettings.dontDestroy)
@@ -193,7 +164,6 @@ namespace Omni.Core
             // Bind and Connect
             Port = ServerSettings.port;
             var remoteEndPoint = new UdpEndPoint(IPAddress.Any, Port);
-
 #if UNITY_SERVER || UNITY_EDITOR
             udpServer.Bind(remoteEndPoint);
             if (IsBind)
@@ -211,13 +181,11 @@ namespace Omni.Core
 #if UNITY_EDITOR
             if (IsBind)
             {
-                Scene = SceneManager.CreateScene("Server[Only Editor]", new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
+                Scene = SceneManager.CreateScene("Server[Editor Only]", new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
                 PhysicsScene = Scene.GetPhysicsScene();
                 PhysicsScene2D = Scene.GetPhysicsScene2D();
             }
 #endif
-
-            // Define Encoding
             _encoding = encoding switch
             {
                 EncodingType.UTF8 => Encoding.UTF8,
@@ -231,7 +199,6 @@ namespace Omni.Core
 
         private void Start()
         {
-            // Inicia o método Main após um atraso de 1 segundo
             Invoke(nameof(Main), 1f);
         }
 
@@ -251,9 +218,6 @@ namespace Omni.Core
                 deltaTime = 0f;
                 frameCount = 0;
             }
-
-            //* Seção de Multi-Threading
-            //timeAsDouble = Time.timeAsDouble;
         }
 
 #if UNITY_EDITOR
@@ -359,28 +323,6 @@ namespace Omni.Core
         }
 
 #if UNITY_EDITOR
-        [ContextMenu("Omni/Request Script Compilation", false)]
-        [Button("Request Script Compilation", EButtonEnableMode.Editor)]
-        private void RequestScriptCompilation()
-        {
-            //foreach (var platformSettings in allPlatformSettings)
-            //{
-            //    if (platformSettings != null)
-            //    {
-            //        platformSettings.enabled = false;
-            //    }
-            //}
-
-            //if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
-            //{
-            //    CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
-            //}
-            //else
-            //{
-            //    Logger.PrintError("RequestScriptCompilation -> Failed");
-            //}
-        }
-
         [ContextMenu("Omni/Set Preprocessor", false)]
         [Button("Set Pre-Processor's", EButtonEnableMode.Editor)]
         private void SetDefines()
@@ -400,35 +342,8 @@ namespace Omni.Core
             OmniHelper.SetDefines(multiThreadedDefine, aggressiveRelayDefine);
         }
 
-
         private void Reset() => OnValidate();
-        private void OnValidate()
-        {
-            //defines = GetOmniDefines();
-
-            //BuildTarget activeBuildTarget = GetActiveBuildTarget();
-
-            //int buildTargetIndex = (int)activeBuildTarget;
-            //if (allPlatformSettings == null)
-            //{
-            //    //allPlatformSettings = new LocalSettings[SETTINGS_SIZE];
-            //}
-
-            //if (allPlatformSettings.Length != SETTINGS_SIZE)
-            //    return;
-
-            //if (!allPlatformSettings.IsInBounds(buildTargetIndex))
-            //    return;
-
-            //if (allPlatformSettings[buildTargetIndex] != null)
-            //{
-            //    UpdatePlatformSettings(activeBuildTarget, buildTargetIndex);
-            //}
-            //else
-            //{
-            //    RequestScriptCompilation();
-            //}
-        }
+        private void OnValidate() => defines = GetOmniDefines();
 
         private string[] GetOmniDefines()
         {
@@ -436,51 +351,22 @@ namespace Omni.Core
                 .Where(x => x.StartsWith("OMNI_"))
                 .ToArray();
         }
-
-        private BuildTarget GetActiveBuildTarget()
-        {
-#if UNITY_SERVER
-            return BuildTarget.LinuxHeadlessSimulation;
-#else
-            return EditorUserBuildSettings.activeBuildTarget;
-#endif
-        }
-
-        private void UpdatePlatformSettings(BuildTarget buildTarget, int index)
-        {
-            //            //LocalSettings currentSettings = allPlatformSettings[index];
-
-            //            if (!currentSettings.enabled)
-            //            {
-            //                string name = buildTarget.ToString();
-            //#if UNITY_SERVER
-            //                name = "Server";
-            //#endif
-            //                currentSettings.enabled = true;
-            //                currentSettings.name = name;
-            //            }
-
-            //            if (platformSettings != currentSettings)
-            //            {
-            //                platformSettings = currentSettings;
-            //            }
-        }
-
 #endif
         internal static void AddIdentity(OmniIdentity identity)
         {
             var key = (identity.id, identity.playerId, identity.isItFromTheServer, identity.sceneId, identity.objectType);
-            if (identities.TryGetValue(key, out var existingIdentity))
+            if (Dictionaries.identities.TryGetValue(key, out _))
             {
                 Logger.PrintError($"The identity already exists: ID={identity.id}, PlayerID={identity.playerId}, IsFromServer={identity.isItFromTheServer}, SceneID={identity.sceneId}, ObjectType={identity.objectType}");
                 return;
             }
-            identities.TryAdd(key, identity);
+
+            Dictionaries.identities.TryAdd(key, identity);
         }
 
         private static OmniIdentity GetIdentity(ushort identityId, ushort playerId, bool isServer, byte sceneId, ObjectType objType)
         {
-            if (!identities.TryGetValue((identityId, playerId, isServer, sceneId, objType), out var identity))
+            if (!Dictionaries.identities.TryGetValue((identityId, playerId, isServer, sceneId, objType), out var identity))
             {
                 Logger.PrintWarning($"Identity not found! -> ID={identityId}, PlayerID={playerId}, IsServer={isServer}, SceneID={sceneId}, ObjectType={objType}");
                 return null;
@@ -496,10 +382,12 @@ namespace Omni.Core
 
         private static Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> GetHandler(byte id)
         {
-            if (handlers.TryGetValue(id, out var handler))
+#pragma warning disable IDE0046
+            if (Dictionaries.handlers.TryGetValue(id, out var handler))
             {
                 return handler;
             }
+#pragma warning restore IDE0046
 
             return null;
         }
@@ -507,15 +395,10 @@ namespace Omni.Core
         public static byte AddHandler<T>(Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats> handler) where T : IMessage, new()
         {
             T instance = new();
-            if (handlers.ContainsKey(instance.Id))
+            if (!Dictionaries.handlers.TryAdd(instance.Id, handler))
             {
-                Logger.PrintError($"Handler for ID={instance.Id} already exists!");
-                return instance.Id;
-            }
-
-            if (!handlers.TryAdd(instance.Id, handler))
-            {
-                Logger.PrintError($"Failed to add handler for ID={instance.Id}!");
+                Logger.PrintError($"Error: Failed to add a handler for ID={instance.Id}.");
+                Logger.PrintError("Please make sure the handler for this ID does not already exist.");
                 return instance.Id;
             }
 
@@ -527,8 +410,8 @@ namespace Omni.Core
                 }
                 catch (Exception ex)
                 {
-                    Logger.PrintError($"Failed to serialize {typeof(T).Name}: {ex.Message}");
-                    Logger.PrintError("It is necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
+                    Logger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message}");
+                    Logger.PrintError("Hint: It may be necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
                 }
             }
 
@@ -549,7 +432,6 @@ namespace Omni.Core
         private static void SendDataViaSocket(ByteStream byteStream, ushort id, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             ThrowErrorIfWrongSocket(fromServer);
-
             if (fromServer && IsBind)
             {
                 udpServer.Send(byteStream, channel, target, subTarget, cacheMode, id);
@@ -562,7 +444,7 @@ namespace Omni.Core
 
         internal static void OnMessage(ByteStream parameters, MessageType messageType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpEndPoint remoteEndPoint, bool isServer)
         {
-            var OBJ_TYPE = OmniHelper.GetObjectType(messageType);
+            var selfType = OmniHelper.GetObjectType(messageType);
             // Let's process packets with maximum performance!
             // Data must be read in the same order in which they are written.
             switch (messageType)
@@ -571,7 +453,7 @@ namespace Omni.Core
                     {
                         if (isServer)
                         {
-                            Logger.Print($"The endpoint {remoteEndPoint} has been successfully established.");
+                            Logger.Print($"Info: The endpoint {remoteEndPoint} has been successfully established on the server.");
                         }
 
                         var ipAddress = new IPAddress(remoteEndPoint.GetIPAddress());
@@ -579,12 +461,12 @@ namespace Omni.Core
                         OnConnected?.Invoke(isServer, remoteIPEndPoint, parameters);
                         break;
                     }
-                case MessageType.Remote:
+                case MessageType.Remote: // Global
                     {
-                        ushort sourceId = parameters.ReadUShort();
-                        ushort destinationId = parameters.ReadUShort();
-                        byte remoteId = parameters.ReadByte();
-                        byte instanceId = parameters.ReadByte();
+                        var sourceId = parameters.ReadUShort();
+                        var destinationId = parameters.ReadUShort();
+                        var remoteId = parameters.ReadByte();
+                        var instanceId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(parameters);
@@ -593,32 +475,8 @@ namespace Omni.Core
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
-                            switch (cacheMode)
-                            {
-                                case CacheMode.Append:
-                                    Logger.PrintError("Cache System -> Append is not supported yet. Support will be added in a future update.");
-                                    Logger.PrintWarning("Warning: The 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption. This is caused by sending all stored states when using the 'Append' mode. Please use 'Overwrite' mode instead.");
-                                    break;
-                                case CacheMode.Overwrite:
-                                    {
-                                        var key = (remoteId, instanceId, sourceId);
-                                        if (globalRemoteCache.TryGetValue(key, out OmniCache cache))
-                                        {
-                                            cache.SetData(message.Buffer, message.BytesWritten);
-                                        }
-                                        else
-                                        {
-                                            byte[] data = new byte[ServerSettings.maxPacketSize];
-                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            OmniCache newCache = new(data, message.BytesWritten, sourceId, destinationId, 0, 0, remoteId, instanceId, default, channel, default);
-                                            if (!globalRemoteCache.TryAdd(key, newCache))
-                                            {
-                                                Logger.PrintError("Could not create cache, hash key already exists?");
-                                            }
-                                        }
-                                        break;
-                                    }
-                            }
+                            var _ = (remoteId, instanceId, sourceId);
+                            OmniHelper.CreateCache(Dictionaries.globalRemoteCache, _, cacheMode, message, sourceId, destinationId, 0, 0, remoteId, instanceId, default, channel, default);
 #endif
                         }
                         #endregion
@@ -651,41 +509,23 @@ namespace Omni.Core
                 case MessageType.RemotePlayer:
                 case MessageType.RemoteDynamic:
                     {
-                        ushort fromId = parameters.ReadUShort();
-                        ushort toId = parameters.ReadUShort();
-                        byte sceneId = parameters.ReadByte();
-                        ushort identityId = parameters.ReadUShort();
-                        byte remoteId = parameters.ReadByte();
-                        byte instanceId = parameters.ReadByte();
+                        var fromId = parameters.ReadUShort();
+                        var toId = parameters.ReadUShort();
+                        var sceneId = parameters.ReadByte();
+                        var identityId = parameters.ReadUShort();
+                        var remoteId = parameters.ReadByte();
+                        var instanceId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(parameters);
-                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? OmniHelper.GetPlayerId(isServer) : toId;
+                        ushort pIdInIdentity = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? OmniHelper.GetPlayerId(isServer) : toId;
 
                         #region Cache System
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
-                            switch (cacheMode)
-                            {
-                                case CacheMode.Append:
-                                    Logger.PrintError("Cache System -> Append is not supported!");
-                                    break;
-                                case CacheMode.Overwrite:
-                                    {
-                                        var key = (remoteId, identityId, instanceId, fromId, sceneId, OBJ_TYPE);
-                                        if (remoteCache.TryGetValue(key, out OmniCache cache))
-                                            cache.SetData(message.Buffer, message.BytesWritten);
-                                        else
-                                        {
-                                            byte[] data = new byte[ServerSettings.maxPacketSize];
-                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            OmniCache remoteCache = new(data, message.BytesWritten, fromId, toId, sceneId, identityId, remoteId, instanceId, messageType, channel, OBJ_TYPE);
-                                            if (!OmniNetwork.remoteCache.TryAdd(key, remoteCache)) Logger.PrintError("Could not create cache, hash key already exists?");
-                                        }
-                                    }
-                                    break;
-                            }
+                            var _ = (remoteId, identityId, instanceId, fromId, sceneId, selfType);
+                            OmniHelper.CreateCache(Dictionaries.remoteCache, _, cacheMode, message, fromId, toId, sceneId, identityId, remoteId, instanceId, messageType, channel, selfType);
 #endif
                         }
                         #endregion
@@ -695,14 +535,14 @@ namespace Omni.Core
                         {
                             case SubTarget.Server:
                                 {
-                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, OBJ_TYPE);
+                                    OmniIdentity identity = GetIdentity(identityId, pIdInIdentity, isServer, sceneId, selfType);
                                     if (identity != null)
                                     {
                                         var rpc = identity.GetRpc(instanceId, remoteId);
                                         rpc?.Invoke(parameters, fromId, toId, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
                                     }
                                     else
-                                        Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                        Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {pIdInIdentity}, {isServer}]");
                                     break;
                                 }
                         }
@@ -720,10 +560,10 @@ namespace Omni.Core
                 case MessageType.OnSerializePlayer:
                 case MessageType.OnSerializeDynamic:
                     {
-                        ushort identityId = parameters.ReadUShort();
-                        ushort playerId = parameters.ReadUShort();
-                        byte instanceId = parameters.ReadByte();
-                        byte sceneId = parameters.ReadByte();
+                        var identityId = parameters.ReadUShort();
+                        var playerId = parameters.ReadUShort();
+                        var instanceId = parameters.ReadByte();
+                        var sceneId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(parameters);
@@ -733,26 +573,8 @@ namespace Omni.Core
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
-                            switch (cacheMode)
-                            {
-                                case CacheMode.Append:
-                                    Logger.PrintError("Cache System -> Append is not supported!");
-                                    break;
-                                case CacheMode.Overwrite:
-                                    {
-                                        var key = (identityId, instanceId, playerId, sceneId, OBJ_TYPE);
-                                        if (serializeCache.TryGetValue(key, out OmniCache cache))
-                                            cache.SetData(message.Buffer, message.BytesWritten);
-                                        else
-                                        {
-                                            byte[] data = new byte[ServerSettings.maxPacketSize];
-                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            OmniCache serializeCache = new(data, message.BytesWritten, playerId, playerId, sceneId, identityId, 0, instanceId, messageType, channel, OBJ_TYPE);
-                                            if (!OmniNetwork.serializeCache.TryAdd(key, serializeCache)) Logger.PrintError("Could not create cache, hash key already exists?");
-                                        }
-                                    }
-                                    break;
-                            }
+                            var _ = (identityId, instanceId, playerId, sceneId, selfType);
+                            OmniHelper.CreateCache(Dictionaries.serializeCache, _, cacheMode, message, playerId, playerId, sceneId, identityId, 0, instanceId, messageType, channel, selfType);
 #endif
                         }
                         #endregion
@@ -762,7 +584,7 @@ namespace Omni.Core
                         {
                             case SubTarget.Server:
                                 {
-                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, OBJ_TYPE);
+                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, selfType);
                                     if (identity != null)
                                         identity.GetOmniObject(instanceId).OnSerializeView(parameters, false, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
                                     else
@@ -784,11 +606,11 @@ namespace Omni.Core
                 case MessageType.OnSyncBasePlayer:
                 case MessageType.OnSyncBaseDynamic:
                     {
-                        byte varId = parameters.ReadByte();
-                        ushort identityId = parameters.ReadUShort();
-                        ushort playerId = parameters.ReadUShort();
-                        byte instanceId = parameters.ReadByte();
-                        byte sceneId = parameters.ReadByte();
+                        var fieldId = parameters.ReadByte();
+                        var identityId = parameters.ReadUShort();
+                        var playerId = parameters.ReadUShort();
+                        var instanceId = parameters.ReadByte();
+                        var sceneId = parameters.ReadByte();
 
                         ByteStream message = ByteStream.Get();
                         message.WriteRemainingBytes(parameters);
@@ -798,26 +620,8 @@ namespace Omni.Core
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
-                            switch (cacheMode)
-                            {
-                                case CacheMode.Append:
-                                    Logger.PrintError("Cache System -> Append is not supported!");
-                                    break;
-                                case CacheMode.Overwrite:
-                                    {
-                                        var key = (varId, identityId, instanceId, playerId, sceneId, OBJ_TYPE);
-                                        if (syncCache.TryGetValue(key, out OmniCache cache))
-                                            cache.SetData(message.Buffer, message.BytesWritten);
-                                        else
-                                        {
-                                            byte[] data = new byte[ServerSettings.maxPacketSize];
-                                            Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            OmniCache syncCache = new(data, message.BytesWritten, playerId, playerId, sceneId, identityId, varId, instanceId, messageType, channel, OBJ_TYPE);
-                                            if (!OmniNetwork.syncCache.TryAdd(key, syncCache)) Logger.PrintError("Could not create cache, hash key already exists?");
-                                        }
-                                    }
-                                    break;
-                            }
+                            var _ = (fieldId, identityId, instanceId, playerId, sceneId, selfType);
+                            OmniHelper.CreateCache(Dictionaries.syncCache, _, cacheMode, message, playerId, playerId, sceneId, identityId, fieldId, instanceId, messageType, channel, selfType);
 #endif
                         }
                         #endregion
@@ -827,9 +631,9 @@ namespace Omni.Core
                         {
                             case SubTarget.Server:
                                 {
-                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, OBJ_TYPE);
+                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, selfType);
                                     if (identity != null)
-                                        identity.GetOmniObject(instanceId).OnSyncBase?.Invoke(varId, parameters);
+                                        identity.GetOmniObject(instanceId).OnSyncBase?.Invoke(fieldId, parameters);
                                     else
                                         Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
                                     break;
@@ -840,22 +644,22 @@ namespace Omni.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            OnSyncBase(message, varId, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
+                            OnSyncBase(message, fieldId, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
                         #endregion
                     }
                     break;
                 case MessageType.GetCache:
                     {
-                        CacheType cacheType = (CacheType)parameters.ReadByte();
-                        byte id = parameters.ReadByte();
-                        bool ownerCache = parameters.ReadBool();
-                        ushort fromPort = (ushort)remoteEndPoint.GetPort();
+                        var cacheType = (CacheType)parameters.ReadByte();
+                        var id = parameters.ReadByte();
+                        var ownerCache = parameters.ReadBool();
+                        var fromPort = (ushort)remoteEndPoint.GetPort();
 
                         switch (cacheType)
                         {
                             case CacheType.Remote:
                                 {
-                                    var caches = remoteCache.Where(x => x.Key.remoteId == id);
+                                    var caches = Dictionaries.remoteCache.Where(x => x.Key.remoteId == id);
                                     if (caches.Count() != 0)
                                     {
                                         foreach (var ICache in caches)
@@ -871,12 +675,15 @@ namespace Omni.Core
                                             #endregion
                                         }
                                     }
-                                    else Logger.PrintError("There is no cached data!");
+                                    else
+                                    {
+                                        Logger.PrintError("Error: No cached data found for the specified conditions.");
+                                    }
                                 }
                                 break;
                             case CacheType.GlobalRemote:
                                 {
-                                    var caches = globalRemoteCache.Where(x => x.Key.remoteId == id);
+                                    var caches = Dictionaries.globalRemoteCache.Where(x => x.Key.remoteId == id);
                                     if (caches.Count() != 0)
                                     {
                                         foreach (var ICache in caches)
@@ -892,14 +699,17 @@ namespace Omni.Core
                                             #endregion
                                         }
                                     }
-                                    else Logger.PrintError("There is no cached data!");
+                                    else
+                                    {
+                                        Logger.PrintError("Error: No cached data found for the specified conditions.");
+                                    }
                                 }
                                 break;
                             case CacheType.OnSerialize:
                                 {
-                                    if (serializeCache.Count() != 0)
+                                    if (Dictionaries.serializeCache.Count() != 0)
                                     {
-                                        foreach (var ICache in serializeCache)
+                                        foreach (var ICache in Dictionaries.serializeCache)
                                         {
                                             OmniCache cache = ICache.Value;
                                             if (!ownerCache && cache.fromId == fromPort)
@@ -912,12 +722,15 @@ namespace Omni.Core
                                             #endregion
                                         }
                                     }
-                                    else Logger.PrintError("There is no cached data!");
+                                    else
+                                    {
+                                        Logger.PrintError("Error: No cached data found for the specified conditions.");
+                                    }
                                 }
                                 break;
                             case CacheType.OnSync:
                                 {
-                                    var caches = syncCache.Where(x => x.Key.varId == id);
+                                    var caches = Dictionaries.syncCache.Where(x => x.Key.varId == id);
                                     if (caches.Count() != 0)
                                     {
                                         foreach (var ICache in caches)
@@ -933,12 +746,15 @@ namespace Omni.Core
                                             #endregion
                                         }
                                     }
-                                    else Logger.PrintError("There is no cached data!");
+                                    else
+                                    {
+                                        Logger.PrintError("Error: No cached data found for the specified conditions.");
+                                    }
                                 }
                                 break;
                             case CacheType.GlobalMessage:
                                 {
-                                    var caches = globalCache.Where(x => x.Key.id == id);
+                                    var caches = Dictionaries.globalCache.Where(x => x.Key.id == id);
                                     if (caches.Count() != 0)
                                     {
                                         foreach (var ICache in caches)
@@ -954,12 +770,15 @@ namespace Omni.Core
                                             #endregion
                                         }
                                     }
-                                    else Logger.PrintError("There is no cached data!");
+                                    else
+                                    {
+                                        Logger.PrintError("Error: No cached data found for the specified conditions.");
+                                    }
                                 }
                                 break;
                             case CacheType.LocalMessage:
                                 {
-                                    var caches = localCache.Where(x => x.Key.id == id);
+                                    var caches = Dictionaries.localCache.Where(x => x.Key.id == id);
                                     if (caches.Count() != 0)
                                     {
                                         foreach (var ICache in caches)
@@ -975,7 +794,10 @@ namespace Omni.Core
                                             #endregion
                                         }
                                     }
-                                    else Logger.PrintError("There is no cached data!");
+                                    else
+                                    {
+                                        Logger.PrintError("Error: No cached data found for the specified conditions.");
+                                    }
                                 }
                                 break;
                         }
@@ -1001,14 +823,14 @@ namespace Omni.Core
                                 case CacheMode.Overwrite:
                                     {
                                         var key = (id, playerId);
-                                        if (globalCache.TryGetValue(key, out OmniCache cache))
+                                        if (Dictionaries.globalCache.TryGetValue(key, out OmniCache cache))
                                             cache.SetData(message.Buffer, message.BytesWritten);
                                         else
                                         {
                                             byte[] data = new byte[ServerSettings.maxPacketSize];
                                             Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
                                             OmniCache globalCache = new(data, message.BytesWritten, playerId, playerId, 0, 0, id, 0, default, channel, default);
-                                            if (!OmniNetwork.globalCache.TryAdd(key, globalCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                            if (!Dictionaries.globalCache.TryAdd(key, globalCache)) Logger.PrintError("Could not create cache, hash key already exists?");
                                         }
                                     }
                                     break;
@@ -1062,15 +884,15 @@ namespace Omni.Core
                                     break;
                                 case CacheMode.Overwrite:
                                     {
-                                        var key = (id, identityId, instanceId, playerId, sceneId, OBJ_TYPE);
-                                        if (localCache.TryGetValue(key, out OmniCache cache))
+                                        var key = (id, identityId, instanceId, playerId, sceneId, selfType);
+                                        if (Dictionaries.localCache.TryGetValue(key, out OmniCache cache))
                                             cache.SetData(message.Buffer, message.BytesWritten);
                                         else
                                         {
                                             byte[] data = new byte[ServerSettings.maxPacketSize];
                                             Buffer.BlockCopy(message.Buffer, 0, data, 0, message.BytesWritten);
-                                            OmniCache localCache = new(data, message.BytesWritten, playerId, playerId, sceneId, identityId, id, instanceId, messageType, channel, OBJ_TYPE);
-                                            if (!OmniNetwork.localCache.TryAdd(key, localCache)) Logger.PrintError("Could not create cache, hash key already exists?");
+                                            OmniCache localCache = new(data, message.BytesWritten, playerId, playerId, sceneId, identityId, id, instanceId, messageType, channel, selfType);
+                                            if (!Dictionaries.localCache.TryAdd(key, localCache)) Logger.PrintError("Could not create cache, hash key already exists?");
                                         }
                                     }
                                     break;
@@ -1238,12 +1060,12 @@ namespace Omni.Core
 
         internal static void ClearAllCaches(ushort playerId)
         {
-            globalCache.RemoveAll(x => x.playerId == playerId);
-            globalRemoteCache.RemoveAll(x => x.playerId == playerId);
-            localCache.RemoveAll(x => x.playerId == playerId);
-            remoteCache.RemoveAll(x => x.playerId == playerId);
-            serializeCache.RemoveAll(x => x.playerId == playerId);
-            syncCache.RemoveAll(x => x.playerId == playerId);
+            Dictionaries.globalCache.RemoveAll(x => x.playerId == playerId);
+            Dictionaries.globalRemoteCache.RemoveAll(x => x.playerId == playerId);
+            Dictionaries.localCache.RemoveAll(x => x.playerId == playerId);
+            Dictionaries.remoteCache.RemoveAll(x => x.playerId == playerId);
+            Dictionaries.serializeCache.RemoveAll(x => x.playerId == playerId);
+            Dictionaries.syncCache.RemoveAll(x => x.playerId == playerId);
         }
 
         public static Player GetPlayerFromServer(ushort playerId)

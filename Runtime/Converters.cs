@@ -17,10 +17,11 @@ using System.Collections.Generic;
 
 namespace Omni.Core
 {
+    // Workaround for achieving high performance in SyncVar operations.
     internal class ValueTypeConverter : IValueTypeConverter<int>, IValueTypeConverter<bool>, IValueTypeConverter<float>, IValueTypeConverter<byte>
     {
-        internal static readonly ValueTypeConverter _ = new();
-        internal static readonly HashSet<Type> Types = new()
+        internal static readonly ValueTypeConverter _self = new();
+        internal static readonly HashSet<Type> types = new()
         {
             typeof(int),
             typeof(bool),
@@ -44,11 +45,6 @@ namespace Omni.Core
         public float GetFloat(byte value) => throw new NotImplementedException();
         #endregion
 
-        public int GetInt(int value) => value;
-        public bool GetBool(bool value) => value;
-        public float GetFloat(float value) => value;
-        public byte GetByte(byte value) => value;
-
         #region _
         bool IValueTypeConverter<bool>.GetInt(int value) => throw new NotImplementedException();
         float IValueTypeConverter<float>.GetInt(int value) => throw new NotImplementedException();
@@ -63,5 +59,10 @@ namespace Omni.Core
         byte IValueTypeConverter<byte>.GetBool(bool value) => throw new NotImplementedException();
         byte IValueTypeConverter<byte>.GetFloat(float value) => throw new NotImplementedException();
         #endregion
+
+        public int GetInt(int value) => value;
+        public bool GetBool(bool value) => value;
+        public byte GetByte(byte value) => value;
+        public float GetFloat(float value) => value;
     }
 }

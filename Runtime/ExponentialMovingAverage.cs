@@ -13,8 +13,17 @@ namespace Omni.Core
         private readonly float alpha;
         private bool initialized;
 
-        public double Avg;
-        public double Slope;
+        public double Avg
+        {
+            get;
+            private set;
+        }
+
+        public double Slope
+        {
+            get;
+            private set;
+        }
 
         public ExponentialMovingAverage(int n)
         {

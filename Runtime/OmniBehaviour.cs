@@ -13,7 +13,6 @@
     ===========================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
@@ -24,8 +23,6 @@ namespace Omni.Core
     public class OmniBehaviour : MonoBehaviour
     {
         protected const byte GLOBAL_SPAWN_ID = 255;
-        private static readonly Dictionary<(byte, byte), Action<ByteStream, ushort, ushort, bool, RemoteStats>> remoteMethods = new(); // [rpc id, instance Id]
-
         protected virtual byte Id => 0;
         protected ByteStream Get => ByteStream.Get();
 
@@ -34,7 +31,9 @@ namespace Omni.Core
         private void GetRemoteAttributes()
         {
             if (Id == 0)
+            {
                 Logger.PrintError($"Override {nameof(Id)} property! [{GetType().Name} -> {nameof(OmniBehaviour)}]");
+            }
             else
             {
                 #region Signature
@@ -45,8 +44,9 @@ namespace Omni.Core
 
                 void ThrowErrorIfSignatureIsIncorret(byte id, string name)
                 {
-                    Logger.PrintError($"The signature of method with Id: {id} | name: {name} | type: {GetType().Name} is incorrect!");
-                    Logger.PrintError($"Correct -> private public void METHOD_NAME({string.Join(",", parametersSignature.Select(x => x.ToString()))});");
+                    Logger.PrintError($"Error: The signature of the method with ID: {id} and name: '{name}' in the type '{GetType().Name}' is incorrect.");
+                    Logger.PrintError("Correct Signature: ");
+                    Logger.PrintError($"private void {name}({string.Join(", ", parametersSignature.Select(param => $"{param.ParameterType} {param.Name}"))});");
                 }
                 #endregion
 
@@ -61,14 +61,19 @@ namespace Omni.Core
                         if (attr != null)
                         {
                             ParameterInfo[] parameters = method.GetParameters();
-                            if (parameters.Length != parametersCount) ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
+                            if (parameters.Length != parametersCount)
+                            {
+                                ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
+                            }
                             else
                             {
                                 try
                                 {
                                     var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, bool, RemoteStats>), this) as Action<ByteStream, ushort, ushort, bool, RemoteStats>;
-                                    if (!remoteMethods.TryAdd((attr.id, Id), remote))
-                                        Logger.PrintError($"The RPC {attr.id} is already registered.");
+                                    if (!Dictionaries.RPCMethods.TryAdd((attr.id, Id), remote))
+                                    {
+                                        Logger.PrintError($"Error: The RPC ID {attr.id} is already registered for this script instance. Solution: Ensure that each RPC ID is unique within the script instance.");
+                                    }
                                 }
                                 catch (ArgumentException)
                                 {
@@ -85,8 +90,11 @@ namespace Omni.Core
 
         internal static Action<ByteStream, ushort, ushort, bool, RemoteStats> GetRpc(byte rpcId, byte instanceId, bool isServer)
         {
-            if (!remoteMethods.TryGetValue((rpcId, instanceId), out Action<ByteStream, ushort, ushort, bool, RemoteStats> value))
+            if (!Dictionaries.RPCMethods.TryGetValue((rpcId, instanceId), out Action<ByteStream, ushort, ushort, bool, RemoteStats> value))
+            {
                 Logger.PrintWarning($"RPC does not exist! -> {rpcId} -> [IsServer]={isServer}");
+            }
+
             return value;
         }
 
@@ -142,10 +150,23 @@ namespace Omni.Core
         {
             Vector3 position = parameters.ReadVector3();
             Quaternion rotation = parameters.ReadQuaternion();
-            OmniIdentity identity = OnSpawnedObject(position, rotation, parameters, fromId, toId, isServer, stats);
-            if (identity.objectType == ObjectType.Dynamic)
-                throw new NotImplementedException("Dynamic object not supported Id!");
-            else identity.Register(isServer, fromId);
+            OmniIdentity omniIdentity = OnSpawnedObject(position, rotation, parameters, fromId, toId, isServer, stats);
+            if (omniIdentity != null)
+            {
+                if (omniIdentity.objectType == ObjectType.Dynamic)
+                {
+                    // Falta dar suporte a objetos dinâmicos.... Encontrar uma maneira de atribuir um Id....
+                    throw new NotImplementedException("Error: Creating dynamic objects is not supported in this context. Please use a different object type.");
+                }
+                else
+                {
+                    omniIdentity.Register(isServer, fromId);
+                }
+            }
+            else
+            {
+                Logger.PrintError("Error: Failed to create an OmniIdentity for the spawned object.");
+            }
         }
 
         protected virtual OmniIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
