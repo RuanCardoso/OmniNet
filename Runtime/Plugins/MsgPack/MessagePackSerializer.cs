@@ -7,10 +7,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using MessagePack.LZ4;
+using Omni.LZ4;
 using Nerdbank.Streams;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// High-Level API of MessagePack for C#.

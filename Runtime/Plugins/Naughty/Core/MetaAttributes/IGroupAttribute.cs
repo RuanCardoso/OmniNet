@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace NaughtyAttributes
+namespace Omni
 {
     public interface IGroupAttribute
     {

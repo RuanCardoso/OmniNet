@@ -6,7 +6,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using Nerdbank.Streams;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// A thread-safe, alloc-free reusable object pool.

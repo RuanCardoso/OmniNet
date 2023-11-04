@@ -5,7 +5,7 @@ using System;
 using System.Buffers;
 using System.Data.Common;
 
-namespace MessagePack
+namespace Omni
 {
 #if MESSAGEPACK_INTERNAL
     internal

@@ -6,13 +6,13 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using MessagePack.Formatters;
+using Omni.Formatters;
 using UnityEngine;
 
 #pragma warning disable SA1402 // multiple types in a file
 #pragma warning disable SA1649 // file name matches type name
 
-namespace MessagePack.Unity.Extension
+namespace Omni.Unity.Extension
 {
     // use ext instead of ArrayFormatter to extremely boost up performance.
     // Layout: [extHeader, byteSize(integer), isLittleEndian(bool), bytes()]

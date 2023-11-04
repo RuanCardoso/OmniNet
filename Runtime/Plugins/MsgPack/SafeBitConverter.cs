@@ -4,7 +4,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace MessagePack
+namespace Omni
 {
     internal static class SafeBitConverter
     {

@@ -13,7 +13,7 @@
     ===========================================================*/
 
 #if UNITY_EDITOR
-using NaughtyAttributes.Editor;
+using Omni.Editor;
 using UnityEditor;
 using UnityEngine;
 

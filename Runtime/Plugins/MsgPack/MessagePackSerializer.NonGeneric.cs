@@ -10,12 +10,12 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MessagePack
+namespace Omni
 {
     public partial class MessagePackSerializer
     {
         private static readonly Func<Type, CompiledMethods> CreateCompiledMethods;
-        private static readonly MessagePack.Internal.ThreadsafeTypeKeyHashTable<CompiledMethods> Serializes = new MessagePack.Internal.ThreadsafeTypeKeyHashTable<CompiledMethods>(capacity: 64);
+        private static readonly Omni.Internal.ThreadsafeTypeKeyHashTable<CompiledMethods> Serializes = new Omni.Internal.ThreadsafeTypeKeyHashTable<CompiledMethods>(capacity: 64);
 
         static MessagePackSerializer()
         {

@@ -2,9 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using MessagePack.Formatters;
+using Omni.Formatters;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     public sealed class NativeDecimalResolver : IFormatterResolver
     {

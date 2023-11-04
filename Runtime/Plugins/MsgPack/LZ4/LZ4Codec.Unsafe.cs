@@ -30,7 +30,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
 
-namespace MessagePack.LZ4
+namespace Omni.LZ4
 {
     /// <summary>Unsafe LZ4 codec.</summary>
     internal partial class LZ4Codec

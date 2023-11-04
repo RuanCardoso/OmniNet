@@ -12,7 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using NaughtyAttributes;
+using Omni;
 using System;
 using System.Collections;
 using System.Collections.Generic;

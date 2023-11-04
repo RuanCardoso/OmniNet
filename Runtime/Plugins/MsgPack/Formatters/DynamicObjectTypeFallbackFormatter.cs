@@ -5,7 +5,7 @@ using System;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     /// <summary>
     /// This formatter can serialize any value whose static type is <see cref="object"/>

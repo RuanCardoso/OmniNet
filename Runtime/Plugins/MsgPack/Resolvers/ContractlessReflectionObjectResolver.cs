@@ -4,10 +4,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     // MEMO: Not completely implemented.
 

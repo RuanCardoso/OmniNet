@@ -3,9 +3,9 @@
 
 using System.Collections.Generic;
 using System.Dynamic;
-using MessagePack.Formatters;
+using Omni.Formatters;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     /// <summary>
     /// A resolver for use when deserializing MessagePack data where the schema is not known at compile-time

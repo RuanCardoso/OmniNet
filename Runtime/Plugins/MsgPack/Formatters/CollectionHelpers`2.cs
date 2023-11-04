@@ -4,7 +4,7 @@
 using System;
 using System.Linq.Expressions;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     /// <summary>
     /// Provides general helpers for creating collections (including dictionaries).

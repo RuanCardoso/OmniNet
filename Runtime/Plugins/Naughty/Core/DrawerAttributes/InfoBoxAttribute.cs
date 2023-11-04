@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace NaughtyAttributes
+namespace Omni
 {
     public enum EInfoBoxType
     {

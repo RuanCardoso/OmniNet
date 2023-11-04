@@ -69,7 +69,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma warning disable SA1312 // Variable names should begin with lower-case letter
 
-namespace MessagePack.LZ4
+namespace Omni.LZ4
 {
     internal partial class LZ4Codec
     {

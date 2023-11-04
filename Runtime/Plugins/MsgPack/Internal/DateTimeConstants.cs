@@ -3,7 +3,7 @@
 
 using System;
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class DateTimeConstants
     {

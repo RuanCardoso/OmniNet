@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft;
 
-namespace MessagePack
+namespace Omni
 {
 #if !SPAN_BUILTIN
     internal static class StreamPolyfillExtensions

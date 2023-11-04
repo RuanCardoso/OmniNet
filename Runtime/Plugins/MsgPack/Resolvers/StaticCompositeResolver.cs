@@ -3,9 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using MessagePack.Formatters;
+using Omni.Formatters;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     /// <summary>
     /// Singleton version of CompositeResolver, which be able to register a collection of formatters and resolvers to a single instance.

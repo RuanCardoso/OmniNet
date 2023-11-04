@@ -1,9 +1,9 @@
 ﻿// Copyright (c) All contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using MessagePack.Formatters;
+using Omni.Formatters;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     public sealed class PrimitiveObjectResolver : IFormatterResolver
     {

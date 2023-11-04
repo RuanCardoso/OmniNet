@@ -3,10 +3,10 @@
 
 using System;
 using System.Reflection;
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     public sealed class DynamicEnumAsStringResolver : IFormatterResolver
     {

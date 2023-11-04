@@ -9,7 +9,7 @@ using System.Buffers;
 
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     public sealed class TupleFormatter<T1> : IMessagePackFormatter<Tuple<T1>>
     {

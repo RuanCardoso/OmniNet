@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using System.Dynamic;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     public class ExpandoObjectFormatter : IMessagePackFormatter<ExpandoObject>
     {

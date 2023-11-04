@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace NaughtyAttributes
+namespace Omni
 {
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
     public class CurveRangeAttribute : DrawerAttribute

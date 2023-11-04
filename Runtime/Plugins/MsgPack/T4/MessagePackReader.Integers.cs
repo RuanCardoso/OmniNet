@@ -7,7 +7,7 @@
 using System;
 using System.Buffers;
 
-namespace MessagePack
+namespace Omni
 {
 #pragma warning disable SA1205 // Partial elements should declare access
     ref partial struct MessagePackReader

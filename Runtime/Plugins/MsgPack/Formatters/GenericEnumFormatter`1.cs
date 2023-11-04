@@ -4,7 +4,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     public sealed class GenericEnumFormatter<T> : IMessagePackFormatter<T>
         where T : Enum

@@ -3,10 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
 #if !UNITY_2018_3_OR_NEWER
 

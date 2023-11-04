@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Net.Security;
 using System.Reflection;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     public class PrimitiveObjectFormatter : IMessagePackFormatter<object>
     {

@@ -7,10 +7,10 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
-using MessagePack.Formatters;
+using Omni.Formatters;
 using Nerdbank.Streams;
 
-namespace MessagePack
+namespace Omni
 {
     // JSON API
     public partial class MessagePackSerializer

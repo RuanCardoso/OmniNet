@@ -1,10 +1,10 @@
 ﻿// Copyright (c) All contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     /// <summary>
     /// A base class for <see cref="IFormatterResolver"/> classes that want to cache their responses for perf reasons.

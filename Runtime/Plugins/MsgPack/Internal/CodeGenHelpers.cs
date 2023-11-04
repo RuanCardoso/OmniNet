@@ -5,7 +5,7 @@ using System;
 using System.Buffers;
 using System.ComponentModel;
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     /// <summary>
     /// Helpers for generated code.

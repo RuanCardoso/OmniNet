@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// https://github.com/msgpack/msgpack/blob/master/spec.md#serialization-type-to-format-conversion.

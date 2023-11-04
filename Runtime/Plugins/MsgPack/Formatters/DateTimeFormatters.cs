@@ -5,7 +5,7 @@ using System;
 
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     /// <summary>
     /// Serialize by .NET native DateTime binary format.

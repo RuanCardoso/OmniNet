@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     public abstract class SpecialCasePropertyDrawerBase
     {

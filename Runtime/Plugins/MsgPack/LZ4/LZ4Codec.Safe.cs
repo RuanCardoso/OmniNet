@@ -33,7 +33,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using System;
 using System.Diagnostics;
 
-namespace MessagePack.LZ4
+namespace Omni.LZ4
 {
     /// <summary>Safe LZ4 codec.</summary>
     internal partial class LZ4Codec

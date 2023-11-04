@@ -9,7 +9,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// A fast access struct that wraps <see cref="IBufferWriter{T}"/>.

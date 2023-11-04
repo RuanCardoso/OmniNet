@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace MessagePack
+namespace Omni
 {
     internal static class StringEncoding
     {

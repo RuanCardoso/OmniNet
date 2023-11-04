@@ -5,7 +5,7 @@ using System.Reflection;
 using System;
 using System.Collections.Generic;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     [CustomPropertyDrawer(typeof(DropdownAttribute))]
     public class DropdownPropertyDrawer : PropertyDrawerBase

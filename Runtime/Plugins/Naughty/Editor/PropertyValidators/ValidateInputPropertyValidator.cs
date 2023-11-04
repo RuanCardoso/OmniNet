@@ -2,7 +2,7 @@ using UnityEditor;
 using System.Reflection;
 using System;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     public class ValidateInputPropertyValidator : PropertyValidatorBase
     {

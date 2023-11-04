@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Serialization;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     // Note:This implementation is 'not' fastest, should more improve.
     public sealed class EnumAsStringFormatter<T> : IMessagePackFormatter<T>

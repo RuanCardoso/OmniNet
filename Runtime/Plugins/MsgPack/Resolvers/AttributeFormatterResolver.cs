@@ -3,10 +3,10 @@
 
 using System.Linq;
 using System.Reflection;
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     /// <summary>
     /// Get formatter from <see cref="MessagePackFormatterAttribute"/>.

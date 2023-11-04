@@ -4,7 +4,7 @@
 using System;
 using System.Buffers;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// Internal utilities and extension methods for various external types.

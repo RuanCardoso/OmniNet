@@ -32,7 +32,7 @@ using System;
 
 #pragma warning disable SA1310 // Field names should not contain underscore
 
-namespace MessagePack.LZ4
+namespace Omni.LZ4
 {
     internal static partial class LZ4Codec
     {

@@ -3,7 +3,7 @@
 
 using System.Buffers;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     public sealed class IgnoreFormatter<T> : IMessagePackFormatter<T>
     {

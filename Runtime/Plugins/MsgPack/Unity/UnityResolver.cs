@@ -3,10 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using MessagePack.Formatters;
+using Omni.Formatters;
 using UnityEngine;
 
-namespace MessagePack.Unity
+namespace Omni.Unity
 {
     public class UnityResolver : IFormatterResolver
     {

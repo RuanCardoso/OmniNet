@@ -3,7 +3,7 @@
 
 using System;
 
-namespace MessagePack.LZ4
+namespace Omni.LZ4
 {
     internal partial class LZ4Codec
     {

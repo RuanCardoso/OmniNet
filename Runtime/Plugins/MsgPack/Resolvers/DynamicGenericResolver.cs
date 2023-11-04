@@ -9,12 +9,12 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
 #pragma warning disable SA1403 // File may only contain a single namespace
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     public sealed class DynamicGenericResolver : IFormatterResolver
     {
@@ -44,7 +44,7 @@ namespace MessagePack.Resolvers
     }
 }
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class DynamicGenericResolverGetFormatterHelper
     {

@@ -4,7 +4,7 @@
 using System;
 using System.Threading;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// Special behavior for running on the mono runtime.

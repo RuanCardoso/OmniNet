@@ -5,7 +5,7 @@ using System;
 
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace MessagePack
+namespace Omni
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = true)]
     public class MessagePackObjectAttribute : Attribute

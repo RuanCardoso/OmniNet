@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace NaughtyAttributes
+namespace Omni
 {
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
     public class DropdownAttribute : DrawerAttribute

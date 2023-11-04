@@ -11,7 +11,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace MessagePack
+namespace Omni
 {
     internal static partial class SequenceReaderExtensions
     {

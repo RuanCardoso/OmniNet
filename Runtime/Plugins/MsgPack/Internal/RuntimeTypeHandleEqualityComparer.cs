@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     // This code is used in generated code so must be public.
 

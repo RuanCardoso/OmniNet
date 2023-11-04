@@ -7,9 +7,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using MessagePack.Internal;
+using Omni.Internal;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// A primitive types reader for the MessagePack format.

@@ -16,7 +16,7 @@
 using System.Threading;
 #endif
 
-using MessagePack;
+using Omni;
 using Newtonsoft.Json;
 using System;
 using UnityEngine;

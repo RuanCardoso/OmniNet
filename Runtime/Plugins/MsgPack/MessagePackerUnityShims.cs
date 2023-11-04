@@ -3,7 +3,7 @@
 
 #pragma warning disable IDE1006 // Field should begin with upper-case letter
 
-using MessagePack;
+using Omni;
 
 namespace UnityShims
 {

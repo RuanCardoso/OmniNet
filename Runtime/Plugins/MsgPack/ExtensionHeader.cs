@@ -3,7 +3,7 @@
 
 using System;
 
-namespace MessagePack
+namespace Omni
 {
 #if MESSAGEPACK_INTERNAL
     internal

@@ -1,6 +1,6 @@
 using UnityEditor;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     internal class SavedBool
     {

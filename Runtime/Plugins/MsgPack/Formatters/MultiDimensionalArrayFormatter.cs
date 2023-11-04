@@ -8,7 +8,7 @@ using System.Text;
 
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     /* multi dimensional array serialize to [i, j, [seq]] */
 

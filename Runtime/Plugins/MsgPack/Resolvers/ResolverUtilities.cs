@@ -3,9 +3,9 @@
 
 using System;
 using System.Reflection;
-using MessagePack.Formatters;
+using Omni.Formatters;
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class ResolverUtilities
     {

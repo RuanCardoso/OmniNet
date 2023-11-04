@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
-namespace MessagePack.Unity.Editor
+namespace Omni.Unity.Editor
 {
     internal class MessagePackWindow : EditorWindow
     {
@@ -41,7 +41,7 @@ namespace MessagePack.Unity.Editor
             GetWindow<MessagePackWindow>("CodeGen").Show();
         }
 
-        [MenuItem("Assets/Build CodeGen %F12", priority = -10)]
+        [MenuItem("Assets/Omni -> Build AOT %F12", priority = -10)]
         public static async void InitCodeGenShortcut()
         {
         begin:

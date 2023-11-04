@@ -7,10 +7,10 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Serialization;
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// Allows querying for a formatter for serializing or deserializing a particular <see cref="Type" />.

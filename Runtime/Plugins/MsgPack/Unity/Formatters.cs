@@ -3,25 +3,25 @@
 
 using System;
 using System.Buffers;
-using MessagePack;
-using MessagePack.Formatters;
+using Omni;
+using Omni.Formatters;
 
 #pragma warning disable SA1312 // variable naming
 #pragma warning disable SA1402 // one type per file
 #pragma warning disable SA1649 // file name matches type name
 
-namespace MessagePack.Unity
+namespace Omni.Unity
 {
-    public sealed class Vector2Formatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Vector2>
+    public sealed class Vector2Formatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Vector2>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector2 value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector2 value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(2);
             writer.Write(value.x);
             writer.Write(value.y);
         }
 
-        public global::UnityEngine.Vector2 Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Vector2 Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -53,9 +53,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class Vector3Formatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Vector3>
+    public sealed class Vector3Formatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Vector3>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector3 value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector3 value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(3);
             writer.Write(value.x);
@@ -63,7 +63,7 @@ namespace MessagePack.Unity
             writer.Write(value.z);
         }
 
-        public global::UnityEngine.Vector3 Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Vector3 Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -99,9 +99,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class Vector4Formatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Vector4>
+    public sealed class Vector4Formatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Vector4>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector4 value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector4 value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(4);
             writer.Write(value.x);
@@ -110,7 +110,7 @@ namespace MessagePack.Unity
             writer.Write(value.w);
         }
 
-        public global::UnityEngine.Vector4 Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Vector4 Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -150,9 +150,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class QuaternionFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Quaternion>
+    public sealed class QuaternionFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Quaternion>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Quaternion value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Quaternion value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(4);
             writer.Write(value.x);
@@ -161,7 +161,7 @@ namespace MessagePack.Unity
             writer.Write(value.w);
         }
 
-        public global::UnityEngine.Quaternion Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Quaternion Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -201,9 +201,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class ColorFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Color>
+    public sealed class ColorFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Color>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Color value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Color value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(4);
             writer.Write(value.r);
@@ -212,7 +212,7 @@ namespace MessagePack.Unity
             writer.Write(value.a);
         }
 
-        public global::UnityEngine.Color Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Color Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -252,9 +252,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class BoundsFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Bounds>
+    public sealed class BoundsFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Bounds>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Bounds value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Bounds value, global::Omni.MessagePackSerializerOptions options)
         {
             IFormatterResolver resolver = options.Resolver;
             writer.WriteArrayHeader(2);
@@ -262,7 +262,7 @@ namespace MessagePack.Unity
             resolver.GetFormatterWithVerify<global::UnityEngine.Vector3>().Serialize(ref writer, value.size, options);
         }
 
-        public global::UnityEngine.Bounds Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Bounds Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -295,9 +295,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class RectFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Rect>
+    public sealed class RectFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Rect>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Rect value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Rect value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(4);
             writer.Write(value.x);
@@ -306,7 +306,7 @@ namespace MessagePack.Unity
             writer.Write(value.height);
         }
 
-        public global::UnityEngine.Rect Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Rect Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -347,35 +347,35 @@ namespace MessagePack.Unity
     }
 
     // additional
-    public sealed class WrapModeFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.WrapMode>
+    public sealed class WrapModeFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.WrapMode>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.WrapMode value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.WrapMode value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.Write((int)value);
         }
 
-        public global::UnityEngine.WrapMode Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.WrapMode Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             return (global::UnityEngine.WrapMode)reader.ReadInt32();
         }
     }
 
-    public sealed class GradientModeFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.GradientMode>
+    public sealed class GradientModeFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.GradientMode>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.GradientMode value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.GradientMode value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.Write((int)value);
         }
 
-        public global::UnityEngine.GradientMode Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.GradientMode Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             return (global::UnityEngine.GradientMode)reader.ReadInt32();
         }
     }
 
-    public sealed class KeyframeFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Keyframe>
+    public sealed class KeyframeFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Keyframe>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Keyframe value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Keyframe value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(4);
             writer.Write(value.time);
@@ -384,7 +384,7 @@ namespace MessagePack.Unity
             writer.Write(value.outTangent);
         }
 
-        public global::UnityEngine.Keyframe Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Keyframe Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -428,9 +428,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class AnimationCurveFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.AnimationCurve>
+    public sealed class AnimationCurveFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.AnimationCurve>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.AnimationCurve value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.AnimationCurve value, global::Omni.MessagePackSerializerOptions options)
         {
             if (value == null)
             {
@@ -445,7 +445,7 @@ namespace MessagePack.Unity
             resolver.GetFormatterWithVerify<global::UnityEngine.WrapMode>().Serialize(ref writer, value.preWrapMode, options);
         }
 
-        public global::UnityEngine.AnimationCurve Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.AnimationCurve Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -485,9 +485,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class Matrix4x4Formatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Matrix4x4>
+    public sealed class Matrix4x4Formatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Matrix4x4>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Matrix4x4 value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Matrix4x4 value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(16);
             writer.Write(value.m00);
@@ -508,7 +508,7 @@ namespace MessagePack.Unity
             writer.Write(value.m33);
         }
 
-        public global::UnityEngine.Matrix4x4 Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Matrix4x4 Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -612,16 +612,16 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class GradientColorKeyFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.GradientColorKey>
+    public sealed class GradientColorKeyFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.GradientColorKey>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.GradientColorKey value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.GradientColorKey value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(2);
             options.Resolver.GetFormatterWithVerify<global::UnityEngine.Color>().Serialize(ref writer, value.color, options);
             writer.Write(value.time);
         }
 
-        public global::UnityEngine.GradientColorKey Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.GradientColorKey Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -656,16 +656,16 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class GradientAlphaKeyFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.GradientAlphaKey>
+    public sealed class GradientAlphaKeyFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.GradientAlphaKey>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.GradientAlphaKey value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.GradientAlphaKey value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(2);
             writer.Write(value.alpha);
             writer.Write(value.time);
         }
 
-        public global::UnityEngine.GradientAlphaKey Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.GradientAlphaKey Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -699,9 +699,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class GradientFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Gradient>
+    public sealed class GradientFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Gradient>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Gradient value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Gradient value, global::Omni.MessagePackSerializerOptions options)
         {
             if (value == null)
             {
@@ -716,7 +716,7 @@ namespace MessagePack.Unity
             resolver.GetFormatterWithVerify<global::UnityEngine.GradientMode>().Serialize(ref writer, value.mode, options);
         }
 
-        public global::UnityEngine.Gradient Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Gradient Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -756,9 +756,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class Color32Formatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Color32>
+    public sealed class Color32Formatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Color32>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Color32 value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Color32 value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(4);
             writer.Write(value.r);
@@ -767,7 +767,7 @@ namespace MessagePack.Unity
             writer.Write(value.a);
         }
 
-        public global::UnityEngine.Color32 Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Color32 Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -811,9 +811,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class RectOffsetFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.RectOffset>
+    public sealed class RectOffsetFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.RectOffset>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.RectOffset value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.RectOffset value, global::Omni.MessagePackSerializerOptions options)
         {
             if (value == null)
             {
@@ -828,7 +828,7 @@ namespace MessagePack.Unity
             writer.Write(value.bottom);
         }
 
-        public global::UnityEngine.RectOffset Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.RectOffset Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -872,15 +872,15 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class LayerMaskFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.LayerMask>
+    public sealed class LayerMaskFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.LayerMask>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.LayerMask value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.LayerMask value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(1);
             writer.Write(value.value);
         }
 
-        public global::UnityEngine.LayerMask Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.LayerMask Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -909,15 +909,15 @@ namespace MessagePack.Unity
         }
     }
 #if UNITY_2017_2_OR_NEWER
-    public sealed class Vector2IntFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Vector2Int>
+    public sealed class Vector2IntFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Vector2Int>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector2Int value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector2Int value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(2);
             writer.WriteInt32(value.x);
             writer.WriteInt32(value.y);
         }
-        public global::UnityEngine.Vector2Int Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Vector2Int Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -950,16 +950,16 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class Vector3IntFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.Vector3Int>
+    public sealed class Vector3IntFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.Vector3Int>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector3Int value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.Vector3Int value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(3);
             writer.WriteInt32(value.x);
             writer.WriteInt32(value.y);
             writer.WriteInt32(value.z);
         }
-        public global::UnityEngine.Vector3Int Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.Vector3Int Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -997,15 +997,15 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class RangeIntFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.RangeInt>
+    public sealed class RangeIntFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.RangeInt>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.RangeInt value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.RangeInt value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(2);
             writer.WriteInt32(value.start);
             writer.WriteInt32(value.length);
         }
-        public global::UnityEngine.RangeInt Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.RangeInt Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -1038,9 +1038,9 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class RectIntFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.RectInt>
+    public sealed class RectIntFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.RectInt>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.RectInt value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.RectInt value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(4);
             writer.WriteInt32(value.x);
@@ -1048,7 +1048,7 @@ namespace MessagePack.Unity
             writer.WriteInt32(value.width);
             writer.WriteInt32(value.height);
         }
-        public global::UnityEngine.RectInt Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.RectInt Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {
@@ -1091,15 +1091,15 @@ namespace MessagePack.Unity
         }
     }
 
-    public sealed class BoundsIntFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::UnityEngine.BoundsInt>
+    public sealed class BoundsIntFormatter : global::Omni.Formatters.IMessagePackFormatter<global::UnityEngine.BoundsInt>
     {
-        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.BoundsInt value, global::MessagePack.MessagePackSerializerOptions options)
+        public void Serialize(ref MessagePackWriter writer, global::UnityEngine.BoundsInt value, global::Omni.MessagePackSerializerOptions options)
         {
             writer.WriteArrayHeader(2);
             options.Resolver.GetFormatterWithVerify<global::UnityEngine.Vector3Int>().Serialize(ref writer, value.position, options);
             options.Resolver.GetFormatterWithVerify<global::UnityEngine.Vector3Int>().Serialize(ref writer, value.size, options);
         }
-        public global::UnityEngine.BoundsInt Deserialize(ref MessagePackReader reader, global::MessagePack.MessagePackSerializerOptions options)
+        public global::UnityEngine.BoundsInt Deserialize(ref MessagePackReader reader, global::Omni.MessagePackSerializerOptions options)
         {
             if (reader.IsNil)
             {

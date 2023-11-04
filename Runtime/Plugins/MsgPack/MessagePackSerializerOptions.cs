@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Nerdbank.Streams;
 
-namespace MessagePack
+namespace Omni
 {
 #if !DYNAMICCODEDUMPER
     /// <summary>

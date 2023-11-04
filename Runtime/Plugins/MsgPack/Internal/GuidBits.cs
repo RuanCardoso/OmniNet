@@ -4,7 +4,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
     internal struct GuidBits

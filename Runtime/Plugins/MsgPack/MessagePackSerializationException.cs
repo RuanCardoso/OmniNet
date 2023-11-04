@@ -3,7 +3,7 @@
 
 using System;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// An exception thrown during serializing an object graph or deserializing a messagepack sequence.

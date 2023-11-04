@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Nerdbank.Streams;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// Reads one or more messagepack data structures from a <see cref="Stream"/>.

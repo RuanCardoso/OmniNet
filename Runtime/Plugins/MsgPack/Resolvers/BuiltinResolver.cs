@@ -7,14 +7,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using MessagePack.Formatters;
-using MessagePack.Internal;
-using MessagePack.Resolvers;
+using Omni.Formatters;
+using Omni.Internal;
+using Omni.Resolvers;
 
 #pragma warning disable SA1403 // File may only contain a single namespace
 #pragma warning disable SA1509 // Opening braces should not be preceded by blank line
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     public sealed class BuiltinResolver : IFormatterResolver
     {
@@ -45,7 +45,7 @@ namespace MessagePack.Resolvers
     }
 }
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class BuiltinResolverGetFormatterHelper
     {

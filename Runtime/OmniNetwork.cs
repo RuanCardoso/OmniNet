@@ -12,11 +12,9 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using MessagePack;
-using MessagePack.Resolvers;
-using MessagePack.Unity;
-using MessagePack.Unity.Extension;
-using NaughtyAttributes;
+using Omni.Resolvers;
+using Omni.Unity;
+using Omni.Unity.Extension;
 using Newtonsoft.Json.Utilities;
 using System;
 #if OMNI_MULTI_THREADED

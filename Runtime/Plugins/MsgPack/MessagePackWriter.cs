@@ -8,10 +8,10 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
-using MessagePack.Internal;
+using Omni.Internal;
 using Microsoft;
 
-namespace MessagePack
+namespace Omni
 {
     /// <summary>
     /// A primitive types writer for the MessagePack format.

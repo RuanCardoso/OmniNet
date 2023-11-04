@@ -5,7 +5,7 @@ using System;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class ExpressionUtility
     {

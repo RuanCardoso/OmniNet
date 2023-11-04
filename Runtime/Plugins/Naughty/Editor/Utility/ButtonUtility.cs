@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Collections.Generic;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     public static class ButtonUtility
     {

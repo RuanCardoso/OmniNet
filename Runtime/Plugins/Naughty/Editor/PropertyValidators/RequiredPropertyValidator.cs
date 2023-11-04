@@ -1,6 +1,6 @@
 ﻿using UnityEditor;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     public class RequiredPropertyValidator : PropertyValidatorBase
     {

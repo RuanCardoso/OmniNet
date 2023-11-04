@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     [CustomPropertyDrawer(typeof(SceneAttribute))]
     public class ScenePropertyDrawer : PropertyDrawerBase

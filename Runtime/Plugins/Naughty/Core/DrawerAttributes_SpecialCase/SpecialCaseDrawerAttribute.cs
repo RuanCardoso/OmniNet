@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace NaughtyAttributes
+namespace Omni
 {
     public class SpecialCaseDrawerAttribute : Attribute, INaughtyAttribute
     {

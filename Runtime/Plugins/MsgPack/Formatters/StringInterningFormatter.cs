@@ -4,7 +4,7 @@
 using System;
 using Microsoft.NET.StringTools;
 
-namespace MessagePack.Formatters
+namespace Omni.Formatters
 {
     /// <summary>
     /// A <see cref="string" /> formatter that interns strings on deserialization.

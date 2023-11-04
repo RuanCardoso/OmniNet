@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class ReflectionExtensions
     {

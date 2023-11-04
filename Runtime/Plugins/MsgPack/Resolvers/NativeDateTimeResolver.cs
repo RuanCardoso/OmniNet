@@ -2,12 +2,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using MessagePack.Formatters;
-using MessagePack.Internal;
+using Omni.Formatters;
+using Omni.Internal;
 
 #pragma warning disable SA1403 // File may only contain a single namespace
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     public sealed class NativeDateTimeResolver : IFormatterResolver
     {
@@ -48,7 +48,7 @@ namespace MessagePack.Resolvers
     }
 }
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class NativeDateTimeResolverGetFormatterHelper
     {

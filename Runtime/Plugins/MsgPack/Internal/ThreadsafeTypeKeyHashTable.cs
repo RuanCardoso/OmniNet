@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 
 #pragma warning disable SA1649 // File name should match first type name
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     /// <summary>
     /// A dictionary where <see cref="Type"/> is the key, and a configurable <typeparamref name="TValue"/> type

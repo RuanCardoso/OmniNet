@@ -2,13 +2,13 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Linq;
-using MessagePack.Formatters;
-using MessagePack.Internal;
-using MessagePack.Resolvers;
+using Omni.Formatters;
+using Omni.Internal;
+using Omni.Resolvers;
 
 #pragma warning disable SA1403 // File may only contain a single namespace
 
-namespace MessagePack.Resolvers
+namespace Omni.Resolvers
 {
     /// <summary>
     /// Default composited resolver, builtin -> attribute -> dynamic enum -> dynamic generic -> dynamic union -> dynamic object -> primitive.
@@ -276,7 +276,7 @@ namespace MessagePack.Resolvers
     }
 }
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class StandardResolverHelper
     {
@@ -286,7 +286,7 @@ namespace MessagePack.Internal
             AttributeFormatterResolver.Instance, // Try use [MessagePackFormatter]
 
 #if UNITY_2018_3_OR_NEWER
-            MessagePack.Unity.UnityResolver.Instance,
+            Omni.Unity.UnityResolver.Instance,
 #else
             ImmutableCollection.ImmutableCollectionResolver.Instance,
             CompositeResolver.Create(ExpandoObjectFormatter.Instance),

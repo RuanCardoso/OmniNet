@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 
-namespace NaughtyAttributes.Editor
+namespace Omni.Editor
 {
     public abstract class PropertyValidatorBase
     {

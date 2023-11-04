@@ -3,10 +3,10 @@
 
 using System;
 using System.Collections.Generic;
-using MessagePack.Formatters;
+using Omni.Formatters;
 using UnityEngine;
 
-namespace MessagePack.Unity.Extension
+namespace Omni.Unity.Extension
 {
     /// <summary>
     /// Special Resolver for Vector2[], Vector3[], Vector4[], Quaternion[], Color[], Bounds[], Rect[].

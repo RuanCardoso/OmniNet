@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace NaughtyAttributes
+namespace Omni
 {
     /// <summary>
     /// Base class for all drawer attributes

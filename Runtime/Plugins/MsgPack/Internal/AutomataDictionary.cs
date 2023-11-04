@@ -13,7 +13,7 @@ using System.Text;
 
 #pragma warning disable SA1509 // Opening braces should not be preceded by blank line
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     // Key = long, Value = int for UTF8String Dictionary
 

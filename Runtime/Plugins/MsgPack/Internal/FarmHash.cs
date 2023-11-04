@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 #pragma warning disable SA1303 // Const field names should begin with uppercase letter
 #pragma warning disable SA1307 // (public) field names should begin with uppercase letter
 
-namespace MessagePack.Internal
+namespace Omni.Internal
 {
     internal static class FarmHash
     {
