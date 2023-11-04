@@ -26,8 +26,8 @@ namespace Omni.Core
         private const int SEPARATOR_HEIGHT = 1;
         private const int SEPARATOR = -(20 - SEPARATOR_HEIGHT);
 
-        [InfoBox("Trigger are not supported!", EInfoBoxType.Warning)]
-        [Required("Animator is required!")][Space(2)] public Animator animator;
+        [InfoBox("Warning: Triggers are not supported.", EInfoBoxType.Warning)]
+        [Required("Animator is required.")][Space(2)] public Animator animator;
         [HorizontalLine(below: true, height: SEPARATOR_HEIGHT)][Space(SEPARATOR)] public List<AnimatorParameter> parameters;
         [SerializeField][Range(0, 1f)] private float syncInterval = 0.1f;
         [SerializeField] private AuthorityMode authority = AuthorityMode.Mine;
@@ -59,7 +59,9 @@ namespace Omni.Core
         private void Start()
         {
             if (OnSerializeViewAuthority)
-                OnSerializeView(new(syncInterval));
+            {
+                OnSerializeView(new WaitForSeconds(syncInterval));
+            }
         }
 
         protected internal override void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
@@ -68,29 +70,46 @@ namespace Omni.Core
             {
                 AnimatorParameter parameter = this.parameters[i];
                 if (parameter.SyncMode == AnimatorParameter.Sync.Disabled)
-                    continue;
-                switch (parameter.ParameterType)
                 {
-                    case AnimatorControllerParameterType.Float:
-                        if (isWriting)
-                            parameters.Write(animator.GetFloat(parameter.ParameterName));
-                        else if (!isWriting)
-                            animator.SetFloat(parameter.ParameterName, parameters.ReadFloat());
-                        break;
-                    case AnimatorControllerParameterType.Int:
-                        if (isWriting)
-                            parameters.Write(animator.GetInteger(parameter.ParameterName));
-                        else if (!isWriting)
-                            animator.SetInteger(parameter.ParameterName, parameters.ReadInt());
-                        break;
-                    case AnimatorControllerParameterType.Bool:
-                        if (isWriting)
-                            parameters.Write(animator.GetBool(parameter.ParameterName));
-                        else if (!isWriting)
-                            animator.SetBool(parameter.ParameterName, parameters.ReadBool());
-                        break;
-                    case AnimatorControllerParameterType.Trigger:
-                        break;
+                    continue;
+                }
+                else
+                {
+                    switch (parameter.ParameterType)
+                    {
+                        case AnimatorControllerParameterType.Float:
+                            if (isWriting)
+                            {
+                                parameters.Write(animator.GetFloat(parameter.ParameterName));
+                            }
+                            else if (!isWriting)
+                            {
+                                animator.SetFloat(parameter.ParameterName, parameters.ReadFloat());
+                            }
+                            break;
+                        case AnimatorControllerParameterType.Int:
+                            if (isWriting)
+                            {
+                                parameters.Write(animator.GetInteger(parameter.ParameterName));
+                            }
+                            else if (!isWriting)
+                            {
+                                animator.SetInteger(parameter.ParameterName, parameters.ReadInt());
+                            }
+                            break;
+                        case AnimatorControllerParameterType.Bool:
+                            if (isWriting)
+                            {
+                                parameters.Write(animator.GetBool(parameter.ParameterName));
+                            }
+                            else if (!isWriting)
+                            {
+                                animator.SetBool(parameter.ParameterName, parameters.ReadBool());
+                            }
+                            break;
+                        case AnimatorControllerParameterType.Trigger:
+                            break;
+                    }
                 }
             }
         }

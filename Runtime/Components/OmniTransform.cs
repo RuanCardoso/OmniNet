@@ -54,7 +54,9 @@ namespace Omni.Core
         private void Start()
         {
             if (OnSerializeViewAuthority)
+            {
                 OnSerializeView(new(syncInterval));
+            }
         }
 
         private void Update()

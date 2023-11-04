@@ -143,7 +143,7 @@ namespace Omni.Core
 
             if (@this == null)
             {
-                Logger.PrintError($"did you forget to initialize the variable? -> {GetType().Name}");
+                Logger.PrintError($"Error: It seems that the variable {GetType().Name} is not properly initialized. Please check if it's missing initialization.");
                 return;
             }
 

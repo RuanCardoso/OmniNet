@@ -46,7 +46,9 @@ namespace Omni.Core
             for (int i = 0; i < components.Length && conditional; i++)
             {
                 if (toDestroy)
+                {
                     Destroy(components[i] is Transform ? components[i].gameObject : components[i]);
+                }
                 else
                 {
                     if (components[i] is Transform) // Is a game object?

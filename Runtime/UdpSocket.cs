@@ -67,7 +67,9 @@ namespace Omni.Core
                 if (IsServer) // Only work in Windows Server and Linux Server, Mac Os Server not support!
                 {
                     if (Application.platform == RuntimePlatform.WindowsServer || Application.platform == RuntimePlatform.WindowsEditor)
+                    {
                         globalSocket.IOControl(-1744830452, new byte[] { 0, 0, 0, 0 }, null);
+                    }
 
                     switch (Application.platform) // [ONLY SERVER]
                     {
@@ -124,7 +126,9 @@ namespace Omni.Core
         protected int SendReliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             if (IsServer)
-                Logger.PrintError($"The server cannot send data! Use {nameof(GetClient)} instead!");
+            {
+                Logger.PrintError("Error: The server cannot send data directly. Please use the GetClient method to obtain a client instance for sending data.");
+            }
             else
             {
                 ByteStream message = ByteStream.Get();

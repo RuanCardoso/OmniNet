@@ -48,14 +48,18 @@ namespace Omni.Core
                 Array.Resize(ref window, window.Length + size);
             }
 
-            for (int i = lastIndex; i < window.Length; i++) window[i] = new(ServerSettings.maxPacketSize);
-            if (lastIndex != window.Length) lastIndex = window.Length;
+            for (int i = lastIndex; i < window.Length; i++)
+            {
+                window[i] = new(ServerSettings.maxPacketSize);
+            }
+
+            if (lastIndex != window.Length)
+                lastIndex = window.Length;
         }
     }
 
     public class SentWindow : Window
     {
-        #region Fields
 #pragma warning disable IDE0051
         private const int WINDOW_SIZE_COMPENSATION = 2;
 #pragma warning restore IDE0051
@@ -63,15 +67,18 @@ namespace Omni.Core
 #if OMNI_MULTI_THREADED
         private readonly object window_resize_lock = new();
 #endif
-        #endregion
         internal void Acknowledgement(int acknowledgment)
         {
             if (window.IsInBounds(acknowledgment))
             {
                 ByteStream byteStream = window[acknowledgment];
-                if (byteStream != null) byteStream.IsAcked = true;
+                if (byteStream != null)
+                    byteStream.IsAcked = true;
             }
-            else Logger.PrintError($"Ack: Discarded, it's out of window limits -> {sequence}:{window.Length}");
+            else
+            {
+                Logger.PrintError($"Ack: Discarded, it's out of window limits -> {sequence}:{window.Length}");
+            }
         }
 #if OMNI_MULTI_THREADED
         internal int GetSequence() => Interlocked.Increment(ref sequence);
@@ -150,10 +157,8 @@ namespace Omni.Core
                                         window.SetLastWriteTime();
                                         socket.Send(window, remoteEndPoint);
                                     }
-                                    else { }
                                 }
                             }
-                            else { }
                         }
                         catch (Exception ex)
                         {
