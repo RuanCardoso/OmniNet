@@ -21,7 +21,7 @@ namespace Omni.Core
 {
     public static class OmniTime
     {
-        const int WINDOW_SIZE = 10;
+        private const int WINDOW_SIZE = 10;
 
         private static ExponentialMovingAverage _rttExAvg = new(WINDOW_SIZE);
         private static ExponentialMovingAverage _offsetExAvg = new(WINDOW_SIZE);
@@ -60,7 +60,9 @@ namespace Omni.Core
                 _offsetExAvg.Add(offset);
             }
             else if (offset >= OmniTime.offsetMin || offset <= OmniTime.offsetMax)
+            {
                 _offsetExAvg.Add(offset);
+            }
         }
 
         public static void AddSent() => messagesSent++;

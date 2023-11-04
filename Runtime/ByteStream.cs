@@ -636,7 +636,7 @@ namespace Omni.Core
         }
 
 #pragma warning disable IDE0060
-        internal static ByteStream Get(MessageType msgType, bool isEmpty)
+        internal static ByteStream Get(MessageType msgType, bool _)
 #pragma warning restore IDE0060
         {
             ThrowIfNotInitialized();
@@ -647,7 +647,7 @@ namespace Omni.Core
             else
             {
                 _get_.WritePacket(msgType);
-                _get_.Write((byte)1);
+                _get_.Write((byte)0x1);
             }
             return _get_;
         }

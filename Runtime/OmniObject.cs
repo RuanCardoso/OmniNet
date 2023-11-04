@@ -87,8 +87,9 @@ namespace Omni.Core
 
             void ThrowErrorIfSignatureIsIncorret(byte id, string name)
             {
-                Logger.PrintError($"The signature of method with Id: {id}, name: {name}, type: {GetType().Name} is incorrect!");
-                Logger.PrintError($"Correct: void {name}({string.Join(",", parametersSignature.Select(x => x.ToString()))});");
+                Logger.PrintError($"Error: The signature of the method with ID: {id} and name: '{name}' in the type '{GetType().Name}' is incorrect.");
+                Logger.PrintError("Correct Signature: ");
+                Logger.PrintError($"private void {name}({string.Join(", ", parametersSignature.Select(param => $"{param.ParameterType} {param.Name}"))});");
             }
             #endregion
 
@@ -103,7 +104,10 @@ namespace Omni.Core
                     if (attr != null)
                     {
                         ParameterInfo[] parameters = method.GetParameters();
-                        if (parameters.Length != parametersCount) ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
+                        if (parameters.Length != parametersCount)
+                        {
+                            ThrowErrorIfSignatureIsIncorret(attr.id, method.Name);
+                        }
                         else
                         {
                             try
@@ -128,7 +132,10 @@ namespace Omni.Core
         {
             T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))
-                Logger.PrintError($"Handler for {instance.Id} already exists!");
+            {
+                Logger.PrintError($"Error: Failed to add a handler for ID={instance.Id}.");
+                Logger.PrintError("Please make sure the handler for this ID does not already exist.");
+            }
             else
             {
                 try
@@ -138,8 +145,8 @@ namespace Omni.Core
                 catch (Exception ex)
                 {
                     ex = ex.InnerException;
-                    Logger.PrintError(ex.Message);
-                    Logger.PrintError("It is necessary to generate the AOT code and register the type.");
+                    Logger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message}");
+                    Logger.PrintError("Hint: It may be necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
                 }
             }
         }
@@ -205,9 +212,17 @@ namespace Omni.Core
             Vector3 position = parameters.ReadVector3();
             Quaternion rotation = parameters.ReadQuaternion();
             OmniIdentity identity = OnSpawnedObject(position, rotation, parameters, fromId, toId, stats);
-            if (identity.objectType == ObjectType.Dynamic)
-                throw new NotImplementedException("Dynamic object not supported Id!");
-            else identity.Register(IsServer, fromId);
+            if (identity != null)
+            {
+                if (identity.objectType == ObjectType.Dynamic)
+                {
+                    throw new NotImplementedException("Error: Dynamic objects are not supported.");
+                }
+                else
+                {
+                    identity.Register(IsServer, fromId);
+                }
+            }
         }
 
         protected virtual OmniIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
@@ -223,20 +238,21 @@ namespace Omni.Core
         internal void SentOnSyncBase(byte id, ByteStream parameters, bool hasAuthority, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
         {
             if (hasAuthority)
+            {
                 OmniNetwork.OnSyncBase(parameters, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, SYNC_BASE_MSG_TYPE, channel, target, subTarget, cacheMode);
-            else { }
+            }
         }
 
         private IEnumerator SentOnSerializeView(WaitForSeconds seconds)
         {
-            MessageType SERIALIZE_MSG_TYPE = OmniHelper.GetMessageTypeToOnSerialize(identity.objectType);
+            MessageType msgType = OmniHelper.GetMessageTypeToOnSerialize(identity.objectType);
             while (OnSerializeViewAuthority)
             {
                 if (OnSerializeViewAuthority)
                 {
                     ByteStream message = ByteStream.Get();
                     OnSerializeView(message, true, default);
-                    OmniNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, SERIALIZE_MSG_TYPE, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, OnSerializeViewCacheMode);
+                    OmniNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, OnSerializeViewCacheMode);
                 }
                 else
                     break;

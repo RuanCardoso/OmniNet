@@ -21,7 +21,7 @@ using System.Net;
 
 namespace Omni.Core
 {
-    public class Player
+    public class OmniPlayer
     {
         public int Id { get; }
         public string Name { get; private set; }
@@ -32,7 +32,7 @@ namespace Omni.Core
 #else
         public readonly Dictionary<ushort, object> properties = new();
 #endif
-        internal Player(int id, UdpEndPoint endPoint)
+        internal OmniPlayer(int id, UdpEndPoint endPoint)
         {
             Id = id;
             DatabaseId = -1;

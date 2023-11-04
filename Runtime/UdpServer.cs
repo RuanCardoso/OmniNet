@@ -34,7 +34,7 @@ namespace Omni.Core
         private readonly Dictionary<ushort, UdpClient> clients = new();
 #endif
         internal UdpClient Client { get; private set; }
-        internal void CreateServerPlayer(ushort playerId)
+        internal void Initialize(ushort playerId)
         {
             Client = new UdpClient(true);
             clients.TryAdd(playerId, Client);
@@ -45,14 +45,14 @@ namespace Omni.Core
             switch (messageType)
             {
                 case MessageType.Disconnect:
-                    Disconnect(remoteEndPoint, "The endpoint {0} has been disconnected!");
+                    Disconnect(remoteEndPoint, "Info: The endpoint {0} has been successfully disconnected.");
                     break;
                 case MessageType.Connect:
                     {
                         ushort uniqueId = (ushort)remoteEndPoint.GetPort();
                         if (uniqueId == OmniNetwork.Port)
                         {
-                            Logger.LogWarning($"Client denied! Exclusive port -> {OmniNetwork.Port}");
+                            Logger.LogWarning($"Warning: Client connection denied. The port is in exclusive use -> {OmniNetwork.Port}");
                             return;
                         }
 
@@ -77,8 +77,14 @@ namespace Omni.Core
                             ByteStream stream = ByteStream.Get(messageType);
                             stream.Write(uniqueId);
                             UdpClient connectedClient = GetClient(remoteEndPoint);
-                            if (connectedClient != null) connectedClient.Send(stream, channel, target);
-                            else Logger.PrintError("Connect -> Client is null!");
+                            if (connectedClient != null)
+                            {
+                                connectedClient.Send(stream, channel, target);
+                            }
+                            else
+                            {
+                                Logger.PrintError("Connect -> Client is null!");
+                            }
                             stream.Release();
                             #endregion
                             _client_.Close(true);
@@ -98,7 +104,10 @@ namespace Omni.Core
                             client.Send(stream, channel, target);
                             stream.Release();
                         }
-                        else Logger.PrintError("A ping attempt on a disconnected client!");
+                        else
+                        {
+                            Logger.PrintError("Error: Attempted to ping a disconnected client!");
+                        }
                     }
                     break;
                 default:
@@ -123,14 +132,20 @@ namespace Omni.Core
                     case Target.Me:
                         {
                             if (subTarget == SubTarget.Server) // Defines whether to execute the instruction on the server when the server itself is the sender.
+                            {
                                 SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
+                            }
 
                             if (!sender.itSelf)
                             {
                                 if (!byteStream.isRawBytes)
+                                {
                                     sender.Send(byteStream, channel, target, subTarget, cacheMode);
+                                }
                                 else
+                                {
                                     sender.Send(byteStream);
+                                }
                             }
                             else if (subTarget != SubTarget.Server)
                             {
@@ -141,7 +156,9 @@ namespace Omni.Core
                     case Target.All:
                         {
                             if (subTarget == SubTarget.Server)
+                            {
                                 SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
+                            }
 
                             foreach (var (_, otherClient) in clients)
                             {
@@ -150,9 +167,13 @@ namespace Omni.Core
                                 else
                                 {
                                     if (!byteStream.isRawBytes)
+                                    {
                                         otherClient.Send(byteStream, channel, target, subTarget, cacheMode);
+                                    }
                                     else
+                                    {
                                         otherClient.Send(byteStream);
+                                    }
                                 }
                             }
                         }
@@ -160,7 +181,9 @@ namespace Omni.Core
                     case Target.Others:
                         {
                             if (subTarget == SubTarget.Server)
+                            {
                                 SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
+                            }
 
                             foreach (var (id, otherClient) in clients)
                             {
@@ -171,9 +194,13 @@ namespace Omni.Core
                                     if (id != sender.Id)
                                     {
                                         if (!byteStream.isRawBytes)
+                                        {
                                             otherClient.Send(byteStream, channel, target, subTarget, cacheMode);
+                                        }
                                         else
+                                        {
                                             otherClient.Send(byteStream);
+                                        }
                                     }
                                     else continue;
                                 }
@@ -187,7 +214,10 @@ namespace Omni.Core
                         break;
                 }
             }
-            else Logger.PrintError("Client not found! -> Check that the client is not sending the data using the server socket?");
+            else
+            {
+                Logger.PrintError("Error: Client not found. Ensure that the client is not mistakenly sending data through the server socket.");
+            }
         }
 
         private bool RemoveClient(ushort uniqueId, out UdpClient disconnected)
@@ -203,7 +233,9 @@ namespace Omni.Core
         {
             base.Close();
             foreach (var udpClient in clients.Values)
+            {
                 udpClient.Close();
+            }
         }
 
         protected override void Disconnect(UdpEndPoint endPoint, string msg = "")
@@ -211,11 +243,14 @@ namespace Omni.Core
             ushort uniqueId = (ushort)endPoint.GetPort();
             if (RemoveClient(uniqueId, out UdpClient disconnected))
             {
-                OmniNetwork.ClearAllCaches(uniqueId);
-                disconnected.Close(true);
                 Logger.Print(string.Format(msg, endPoint));
+                Dictionaries.ClearDataCache(uniqueId);
+                disconnected.Close(true);
             }
-            else Logger.PrintError("Failed to disconnect client!");
+            else
+            {
+                Logger.PrintError("Error: Failed to disconnect the client.");
+            }
         }
 
         internal IEnumerator CheckTheLastReceivedPing(double maxPingRequestTime)
@@ -226,10 +261,21 @@ namespace Omni.Core
                 for (int i = 0; i < clients.Length; i++)
                 {
                     UdpClient client = clients[i];
-                    if (client.itSelf) continue;
-                    if ((OmniTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
-                        Disconnect(client.remoteEndPoint, "The endpoint {0} has been disconnected! Note: Because the server got no response from it.");
-                    else continue;
+                    if (client.itSelf)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        if ((OmniTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
+                        {
+                            Disconnect(client.remoteEndPoint, "Info: The endpoint {0} has been disconnected due to lack of response from the client.");
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
                 }
 
                 yield return OmniNetwork.WAIT_FOR_CHECK_REC_PING;

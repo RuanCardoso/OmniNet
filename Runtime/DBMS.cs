@@ -17,21 +17,18 @@ using MySqlConnector;
 using Omni.Database;
 using System;
 using System.Data;
-using UnityEngine;
 
 namespace Omni.Core
 {
-    public class SGBD : IDisposable
+    // Data Base Management System
+    public class DBMS : IDisposable
     {
-        #region Fields
         private string tableName;
+        private IDbConnection iDbConnection;
         private Query query;
         private QueryFactory queryFactory;
-        private IDbConnection iDbConnection;
         internal bool finishAfterUse;
-        #endregion
 
-        #region Properties
         public Query Db
         {
             get
@@ -58,7 +55,6 @@ namespace Omni.Core
                 return iDbConnection;
             }
         }
-        #endregion
 
         public void Initialize(IDbConnection iDbConnection, Compiler compiler, string tableName, int timeout = 30)
         {
@@ -71,7 +67,8 @@ namespace Omni.Core
             }
             catch (Exception ex)
             {
-                Debug.LogException(ex);
+                Logger.PrintError(ex.Message);
+                Logger.PrintError(ex.InnerException.Message);
             }
         }
 
@@ -83,11 +80,15 @@ namespace Omni.Core
                 switch (dBType)
                 {
                     case SGDBType.SQLite:
-                        Initialize(new SqliteConnection(connectionString), new SqliteCompiler(), tableName, timeout);
+                        {
+                            Initialize(new SqliteConnection(connectionString), new SqliteCompiler(), tableName, timeout);
+                        }
                         break;
                     case SGDBType.MariaDB:
                     case SGDBType.MySQL:
-                        Initialize(new MySqlConnection(connectionString), new MySqlCompiler(), tableName, timeout);
+                        {
+                            Initialize(new MySqlConnection(connectionString), new MySqlCompiler(), tableName, timeout);
+                        }
                         break;
                     default:
                         throw new Exception("SGDB Type not supported!");
@@ -95,7 +96,8 @@ namespace Omni.Core
             }
             catch (Exception ex)
             {
-                Debug.LogException(ex);
+                Logger.PrintError(ex.Message);
+                Logger.PrintError(ex.InnerException.Message);
             }
         }
 

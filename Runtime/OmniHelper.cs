@@ -85,6 +85,36 @@ namespace Omni.Core
             }
         }
 
+        internal static void GetCache<TKey>(IDictionary<TKey, OmniCache> dict, Func<KeyValuePair<TKey, OmniCache>, bool> predicate, Action<OmniCache, ByteStream> func, bool ownerCache, ushort fromPort, bool isServer, bool where = true)
+        {
+            var datas = where ? dict.Where(predicate) : dict;
+            int dataCount = datas.Count();
+            if (dataCount > 0)
+            {
+                foreach (var ICache in datas)
+                {
+                    OmniCache cache = ICache.Value;
+                    if (!ownerCache && cache.fromId == fromPort)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        var message = ByteStream.Get();
+                        message.Write(cache.Buffer);
+                        if (isServer && fromPort != OmniNetwork.Port)
+                        {
+                            func(cache, message);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Logger.PrintError("Error: No cached data found for the specified conditions.");
+            }
+        }
+
         internal static int GetFreePort()
         {
             System.Net.Sockets.UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, 0));

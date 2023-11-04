@@ -24,7 +24,7 @@ namespace Omni.Core
 {
     internal sealed class UdpClient : UdpSocket
     {
-        public Player Player { get; }
+        public OmniPlayer Player { get; }
         internal int Id { get; private set; }
 
         protected override string Name => "Omni_Client";
@@ -36,7 +36,7 @@ namespace Omni.Core
         internal UdpClient(bool itSelf = false)
         {
             this.itSelf = itSelf;
-            if (itSelf)
+            if (this.itSelf)
             {
                 Id = NetworkId;
                 remoteEndPoint = new UdpEndPoint(IPAddress.Loopback, Port);
@@ -95,7 +95,9 @@ namespace Omni.Core
         private IEnumerator Connect()
         {
             if (IsConnected)
+            {
                 Logger.PrintError("You are connected!");
+            }
 
             while (!IsConnected)
             {
@@ -104,11 +106,8 @@ namespace Omni.Core
                 Send(message, Channel.Unreliable, Target.Me);
                 message.Release();
                 yield return WAIT_FOR_CONNECT;
-
                 if (!IsConnected)
-                {
                     Logger.Log("Retrying to establish connection...");
-                }
             }
         }
 
@@ -131,7 +130,9 @@ namespace Omni.Core
         internal int Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
         {
             if (remoteEndPoint == null)
-                Logger.PrintError("You must call Connect() before Send()");
+            {
+                Logger.PrintError("Error: Call Connect() before Send()");
+            }
             else
             {
                 return channel switch
@@ -141,6 +142,7 @@ namespace Omni.Core
                     _ => 0,
                 };
             }
+
             return 0;
         }
 
@@ -157,7 +159,10 @@ namespace Omni.Core
                             Instance.StartCoroutine(Ping());
                             OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
                         }
-                        else Logger.PrintError("The client is already connected!");
+                        else
+                        {
+                            Logger.PrintError("Error: The client is already connected. Disconnect before attempting to connect again.");
+                        }
                     }
                     break;
                 case MessageType.Ping:

@@ -16,10 +16,10 @@ namespace Omni.Core
 {
     public struct RemoteStats
     {
-        public double Time;
-        public int Length;
+        public double Time { get; }
+        public int Length { get; }
 
-        public RemoteStats(double time, int length)
+        internal RemoteStats(double time, int length)
         {
             Time = time;
             Length = length;

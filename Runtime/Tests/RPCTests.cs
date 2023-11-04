@@ -5,8 +5,6 @@ using Logger = Omni.Core.Logger;
 
 public class RPCTests : OmniObject
 {
-    [SerializeField] private SyncValue<float> m_Health;
-
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.S) && IsMine)
