@@ -52,7 +52,7 @@ namespace Omni.Core
                         ushort uniqueId = (ushort)remoteEndPoint.GetPort();
                         if (uniqueId == OmniNetwork.Port)
                         {
-                            Logger.LogWarning($"Warning: Client connection denied. The port is in exclusive use -> {OmniNetwork.Port}");
+                            OmniLogger.LogWarning($"Warning: Client connection denied. The port is in exclusive use -> {OmniNetwork.Port}");
                             return;
                         }
 
@@ -72,7 +72,7 @@ namespace Omni.Core
                         }
                         else
                         {
-                            Logger.Print("Unreliable -> Previous connection attempt failed, re-establishing connection.");
+                            OmniLogger.Print("Unreliable -> Previous connection attempt failed, re-establishing connection.");
                             #region Response
                             ByteStream stream = ByteStream.Get(messageType);
                             stream.Write(uniqueId);
@@ -83,7 +83,7 @@ namespace Omni.Core
                             }
                             else
                             {
-                                Logger.PrintError("Connect -> Client is null!");
+                                OmniLogger.PrintError("Connect -> Client is null!");
                             }
                             stream.Release();
                             #endregion
@@ -106,7 +106,7 @@ namespace Omni.Core
                         }
                         else
                         {
-                            Logger.PrintError("Error: Attempted to ping a disconnected client!");
+                            OmniLogger.PrintError("Error: Attempted to ping a disconnected client!");
                         }
                     }
                     break;
@@ -149,7 +149,7 @@ namespace Omni.Core
                             }
                             else if (subTarget != SubTarget.Server)
                             {
-                                Logger.PrintError("Are you trying to execute this instruction on yourself? Please use SubTarget.Server or verify if 'IsMine' is being used correctly.");
+                                OmniLogger.PrintError("Are you trying to execute this instruction on yourself? Please use SubTarget.Server or verify if 'IsMine' is being used correctly.");
                             }
                         }
                         break;
@@ -210,13 +210,13 @@ namespace Omni.Core
                     case Target.Server:
                         break;
                     default:
-                        Logger.PrintError($"Invalid target -> {target}");
+                        OmniLogger.PrintError($"Invalid target -> {target}");
                         break;
                 }
             }
             else
             {
-                Logger.PrintError("Error: Client not found. Ensure that the client is not mistakenly sending data through the server socket.");
+                OmniLogger.PrintError("Error: Client not found. Ensure that the client is not mistakenly sending data through the server socket.");
             }
         }
 
@@ -243,13 +243,13 @@ namespace Omni.Core
             ushort uniqueId = (ushort)endPoint.GetPort();
             if (RemoveClient(uniqueId, out UdpClient disconnected))
             {
-                Logger.Print(string.Format(msg, endPoint));
+                OmniLogger.Print(string.Format(msg, endPoint));
                 Dictionaries.ClearDataCache(uniqueId);
                 disconnected.Close(true);
             }
             else
             {
-                Logger.PrintError("Error: Failed to disconnect the client.");
+                OmniLogger.PrintError("Error: Failed to disconnect the client.");
             }
         }
 

@@ -33,13 +33,13 @@ namespace Omni.Core
         {
             if (socketAddress.Family != AddressFamily)
             {
-                Logger.PrintError("Invalid address family");
+                OmniLogger.PrintError("Invalid address family");
                 return default;
             }
 
             if (socketAddress.Size < 8)
             {
-                Logger.PrintError("Error: SocketAddress.Size < 8");
+                OmniLogger.PrintError("Error: SocketAddress.Size < 8");
                 return default;
             }
 
@@ -55,7 +55,7 @@ namespace Omni.Core
 
                 if (this.socketAddress.GetHashCode() == 0)
                 {
-                    Logger.PrintError("Error: SocketAddress.GetHashCode() == 0");
+                    OmniLogger.PrintError("Error: SocketAddress.GetHashCode() == 0");
                     return default;
                 }
             }

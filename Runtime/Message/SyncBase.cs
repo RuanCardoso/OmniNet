@@ -143,7 +143,7 @@ namespace Omni.Core
 
             if (@this == null)
             {
-                Logger.PrintError($"Error: It seems that the variable {GetType().Name} is not properly initialized. Please check if it's missing initialization.");
+                OmniLogger.PrintError($"Error: It seems that the variable {GetType().Name} is not properly initialized. Please check if it's missing initialization.");
                 return;
             }
 
@@ -175,14 +175,14 @@ namespace Omni.Core
                     }
                     catch (NullReferenceException)
                     {
-                        Logger.PrintError($"{TypeCode} converter not implemented!");
+                        OmniLogger.PrintError($"{TypeCode} converter not implemented!");
                     }
                 }
                 else
                 {
                     ISyncCustom ISerialize = isStruct ? (ISyncCustom)Get() : this.ISerialize;
                     if (ISerialize != null) ISerialize.Serialize(message);
-                    else Logger.PrintError($"SyncValue -> Custom type is not supported, use {nameof(ISyncCustom)} instead!");
+                    else OmniLogger.PrintError($"SyncValue -> Custom type is not supported, use {nameof(ISyncCustom)} instead!");
                 }
             }
             else message.SerializeWithMsgPack(value);

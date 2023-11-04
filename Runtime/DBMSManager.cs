@@ -46,7 +46,7 @@ namespace Omni.Core
             {
                 if (pool.Count == 0)
                 {
-                    Logger.Print("Query: No database connections are currently available. A temporary connection will be opened to handle this query.");
+                    OmniLogger.Print("Query: No database connections are currently available. A temporary connection will be opened to handle this query.");
                     return func(true);
                 }
                 else

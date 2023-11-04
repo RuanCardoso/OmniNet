@@ -80,7 +80,7 @@ namespace Omni.Core
                             Native.setsockopt(globalSocket.Handle, SocketOptionLevel.Udp, SocketOptionName.NoChecksum, 0, sizeof(int));
                             break;
                         default:
-                            Logger.PrintWarning("This plataform not support -> \"SocketOptionName.NoChecksum\"");
+                            OmniLogger.PrintError("This plataform not support -> \"SocketOptionName.NoChecksum\"");
                             break;
                     }
                 }
@@ -98,13 +98,13 @@ namespace Omni.Core
             {
                 IsConnected = false;
                 if (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
-                    Logger.PrintWarning($"The {Name} not binded to {localEndPoint} because it is already in use!");
+                    OmniLogger.PrintError($"The {Name} not binded to {localEndPoint} because it is already in use!");
                 else
-                    Logger.LogStacktrace(ex);
+                    OmniLogger.LogStacktrace(ex);
             }
             catch (Exception ex)
             {
-                Logger.LogStacktrace(ex);
+                OmniLogger.LogStacktrace(ex);
             }
         }
 
@@ -127,7 +127,7 @@ namespace Omni.Core
         {
             if (IsServer)
             {
-                Logger.PrintError("Error: The server cannot send data directly. Please use the GetClient method to obtain a client instance for sending data.");
+                OmniLogger.PrintError("Error: The server cannot send data directly. Please use the GetClient method to obtain a client instance for sending data.");
             }
             else
             {
@@ -179,7 +179,7 @@ namespace Omni.Core
 
                 int bytesWritten = data.BytesWritten;
                 int length = globalSocket.SendTo(data.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
-                if (length != bytesWritten) Logger.PrintError($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
+                if (length != bytesWritten) OmniLogger.PrintError($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
                 return length;
             }
             catch (ObjectDisposedException) { return 0; }
@@ -236,7 +236,7 @@ namespace Omni.Core
                                 // Random data will not have a valid header.
                                 if ((byte)target > 0x3 || (byte)channel > 0x1)
                                 {
-                                    Logger.PrintError($"{Name} - ReadData - Invalid target -> {channel} or channel -> {target}");
+                                    OmniLogger.PrintError($"{Name} - ReadData - Invalid target -> {channel} or channel -> {target}");
                                     //*************************************************************************************************
                                     RECV_STREAM.Release();
 #if !OMNI_MULTI_THREADED
@@ -314,7 +314,7 @@ namespace Omni.Core
                                                                 }
 
                                                                 if (RECV_WINDOW.LastProcessedPacket > (RECV_WINDOW.window.Length - 1))
-                                                                    Logger.PrintWarning($"Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized. {RECV_WINDOW.LastProcessedPacket} : {RECV_WINDOW.window.Length}");
+                                                                    OmniLogger.PrintError($"Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized. {RECV_WINDOW.LastProcessedPacket} : {RECV_WINDOW.window.Length}");
                                                             }
                                                             break;
                                                     }
@@ -330,7 +330,7 @@ namespace Omni.Core
                                                 }
                                             }
                                         default:
-                                            Logger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
+                                            OmniLogger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
                                             break;
                                     }
                                 }
@@ -341,7 +341,7 @@ namespace Omni.Core
                                 if (errorCode == SocketError.ConnectionReset)
                                 {
                                     if (IsServer)
-                                        Logger.PrintError("WSAECONNRESET -> The last send operation failed because the host is unreachable.");
+                                        OmniLogger.PrintError("WSAECONNRESET -> The last send operation failed because the host is unreachable.");
                                     else Disconnect(null, "There was an unexpected disconnection!");
                                 }
 #if !OMNI_MULTI_THREADED

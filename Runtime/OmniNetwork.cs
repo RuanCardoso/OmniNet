@@ -120,7 +120,7 @@ namespace Omni.Core
 
             if (methodName != expectedMethodName)
             {
-                Logger.PrintError($"{nameof(AddResolver)} must be called from {expectedMethodName}!");
+                OmniLogger.PrintError($"{nameof(AddResolver)} must be called from {expectedMethodName}!");
                 return MessagePackSerializer.DefaultOptions;
             }
 
@@ -199,7 +199,7 @@ namespace Omni.Core
 
         private void Start()
         {
-            Invoke(nameof(Main), 1f);
+            Invoke(nameof(Main), 1.5f);
         }
 
         private void Update()
@@ -297,7 +297,7 @@ namespace Omni.Core
         {
 #if UNITY_SERVER && !UNITY_EDITOR
             Console.Clear();
-            if (serverSettings.hasCommands)
+            if (ServerSettings.hasCommands)
             {
                 OmniConsole.Initialize(tokenSource.Token, this);
             }
@@ -308,17 +308,17 @@ namespace Omni.Core
         {
             if (!GarbageCollector.isIncremental)
             {
-                Logger.PrintWarning("Consider enabling \"Incremental Garbage Collection\" for improved performance. This option can maximize performance by efficiently managing memory usage during runtime.");
+                OmniLogger.Print("Consider enabling \"Incremental Garbage Collection\" for improved performance. This option can maximize performance by efficiently managing memory usage during runtime.");
             }
         }
 
         private void CheckApiModeSettings()
         {
 #if !NETSTANDARD2_1
-            Logger.PrintWarning("Consider changing the API Mode to \".NET Standard 2.1\" for improved performance and compatibility. .NET Standard 2.1 offers enhanced features, performance optimizations, and broader library support, resulting in better performance and increased functionality for your application.");
+            Logger.Print("Consider changing the API Mode to \".NET Standard 2.1\" for improved performance and compatibility. .NET Standard 2.1 offers enhanced features, performance optimizations, and broader library support, resulting in better performance and increased functionality for your application.");
 #endif
 #if !ENABLE_IL2CPP && !UNITY_EDITOR
-            Logger.PrintWarning("Consider changing the API Mode to \"IL2CPP\" for optimal performance. IL2CPP provides enhanced performance and security by converting your code into highly optimized C++ during the build process.");
+            Logger.Print("Consider changing the API Mode to \"IL2CPP\" for optimal performance. IL2CPP provides enhanced performance and security by converting your code into highly optimized C++ during the build process.");
 #endif
         }
 
@@ -357,7 +357,7 @@ namespace Omni.Core
             var key = (identity.id, identity.playerId, identity.isItFromTheServer, identity.sceneId, identity.objectType);
             if (Dictionaries.Identities.TryGetValue(key, out _))
             {
-                Logger.PrintError($"The identity already exists: ID={identity.id}, PlayerID={identity.playerId}, IsFromServer={identity.isItFromTheServer}, SceneID={identity.sceneId}, ObjectType={identity.objectType}");
+                OmniLogger.PrintError($"The identity already exists: ID={identity.id}, PlayerID={identity.playerId}, IsFromServer={identity.isItFromTheServer}, SceneID={identity.sceneId}, ObjectType={identity.objectType}");
                 return;
             }
 
@@ -368,13 +368,13 @@ namespace Omni.Core
         {
             if (!Dictionaries.Identities.TryGetValue((identityId, playerId, isServer, sceneId, objType), out var identity))
             {
-                Logger.PrintWarning($"Identity not found! -> ID={identityId}, PlayerID={playerId}, IsServer={isServer}, SceneID={sceneId}, ObjectType={objType}");
+                OmniLogger.PrintError($"Identity not found! -> ID={identityId}, PlayerID={playerId}, IsServer={isServer}, SceneID={sceneId}, ObjectType={objType}");
                 return null;
             }
 
             if (identity == null)
             {
-                Logger.PrintWarning($"Identity is null! -> ID={identityId}, PlayerID={playerId}, IsServer={isServer}, SceneID={sceneId}, ObjectType={objType}");
+                OmniLogger.PrintError($"Identity is null! -> ID={identityId}, PlayerID={playerId}, IsServer={isServer}, SceneID={sceneId}, ObjectType={objType}");
             }
 
             return identity;
@@ -397,8 +397,8 @@ namespace Omni.Core
             T instance = new();
             if (!Dictionaries.Handlers.TryAdd(instance.Id, handler))
             {
-                Logger.PrintError($"Error: Failed to add a handler for ID={instance.Id}.");
-                Logger.PrintError("Please make sure the handler for this ID does not already exist.");
+                OmniLogger.PrintError($"Error: Failed to add a handler for ID={instance.Id}.");
+                OmniLogger.PrintError("Please make sure the handler for this ID does not already exist.");
                 return instance.Id;
             }
 
@@ -410,8 +410,8 @@ namespace Omni.Core
                 }
                 catch (Exception ex)
                 {
-                    Logger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message}");
-                    Logger.PrintError("Hint: It may be necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
+                    OmniLogger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message}");
+                    OmniLogger.PrintError("Hint: It may be necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
                 }
             }
 
@@ -453,7 +453,7 @@ namespace Omni.Core
                     {
                         if (isServer)
                         {
-                            Logger.Print($"Info: The endpoint {remoteEndPoint} has been successfully established on the server.");
+                            OmniLogger.Print($"Info: The endpoint {remoteEndPoint} has been successfully established on the server.");
                         }
 
                         var ipAddress = new IPAddress(remoteEndPoint.GetIPAddress());
@@ -542,7 +542,9 @@ namespace Omni.Core
                                         rpc?.Invoke(parameters, fromId, toId, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
                                     }
                                     else
-                                        Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {pIdInIdentity}, {isServer}]");
+                                    {
+                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {pIdInIdentity}, {isServer}]");
+                                    }
                                     break;
                                 }
                         }
@@ -586,9 +588,13 @@ namespace Omni.Core
                                 {
                                     OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, selfType);
                                     if (identity != null)
+                                    {
                                         identity.GetOmniObject(instanceId).OnSerializeView(parameters, false, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
+                                    }
                                     else
-                                        Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                    {
+                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                    }
                                     break;
                                 }
                         }
@@ -633,9 +639,13 @@ namespace Omni.Core
                                 {
                                     OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, selfType);
                                     if (identity != null)
+                                    {
                                         identity.GetOmniObject(instanceId).OnSyncBase?.Invoke(fieldId, parameters);
+                                    }
                                     else
-                                        Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                    {
+                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                    }
                                     break;
                                 }
                         }
@@ -783,7 +793,9 @@ namespace Omni.Core
                                         handler?.Invoke(parameters.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
                                     }
                                     else
-                                        Logger.PrintWarning($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                    {
+                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                    }
                                 }
                                 break;
                         }
@@ -931,7 +943,7 @@ namespace Omni.Core
         {
             OmniPlayer player = udpServer.GetClient(playerId).Player;
             if (player == null)
-                Logger.PrintError("Player not found!");
+                OmniLogger.PrintError("Player not found!");
             return player;
         }
 
@@ -939,7 +951,7 @@ namespace Omni.Core
         {
             OmniPlayer player = udpClient.GetClient(playerId).Player;
             if (player == null)
-                Logger.PrintError("Player not found!");
+                OmniLogger.PrintError("Player not found!");
             return player;
         }
 

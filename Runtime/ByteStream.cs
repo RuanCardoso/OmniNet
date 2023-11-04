@@ -111,7 +111,7 @@ namespace Omni.Core
         {
             if (position != 0 || bytesWritten != 0)
             {
-                Logger.PrintError($"The ByteStream is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
+                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
             }
             else
             {
@@ -588,7 +588,7 @@ namespace Omni.Core
         {
             if (position + size > buffer.Length)
             {
-                Logger.PrintError($"Byte Stream: Not enough space to write! you are writing {size} bytes -> pos: {position + size}");
+                OmniLogger.PrintError($"Byte Stream: Not enough space to write! you are writing {size} bytes -> pos: {position + size}");
                 return false;
             }
 
@@ -599,7 +599,7 @@ namespace Omni.Core
         {
             if (position + size > bytesWritten)
             {
-                Logger.PrintError($"Byte Stream: Not enough data to read!");
+                OmniLogger.PrintError($"Byte Stream: Not enough data to read!");
                 return false;
             }
 
@@ -610,7 +610,7 @@ namespace Omni.Core
         {
             if (bsPool == null)
             {
-                Logger.PrintError("Omni is not initialized?");
+                OmniLogger.PrintError("Omni is not initialized?");
             }
         }
 
@@ -620,7 +620,7 @@ namespace Omni.Core
             ByteStream _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-                Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             return _get_;
         }
 
@@ -630,7 +630,7 @@ namespace Omni.Core
             ByteStream _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-                Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             else _get_.WritePacket(msgType);
             return _get_;
         }
@@ -643,7 +643,7 @@ namespace Omni.Core
             ByteStream _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-                Logger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             else
             {
                 _get_.WritePacket(msgType);
@@ -659,7 +659,7 @@ namespace Omni.Core
             {
                 if (isRelease)
                 {
-                    Logger.PrintError($"The ByteStream is already released!");
+                    OmniLogger.PrintError($"The ByteStream is already released!");
                 }
                 else
                 {

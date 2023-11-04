@@ -60,7 +60,7 @@ namespace Omni.Core.Inspector
                                 parameter.ParameterName = animatorParameter.ParameterName;
                                 parameter.ParameterType = animatorParameter.ParameterType;
                             }
-                            else Logger.PrintError("Omni Animator -> Invalid parameter!");
+                            else OmniLogger.PrintError("Omni Animator -> Invalid parameter!");
                         }
                     }
                 }

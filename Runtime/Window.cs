@@ -77,7 +77,7 @@ namespace Omni.Core
             }
             else
             {
-                Logger.PrintError($"Ack: Discarded, it's out of window limits -> {sequence}:{window.Length}");
+                OmniLogger.PrintError($"Ack: Discarded, it's out of window limits -> {sequence}:{window.Length}");
             }
         }
 #if OMNI_MULTI_THREADED
@@ -165,7 +165,7 @@ namespace Omni.Core
 #if OMNI_AGRESSIVE_RELAY
                             Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
 #else
-                            Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
+                            OmniLogger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
 #endif
                             continue;
                         }

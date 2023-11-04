@@ -67,8 +67,8 @@ namespace Omni.Core
             }
             catch (Exception ex)
             {
-                Logger.PrintError(ex.Message);
-                Logger.PrintError(ex.InnerException.Message);
+                OmniLogger.PrintError(ex.Message);
+                OmniLogger.PrintError(ex.InnerException.Message);
             }
         }
 
@@ -96,8 +96,8 @@ namespace Omni.Core
             }
             catch (Exception ex)
             {
-                Logger.PrintError(ex.Message);
-                Logger.PrintError(ex.InnerException.Message);
+                OmniLogger.PrintError(ex.Message);
+                OmniLogger.PrintError(ex.InnerException.Message);
             }
         }
 

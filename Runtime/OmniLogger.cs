@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Omni.Core
 {
-    public static class Logger
+    public static class OmniLogger
     {
 #if !UNITY_SERVER || UNITY_EDITOR
         public static void Print(object message) => Debug.LogFormat(LogType.Log, LogOption.NoStacktrace, null, "{0}", message);

@@ -47,7 +47,7 @@ namespace Omni.Core
             }
             else
             {
-                Logger.PrintError("Error: Failed to deserialize SyncCustom object. Make sure it implements ISyncCustom.");
+                OmniLogger.PrintError("Error: Failed to deserialize SyncCustom object. Make sure it implements ISyncCustom.");
             }
         }
 
@@ -61,7 +61,7 @@ namespace Omni.Core
             }
             else
             {
-                Logger.PrintError("Error: Failed to deserialize SyncCustom object. Make sure it implements ISyncCustom.");
+                OmniLogger.PrintError("Error: Failed to deserialize SyncCustom object. Make sure it implements ISyncCustom.");
             }
         }
 
@@ -92,7 +92,7 @@ namespace Omni.Core
                     break;
                 default:
                     {
-                        Logger.PrintError("Error: Unsupported TypeCode for deserialization -> ISyncBaseValue<T>");
+                        OmniLogger.PrintError("Error: Unsupported TypeCode for deserialization -> ISyncBaseValue<T>");
                     }
                     break;
             }

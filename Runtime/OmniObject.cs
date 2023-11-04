@@ -65,7 +65,7 @@ namespace Omni.Core
         {
             if (identity == null)
             {
-                Logger.PrintError("Error: This instance must be registered in the OmniIdentity.");
+                OmniLogger.PrintError("Error: This instance must be registered in the OmniIdentity.");
                 return;
             }
 
@@ -87,9 +87,9 @@ namespace Omni.Core
 
             void ThrowErrorIfSignatureIsIncorret(byte id, string name)
             {
-                Logger.PrintError($"Error: The signature of the method with ID: {id} and name: '{name}' in the type '{GetType().Name}' is incorrect.");
-                Logger.PrintError("Correct Signature: ");
-                Logger.PrintError($"private void {name}({string.Join(", ", parametersSignature.Select(param => $"{param.ParameterType} {param.Name}"))});");
+                OmniLogger.PrintError($"Error: The signature of the method with ID: {id} and name: '{name}' in the type '{GetType().Name}' is incorrect.");
+                OmniLogger.PrintError("Correct Signature: ");
+                OmniLogger.PrintError($"private void {name}({string.Join(", ", parametersSignature.Select(param => $"{param.ParameterType} {param.Name}"))});");
             }
             #endregion
 
@@ -133,8 +133,8 @@ namespace Omni.Core
             T instance = new();
             if (!handlers.TryAdd(instance.Id, handler))
             {
-                Logger.PrintError($"Error: Failed to add a handler for ID={instance.Id}.");
-                Logger.PrintError("Please make sure the handler for this ID does not already exist.");
+                OmniLogger.PrintError($"Error: Failed to add a handler for ID={instance.Id}.");
+                OmniLogger.PrintError("Please make sure the handler for this ID does not already exist.");
             }
             else
             {
@@ -145,8 +145,8 @@ namespace Omni.Core
                 catch (Exception ex)
                 {
                     ex = ex.InnerException;
-                    Logger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message}");
-                    Logger.PrintError("Hint: It may be necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
+                    OmniLogger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message}");
+                    OmniLogger.PrintError("Hint: It may be necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
                 }
             }
         }

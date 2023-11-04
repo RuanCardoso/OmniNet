@@ -27,9 +27,9 @@ namespace Omni.Core
             new Thread(() =>
             {
                 Dictionary<string, string> commands = new();
-                Logger.Print("Press 'Enter' to write a command!");
-                Logger.Print("Ex: Ban -user Ruan -days 300");
-                Logger.Print("Press 'ESC' to exit!");
+                OmniLogger.Print("Press 'Enter' to write a command!");
+                OmniLogger.Print("Ex: Ban -user Ruan -days 300");
+                OmniLogger.Print("Press 'ESC' to exit!");
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
@@ -38,7 +38,7 @@ namespace Omni.Core
                     {
                         case ConsoleKey.Enter:
                             {
-                                Logger.Print("Write the command:");
+                                OmniLogger.Print("Write the command:");
                                 string command = Console.ReadLine();
                                 commands.Clear();
                                 switch (command)
@@ -53,27 +53,27 @@ namespace Omni.Core
                                     case "gc collect":
                                         {
                                             GC.Collect();
-                                            Logger.Print("GC: Collected memory!");
+                                            OmniLogger.Print("GC: Collected memory!");
                                         }
                                         break;
                                     case "Memory":
                                     case "memory":
                                         {
                                             long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
-                                            Logger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.GB)} GB");
+                                            OmniLogger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.GB)} GB");
                                         }
                                         break;
                                     case "fps":
                                     case "FPS":
                                         {
-                                            Logger.Print($"FPS: {OmniNetwork.Framerate}");
+                                            OmniLogger.Print($"FPS: {OmniNetwork.Framerate}");
                                         }
                                         break;
                                     case "Time":
                                     case "time":
                                         {
-                                            Logger.Print($"Time: {OmniTime.LocalTime}");
-                                            Logger.Print($"Date/Hour: {DateTime.UtcNow}");
+                                            OmniLogger.Print($"Time: {OmniTime.LocalTime}");
+                                            OmniLogger.Print($"Date/Hour: {DateTime.UtcNow}");
                                         }
                                         break;
                                     default:
@@ -84,7 +84,7 @@ namespace Omni.Core
                                                 string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
                                                 if (parameters.Length <= 1)
                                                 {
-                                                    Logger.Print("Continuing execution without provided parameters.");
+                                                    OmniLogger.Print("Continuing execution without provided parameters.");
                                                 }
                                                 else
                                                 {
@@ -96,7 +96,7 @@ namespace Omni.Core
                                                             string value = parameters[i][1];
                                                             if (string.IsNullOrEmpty(parameter) || string.IsNullOrEmpty(value))
                                                             {
-                                                                Logger.Print("Continuing execution without provided parameters.");
+                                                                OmniLogger.Print("Continuing execution without provided parameters.");
                                                             }
                                                             else
                                                             {
@@ -109,18 +109,18 @@ namespace Omni.Core
                                                         }
                                                         else
                                                         {
-                                                            Logger.PrintError("Invalid parameters!");
+                                                            OmniLogger.PrintError("Invalid parameters!");
                                                             break;
                                                         }
                                                     }
                                                 }
 
                                                 command = parameters[0][0];
-                                                Logger.Print($"Command executed: '{command}' | parameter count: {paramsCount}");
+                                                OmniLogger.Print($"Command executed: '{command}' | parameter count: {paramsCount}");
                                             }
                                             else
                                             {
-                                                Logger.PrintError("There are no commands!");
+                                                OmniLogger.PrintError("There are no commands!");
                                             }
                                         }
                                         break;
@@ -129,13 +129,13 @@ namespace Omni.Core
                             break;
                         case ConsoleKey.Escape:
                             {
-                                Logger.Print("Exiting...");
+                                OmniLogger.Print("Exiting...");
                                 self.OnApplicationQuit();
                                 UnityEngine.Application.Quit(0);
                             }
                             break;
                         default:
-                            Logger.Print($"There is no command for the '{key}' key");
+                            OmniLogger.Print($"There is no command for the '{key}' key");
                             break;
                     }
                 }

@@ -32,7 +32,7 @@ namespace Omni.Core
         {
             if (Id == 0)
             {
-                Logger.PrintError($"Override {nameof(Id)} property! [{GetType().Name} -> {nameof(OmniBehaviour)}]");
+                OmniLogger.PrintError($"Override {nameof(Id)} property! [{GetType().Name} -> {nameof(OmniBehaviour)}]");
             }
             else
             {
@@ -44,9 +44,9 @@ namespace Omni.Core
 
                 void ThrowErrorIfSignatureIsIncorret(byte id, string name)
                 {
-                    Logger.PrintError($"Error: The signature of the method with ID: {id} and name: '{name}' in the type '{GetType().Name}' is incorrect.");
-                    Logger.PrintError("Correct Signature: ");
-                    Logger.PrintError($"private void {name}({string.Join(", ", parametersSignature.Select(param => $"{param.ParameterType} {param.Name}"))});");
+                    OmniLogger.PrintError($"Error: The signature of the method with ID: {id} and name: '{name}' in the type '{GetType().Name}' is incorrect.");
+                    OmniLogger.PrintError("Correct Signature: ");
+                    OmniLogger.PrintError($"private void {name}({string.Join(", ", parametersSignature.Select(param => $"{param.ParameterType} {param.Name}"))});");
                 }
                 #endregion
 
@@ -72,7 +72,7 @@ namespace Omni.Core
                                     var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, bool, RemoteStats>), this) as Action<ByteStream, ushort, ushort, bool, RemoteStats>;
                                     if (!Dictionaries.RPCMethods.TryAdd((attr.id, Id), remote))
                                     {
-                                        Logger.PrintError($"Error: The RPC ID {attr.id} is already registered for this script instance. Solution: Ensure that each RPC ID is unique within the script instance.");
+                                        OmniLogger.PrintError($"Error: The RPC ID {attr.id} is already registered for this script instance. Solution: Ensure that each RPC ID is unique within the script instance.");
                                     }
                                 }
                                 catch (ArgumentException)
@@ -92,7 +92,7 @@ namespace Omni.Core
         {
             if (!Dictionaries.RPCMethods.TryGetValue((rpcId, instanceId), out Action<ByteStream, ushort, ushort, bool, RemoteStats> value))
             {
-                Logger.PrintWarning($"RPC does not exist! -> {rpcId} -> [IsServer]={isServer}");
+                OmniLogger.PrintError($"Global Remote does not exist! RPC ID: {rpcId}, Instance ID: {instanceId}, IsServer: {isServer}");
             }
 
             return value;
@@ -165,7 +165,7 @@ namespace Omni.Core
             }
             else
             {
-                Logger.PrintError("Error: Failed to create an OmniIdentity for the spawned object.");
+                OmniLogger.PrintError("Error: Failed to create an OmniIdentity for the spawned object.");
             }
         }
 

@@ -59,9 +59,9 @@ namespace Omni.Core
             {
                 case CacheMode.Append:
                     {
-                        Logger.PrintError("Error: Append mode is not currently supported. It will be added in a future update.");
-                        Logger.PrintWarning("Warning: Using 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption.");
-                        Logger.PrintWarning("This is caused by sending all stored states when using the 'Append' mode. We recommend using 'Overwrite' mode instead.");
+                        OmniLogger.PrintError("Error: Append mode is not currently supported. It will be added in a future update.");
+                        OmniLogger.Print("Warning: Using 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption.");
+                        OmniLogger.Print("This is caused by sending all stored states when using the 'Append' mode. We recommend using 'Overwrite' mode instead.");
                     }
                     break;
                 case CacheMode.Overwrite:
@@ -111,7 +111,7 @@ namespace Omni.Core
             }
             else
             {
-                Logger.PrintError("Error: No cached data found for the specified conditions.");
+                OmniLogger.PrintError("Error: No cached data found for the specified conditions.");
             }
         }
 

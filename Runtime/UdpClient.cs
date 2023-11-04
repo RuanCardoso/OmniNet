@@ -69,7 +69,7 @@ namespace Omni.Core
                 await Task.Delay(10000);
                 if (!IsConnected)
                 {
-                    Logger.LogError($"Sorry, it seems that the host is currently unavailable. Please try again later -> {remoteEndPoint}");
+                    OmniLogger.LogError($"Sorry, it seems that the host is currently unavailable. Please try again later -> {remoteEndPoint}");
                     Instance.StopCoroutine(Connect());
                 }
             });
@@ -96,7 +96,7 @@ namespace Omni.Core
         {
             if (IsConnected)
             {
-                Logger.PrintError("You are connected!");
+                OmniLogger.PrintError("You are connected!");
             }
 
             while (!IsConnected)
@@ -107,7 +107,7 @@ namespace Omni.Core
                 message.Release();
                 yield return WAIT_FOR_CONNECT;
                 if (!IsConnected)
-                    Logger.Log("Retrying to establish connection...");
+                    OmniLogger.Log("Retrying to establish connection...");
             }
         }
 
@@ -131,7 +131,7 @@ namespace Omni.Core
         {
             if (remoteEndPoint == null)
             {
-                Logger.PrintError("Error: Call Connect() before Send()");
+                OmniLogger.PrintError("Error: Call Connect() before Send()");
             }
             else
             {
@@ -161,7 +161,7 @@ namespace Omni.Core
                         }
                         else
                         {
-                            Logger.PrintError("Error: The client is already connected. Disconnect before attempting to connect again.");
+                            OmniLogger.PrintError("Error: The client is already connected. Disconnect before attempting to connect again.");
                         }
                     }
                     break;

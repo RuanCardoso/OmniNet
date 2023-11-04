@@ -171,7 +171,7 @@ namespace Omni.Core
                 }
                 else
                 {
-                    Logger.PrintError("Error: This object has already been registered.");
+                    OmniLogger.PrintError("Error: This object has already been registered.");
                 }
             }
         }
@@ -183,7 +183,7 @@ namespace Omni.Core
             {
                 if (objectType == ObjectType.Dynamic && id == 0)
                 {
-                    Logger.PrintError("Error: Dynamic objects require a unique ID for registration. The object will be destroyed.");
+                    OmniLogger.PrintError("Error: Dynamic objects require a unique ID for registration. The object will be destroyed.");
                     Destroy(gameObject);
                 }
                 else
@@ -207,13 +207,13 @@ namespace Omni.Core
                     }
                     else
                     {
-                        Logger.PrintError("Error: This object has already been registered.");
+                        OmniLogger.PrintError("Error: This object has already been registered.");
                     }
                 }
             }
             else
             {
-                Logger.PrintError("Error: Scene or Static objects do not support dynamic registration.");
+                OmniLogger.PrintError("Error: Scene or Static objects do not support dynamic registration.");
             }
         }
 
@@ -221,7 +221,7 @@ namespace Omni.Core
         {
             if (!RPCMethods.TryAdd((rpcId, instanceId), method))
             {
-                Logger.PrintError($"The RPC {instanceId}:{rpcId} is already registered.");
+                OmniLogger.PrintError($"The Remote {instanceId}:{rpcId} is already registered. Cannot register it again.");
             }
         }
 
@@ -230,7 +230,7 @@ namespace Omni.Core
             var key = (rpcId, instanceId);
             if (!RPCMethods.TryGetValue(key, out Action<ByteStream, ushort, ushort, RemoteStats> value))
             {
-                Logger.PrintWarning($"RPC does not exist! -> {key} -> [IsServer]={isItFromTheServer}");
+                OmniLogger.PrintError($"Remote RPC does not exist! Key: {key}, IsServer: {isItFromTheServer}");
             }
 
             return value;
@@ -251,7 +251,7 @@ namespace Omni.Core
                 networks = transform.GetComponentsInChildren<OmniObject>();
                 if (!(isInRoot = transform == RootOr()))
                 {
-                    Logger.PrintWarning($"{gameObject.name} -> Error: Only root objects can have an OmniIdentity component.");
+                    OmniLogger.PrintError($"{gameObject.name} -> Error: Only root objects can have an OmniIdentity component.");
                 }
 
                 byte sceneId = (byte)SceneManager.GetActiveScene().buildIndex;
@@ -280,10 +280,6 @@ namespace Omni.Core
                             }
                         }
                     }
-                    else
-                    {
-                        Logger.PrintWarning($"{transform.name} -> [IsRoot]={isInRoot}");
-                    }
                 }
                 else
                 {
@@ -292,8 +288,8 @@ namespace Omni.Core
             }
         }
 
-        [ContextMenu("Omni/Re-order Identities")]
-        [Button("Global: Re-order Identities", EButtonEnableMode.Editor)]
+        [ContextMenu("Omni: Reorder Identities")]
+        [Button("Global: Reorder Identities", EButtonEnableMode.Editor)]
         private void IReorder()
         {
             if (!Application.isPlaying)
@@ -308,7 +304,7 @@ namespace Omni.Core
             }
         }
 
-        [ContextMenu("Omni/Register Omni Objects")]
+        [ContextMenu("Omni: Register Omni Objects")]
         [Button("Register Omni Objects", EButtonEnableMode.Editor)]
         private void AddOmniObjects()
         {

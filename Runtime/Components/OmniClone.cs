@@ -37,7 +37,7 @@ namespace Omni.Core
             }
             catch
             {
-                Logger.PrintWarning("Unable to move object to target scene -> Server.");
+                OmniLogger.PrintError("Unable to move object to target scene -> Server.");
             }
         }
 #endif
