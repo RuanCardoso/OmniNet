@@ -163,7 +163,7 @@ namespace Omni.Core
                         catch (Exception ex)
                         {
 #if OMNI_AGRESSIVE_RELAY
-                            Logger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
+                            OmniLogger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
 #else
                             OmniLogger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
 #endif

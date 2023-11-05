@@ -25,6 +25,7 @@ namespace Omni.Core
             [Range(32, ushort.MaxValue)] public ushort bSPoolSize = 128; // Byte Stream Pool Size, quantidade de items no Pool.
             [Range(255, ushort.MaxValue)] public ushort windowSize = 255; // Define o tamanho da janela de recepção do protocolo.
             [Range(1, 1500)] public ushort maxPacketSize = 128;
+            [Range(1, 2040)] public int recvMultiplier = 1; // Quantas operações de recebimento/leitura de dados por quadro...
             public double ackTimeout = 0.3d; // seconds, Provavelmente quando um Ack deve ser dado como não reconhecido. SOCK_SEND será executado!
             public int ackSweep = 15; // ms, Varredura por reconhecimentos(Ack's)...
             public bool dontDestroy = false;

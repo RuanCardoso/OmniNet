@@ -60,9 +60,6 @@ namespace Omni.Core
         {
             buffer = new byte[size];
             this.isPoolObject = isPoolObject;
-#if UNITY_SERVER && !UNITY_EDITOR
-            Logger.Inline($"Allocated: {Interlocked.Increment(ref allocated)} ByteStream!\r\n");
-#endif
         }
 
         public void Write()
@@ -588,7 +585,7 @@ namespace Omni.Core
         {
             if (position + size > buffer.Length)
             {
-                OmniLogger.PrintError($"Byte Stream: Not enough space to write! you are writing {size} bytes -> pos: {position + size}");
+                OmniLogger.PrintError($"Byte Stream Error: Insufficient space to write {size} bytes. Current position: {position}, requested position: {position + size}");
                 return false;
             }
 
@@ -599,7 +596,7 @@ namespace Omni.Core
         {
             if (position + size > bytesWritten)
             {
-                OmniLogger.PrintError($"Byte Stream: Not enough data to read!");
+                OmniLogger.PrintError($"Byte Stream Error: Not enough data to read. Requested: {size} bytes, available: {bytesWritten - position} bytes, current position: {position}");
                 return false;
             }
 
@@ -610,7 +607,7 @@ namespace Omni.Core
         {
             if (bsPool == null)
             {
-                OmniLogger.PrintError("Omni is not initialized?");
+                OmniLogger.PrintError("Error: Omni has not been initialized. Please ensure initialization before using it.");
             }
         }
 
@@ -659,7 +656,7 @@ namespace Omni.Core
             {
                 if (isRelease)
                 {
-                    OmniLogger.PrintError($"The ByteStream is already released!");
+                    OmniLogger.PrintError("Error: The ByteStream has already been released and cannot be released again.");
                 }
                 else
                 {

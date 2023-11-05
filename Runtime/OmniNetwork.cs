@@ -247,14 +247,14 @@ namespace Omni.Core
         private void OnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
         {
 #if UNITY_SERVER && !UNITY_EDITOR
-            Logger.Log($"The scene X was loaded -> {scene.name}");
+            OmniLogger.Print($"The scene X was loaded -> {scene.name}");
 #endif
         }
 
         private void OnSceneUnloaded(Scene scene)
         {
 #if UNITY_SERVER && !UNITY_EDITOR
-            Logger.Log($"The scene X was unloaded -> {scene.name}");
+            OmniLogger.Print($"The scene X was unloaded -> {scene.name}");
 #endif
         }
 
@@ -314,10 +314,10 @@ namespace Omni.Core
         private void CheckApiModeSettings()
         {
 #if !NETSTANDARD2_1
-            Logger.Print("Consider changing the API Mode to \".NET Standard 2.1\" for improved performance and compatibility. .NET Standard 2.1 offers enhanced features, performance optimizations, and broader library support, resulting in better performance and increased functionality for your application.");
+            OmniLogger.Print("Consider changing the API Mode to \".NET Standard 2.1\" for improved performance and compatibility. .NET Standard 2.1 offers enhanced features, performance optimizations, and broader library support, resulting in better performance and increased functionality for your application.");
 #endif
 #if !ENABLE_IL2CPP && !UNITY_EDITOR
-            Logger.Print("Consider changing the API Mode to \"IL2CPP\" for optimal performance. IL2CPP provides enhanced performance and security by converting your code into highly optimized C++ during the build process.");
+            OmniLogger.Print("Consider changing the API Mode to \"IL2CPP\" for optimal performance. IL2CPP provides enhanced performance and security by converting your code into highly optimized C++ during the build process.");
 #endif
         }
 
@@ -934,7 +934,7 @@ namespace Omni.Core
             SendDataViaSocket(message, NetworkId, true, Channel.Reliable, target, SubTarget.None, CacheMode.None);
             message.Release();
 #else
-            Logger.PrintError("Fire Event not work on client side!");
+            OmniLogger.PrintError("Fire Event not work on client side!");
 #endif
         }
 

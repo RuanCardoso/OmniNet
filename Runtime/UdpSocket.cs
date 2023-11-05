@@ -195,9 +195,13 @@ namespace Omni.Core
             new Thread(() =>
 #endif
             {
-                byte[] buffer = new byte[0x5DC];
+                byte[] buffer = new byte[1500]; // MTU SIZE
                 EndPoint endPoint = new UdpEndPoint(0, 0);
+#if UNITY_SERVER && !UNITY_EDITOR
+                int multiplier = ServerSettings.recvMultiplier;
+#else
                 int multiplier = ClientSettings.recvMultiplier;
+#endif
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
 #if !OMNI_MULTI_THREADED
@@ -359,13 +363,13 @@ namespace Omni.Core
                         if (ex.ErrorCode == 10004) break;
                         else
                         {
-                            Logger.LogStacktrace(ex);
+                            OmniLogger.LogStacktrace(ex);
                             continue;
                         }
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogStacktrace(ex);
+                        OmniLogger.LogStacktrace(ex);
                         continue;
                     }
 #endif
