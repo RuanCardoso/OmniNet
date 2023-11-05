@@ -202,22 +202,22 @@ namespace MessagePack.Unity.Editor
             var dotnet = await ProcessHelper.FindDotnetAsync();
             if (!dotnet.found)
             {
-                UnityEngine.Debug.LogError("dotnet sdk(.NET 6.0) not found! please download from https://dotnet.microsoft.com/en-us/download and install.");
+                UnityEngine.Debug.LogError("Error: .NET SDK (version 6.0 or newer) not detected. Please download and install it from the official Microsoft website at https://dotnet.microsoft.com/en-us/download.");
                 return;
             }
             else
             {
-                UnityEngine.Debug.Log($"dotnet version: {dotnet.version}");
+                UnityEngine.Debug.Log($"Detected .NET Version: {dotnet.version}");
                 if (!await ProcessHelper.IsInstalledMpc())
                 {
-                    if (EditorUtility.DisplayDialog("Message Pack Generator", "Do you want to install Message Pack Generator?", "Yes", "No"))
+                    if (EditorUtility.DisplayDialog("Message Pack Generator Installation", "Would you like to install the Message Pack Generator?", "Yes", "No"))
                     {
-                        UnityEngine.Debug.Log("Installing MessagePack.Generator... this may take a few minutes, don't worry and don't close the Unity!");
-                        UnityEngine.Debug.Log("It can take up to 15 minutes to install MessagePack.Generator, please wait patiently, you will be notified when it is done!");
+                        UnityEngine.Debug.Log("MessagePack.Generator Installation in Progress... This process may take a few minutes. Please do not close Unity during installation.");
+                        UnityEngine.Debug.Log("The installation of MessagePack.Generator may take up to 5 minutes. Kindly wait patiently, and you will be notified when it is complete.");
                         string log = await ProcessHelper.InstallMpc();
                         if (log != null && log.Contains("error"))
                         {
-                            UnityEngine.Debug.LogError("Failed to install MessagePack.Generator! please check the log for more details.");
+                            UnityEngine.Debug.LogError("MessagePack.Generator Installation Failed! Please review the log for detailed information.");
                             UnityEngine.Debug.LogError(log);
                             return;
                         }
@@ -229,7 +229,7 @@ namespace MessagePack.Unity.Editor
                     }
                     else
                     {
-                        UnityEngine.Debug.LogError($"MessagePack.Generator not found! please install with command: dotnet tool install --global messagepack.generator");
+                        UnityEngine.Debug.LogError("MessagePack.Generator Not Found! To install, please use the following command: dotnet tool install --global messagepack.generator --version 2.5.124");
                         return;
                     }
                 }
@@ -251,7 +251,7 @@ namespace MessagePack.Unity.Editor
                                 csProjFile = asmDef.Name.Replace(".asmdef", ".csproj");
                                 string inputPath = $"../{csProjFile}";
 
-                                bool mapMode = EditorUtility.DisplayDialog("Omni", "Generate with map mode?", "Yes", "No");
+                                bool mapMode = EditorUtility.DisplayDialog("Omni - Map Mode", "Do you want to generate using Map Mode?", "Yes", "No");
                                 MpcArgument argument = new()
                                 {
                                     Input = inputPath,
@@ -268,11 +268,11 @@ namespace MessagePack.Unity.Editor
                                 await window.InitCodeGen();
                                 window = null;
                             }
-                            else UnityEngine.Debug.LogError("No asmdef file found in: " + outputPath);
+                            else UnityEngine.Debug.LogError("Error: No .asmdef file found in the specified output path: " + outputPath);
                         }
-                        else UnityEngine.Debug.LogError("Directory not found: " + outputPath);
+                        else UnityEngine.Debug.LogError("Error: The specified output path directory was not found: " + outputPath);
                     }
-                    else UnityEngine.Debug.LogError("No folder selected!");
+                    else UnityEngine.Debug.LogError("Error: No folder was selected for processing.");
                 }
             }
         }
