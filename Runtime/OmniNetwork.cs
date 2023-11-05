@@ -113,7 +113,7 @@ namespace Omni.Core
         internal static WaitForSeconds WAIT_FOR_CHECK_REC_PING;
 
         static IFormatterResolver Formatter { get; set; }
-        public static MessagePackSerializerOptions AddResolver(IFormatterResolver resolver, [CallerMemberName] string methodName = "")
+        public static MessagePackSerializerOptions AddResolver(IFormatterResolver IFormatterResolver, [CallerMemberName] string methodName = "")
         {
             const string expectedMethodName = "Awake";
 
@@ -123,13 +123,13 @@ namespace Omni.Core
                 return MessagePackSerializer.DefaultOptions;
             }
 
-            if (resolver == default)
+            if (IFormatterResolver == null)
             {
-                resolver = CompositeResolver.Create(UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance);
+                IFormatterResolver = CompositeResolver.Create(UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance);
             }
 
-            Formatter = CompositeResolver.Create(resolver, Formatter);
-            return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(resolver);
+            Formatter = CompositeResolver.Create(IFormatterResolver, Formatter);
+            return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(Formatter);
         }
 
         private void Awake()
@@ -137,7 +137,7 @@ namespace Omni.Core
             Instance = this;
             ByteStream.bsPool = new ByteStreamPool(ServerSettings.bSPoolSize);
 
-            _ = AddResolver(default);
+            _ = AddResolver(null);
             dispatcher = GetComponent<OmniDispatcher>();
             AotHelper.EnsureDictionary<string, object>();
 
@@ -401,15 +401,15 @@ namespace Omni.Core
                 return instance.Id;
             }
 
-            using (MemoryStream stream = new())
+            using (MemoryStream mStream = new())
             {
                 try
                 {
-                    MessagePackSerializer.Serialize(stream, instance);
+                    MessagePackSerializer.Serialize(mStream, instance);
                 }
                 catch (Exception ex)
                 {
-                    OmniLogger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message}");
+                    OmniLogger.PrintError($"Error: Failed to serialize {typeof(T).Name}: {ex.Message} {ex.InnerException.Message}");
                     OmniLogger.PrintError("Hint: It may be necessary to generate Ahead-of-Time (AOT) code and register the type resolver.");
                 }
             }

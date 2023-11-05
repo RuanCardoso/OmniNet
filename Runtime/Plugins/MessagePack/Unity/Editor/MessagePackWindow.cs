@@ -195,6 +195,26 @@ namespace MessagePack.Unity.Editor
             }
         }
 
+        public static void GenerateAddResolverInstance(string path, string className)
+        {
+            string fileName = className.Replace(".", "_") + "_MonoBehaviour.cs";
+            using (StreamWriter writer = new StreamWriter(Path.Combine(path, fileName), false))
+            {
+                writer.WriteLine("using UnityEngine;");
+                writer.WriteLine("using Omni.Core;");
+                writer.WriteLine("using Omni.Resolvers;");
+                writer.WriteLine();
+                writer.WriteLine("[DefaultExecutionOrder(-250)]");
+                writer.WriteLine($"public class {fileName.Replace(".cs", "")} : MonoBehaviour");
+                writer.WriteLine("{");
+                writer.WriteLine("    private void Awake()");
+                writer.WriteLine("    {");
+                writer.WriteLine($"        OmniNetwork.AddResolver({className});");
+                writer.WriteLine("    }");
+                writer.WriteLine("}");
+            }
+        }
+
         [MenuItem("Assets/Omni -> Build AOT %F12", priority = -10)]
         public static async void InitCodeGenShortcut()
         {
@@ -250,6 +270,7 @@ namespace MessagePack.Unity.Editor
                                 FileInfo asmDef = new(asmDefs[0]);
                                 csProjFile = asmDef.Name.Replace(".asmdef", ".csproj");
                                 string inputPath = $"../{csProjFile}";
+                                string path = outputPath + "/Ahead-Of-Time";
 
                                 bool mapMode = EditorUtility.DisplayDialog("Omni - Map Mode", "Do you want to generate using Map Mode?", "Yes", "No");
                                 MpcArgument argument = new()
@@ -261,11 +282,20 @@ namespace MessagePack.Unity.Editor
                                     UseMapMode = mapMode,
                                 };
 
-                                string pathToDel = outputPath + "/Ahead-Of-Time";
-                                if (Directory.Exists(pathToDel)) Directory.Delete(pathToDel, true);
-                                if (window == null) window = CreateInstance<MessagePackWindow>();
+                                if (Directory.Exists(path))
+                                {
+                                    Directory.Delete(path, true);
+                                }
+
+                                if (window == null)
+                                {
+                                    window = CreateInstance<MessagePackWindow>();
+                                }
+
                                 window.mpcArgument = argument;
                                 await window.InitCodeGen();
+                                GenerateAddResolverInstance(path, $"{argument.ResolverName}.Instance");
+                                AssetDatabase.Refresh();
                                 window = null;
                             }
                             else UnityEngine.Debug.LogError("Error: No .asmdef file found in the specified output path: " + outputPath);

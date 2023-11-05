@@ -18,6 +18,8 @@ namespace Omni.Formatters
 {
     public sealed class PersonFormatter : global::MessagePack.Formatters.IMessagePackFormatter<global::Person>
     {
+        // Id
+        private static global::System.ReadOnlySpan<byte> GetSpan_Id() => new byte[1 + 2] { 162, 73, 100 };
         // Name
         private static global::System.ReadOnlySpan<byte> GetSpan_Name() => new byte[1 + 4] { 164, 78, 97, 109, 101 };
         // Age
@@ -32,7 +34,9 @@ namespace Omni.Formatters
             }
 
             var formatterResolver = options.Resolver;
-            writer.WriteMapHeader(2);
+            writer.WriteMapHeader(3);
+            writer.WriteRaw(GetSpan_Id());
+            writer.Write(value.Id);
             writer.WriteRaw(GetSpan_Name());
             global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<string>(formatterResolver).Serialize(ref writer, value.Name, options);
             writer.WriteRaw(GetSpan_Age());
@@ -49,8 +53,7 @@ namespace Omni.Formatters
             options.Security.DepthStep(ref reader);
             var formatterResolver = options.Resolver;
             var length = reader.ReadMapHeader();
-            var __Name__ = default(string);
-            var __Age__ = default(int);
+            var ____result = new global::Person();
 
             for (int i = 0; i < length; i++)
             {
@@ -61,21 +64,25 @@ namespace Omni.Formatters
                     FAIL:
                       reader.Skip();
                       continue;
+                    case 2:
+                        if (global::MessagePack.Internal.AutomataKeyGen.GetKey(ref stringKey) != 25673UL) { goto FAIL; }
+
+                        reader.Skip();
+                        continue;
                     case 4:
                         if (global::MessagePack.Internal.AutomataKeyGen.GetKey(ref stringKey) != 1701667150UL) { goto FAIL; }
 
-                        __Name__ = global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<string>(formatterResolver).Deserialize(ref reader, options);
+                        ____result.Name = global::MessagePack.FormatterResolverExtensions.GetFormatterWithVerify<string>(formatterResolver).Deserialize(ref reader, options);
                         continue;
                     case 3:
                         if (global::MessagePack.Internal.AutomataKeyGen.GetKey(ref stringKey) != 6645569UL) { goto FAIL; }
 
-                        __Age__ = reader.ReadInt32();
+                        ____result.Age = reader.ReadInt32();
                         continue;
 
                 }
             }
 
-            var ____result = new global::Person(__Name__, __Age__);
             reader.Depth--;
             return ____result;
         }

@@ -6,22 +6,12 @@ using UnityEngine;
 [MessagePackObject]
 public class Person : IMessage
 {
-    [IgnoreMember]
-    public byte Id => 1;
-    [Key(0)]
-    public string Name { get; set; }
     [Key(1)]
-    public int Age { get; set; }
-
-    public Person()
-    {
-    }
-
-    public Person(string name, int age)
-    {
-        Name = name;
-        Age = age;
-    }
+    public byte Id => 1;
+    [Key(2)]
+    public string Name;
+    [Key(3)]
+    public int Age;
 }
 
 public class GlobalMessageTests : MonoBehaviour
@@ -48,7 +38,7 @@ public class GlobalMessageTests : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.M))
         {
-            Person pessoa = new Person("Ruan", 21);
+            Person pessoa = new Person();
             pessoa.SendMessage(messageStream, false);
         }
     }
