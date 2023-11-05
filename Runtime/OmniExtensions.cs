@@ -13,6 +13,8 @@
     ===========================================================*/
 
 using MessagePack;
+using Newtonsoft.Json;
+using Omni.Execution;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -113,6 +115,13 @@ namespace Omni.Core
             MessagePackSerializer.Serialize(messageStream, message, options);
             ByteStream msgStream = messageStream.GetStream();
             @this.Intern_Message(msgStream, message.Id, playerId, channel, target, subTarget, cacheMode);
+        }
+
+        public static T To<T>(this Query query)
+        {
+            var toJsonObject = query.First<object>();
+            var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
+            return JsonConvert.DeserializeObject<T>(fromJsonObject);
         }
     }
 }

@@ -14,7 +14,8 @@
 
 using Mono.Data.Sqlite;
 using MySqlConnector;
-using Omni.Database;
+using Omni.Compilers;
+using Omni.Execution;
 using System;
 using System.Data;
 

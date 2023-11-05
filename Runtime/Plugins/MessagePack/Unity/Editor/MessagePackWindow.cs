@@ -255,13 +255,13 @@ namespace MessagePack.Unity.Editor
                                 MpcArgument argument = new()
                                 {
                                     Input = inputPath,
-                                    Output = $"../{outputPath}/code-gen",
+                                    Output = $"../{outputPath}/Ahead-Of-Time",
                                     ResolverName = csProjFile.Replace(".csproj", "_Resolver").Replace("Assembly-CSharp", "AssemblyCSharp").Replace(".", "_"),
                                     Namespace = "Omni",
                                     UseMapMode = mapMode,
                                 };
 
-                                string pathToDel = outputPath + "/code-gen";
+                                string pathToDel = outputPath + "/Ahead-Of-Time";
                                 if (Directory.Exists(pathToDel)) Directory.Delete(pathToDel, true);
                                 if (window == null) window = CreateInstance<MessagePackWindow>();
                                 window.mpcArgument = argument;
