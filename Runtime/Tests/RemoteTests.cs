@@ -9,7 +9,7 @@ public class RemoteTests : OmniObject
         {
             if (Input.GetKey(KeyCode.R))
             {
-                Remote(1, new ByteStream(0));
+                Remote(1, new ByteStream(0), cacheMode: Enums.CacheMode.Overwrite);
             }
         }
     }

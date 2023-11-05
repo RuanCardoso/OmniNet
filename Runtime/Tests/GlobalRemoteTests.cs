@@ -9,7 +9,7 @@ public class GlobalRemoteTests : OmniBehaviour
     {
         if (Input.GetKey(KeyCode.G))
         {
-            Remote(1, new ByteStream(0), false);
+            Remote(1, new ByteStream(0), false, cacheMode: Enums.CacheMode.Overwrite);
         }
     }
 
