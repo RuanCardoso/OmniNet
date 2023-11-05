@@ -12,8 +12,8 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using static Omni.Core.PlatformSettings;
 using System.IO;
+using static Omni.Core.PlatformSettings;
 
 namespace Omni.Core
 {
@@ -34,7 +34,14 @@ namespace Omni.Core
         private readonly ByteStream msgStream;
         public MessageStream()
         {
-            msgStream = new ByteStream(ServerSettings.maxPacketSize);
+            try
+            {
+                msgStream = new ByteStream(ServerSettings.maxPacketSize);
+            }
+            catch
+            {
+                OmniLogger.PrintError("Cannot initialize in the global scope. Initialize within the Start or Awake method.");
+            }
         }
 
         public override void Write(byte[] buffer, int offset, int count)
@@ -49,7 +56,7 @@ namespace Omni.Core
         }
 
         public override void Flush() => msgStream.Write();
-        public override long Seek(long offset, SeekOrigin origin) => throw new System.NotImplementedException("This operation is not supported, but you can modify the Position property!");
-        public override void SetLength(long value) => throw new System.NotImplementedException("This operation is not supported as a omni buffer is not resizable!");
+        public override long Seek(long offset, SeekOrigin origin) => throw new System.NotImplementedException("This operation is not supported. Please modify the Position property instead.");
+        public override void SetLength(long value) => throw new System.NotImplementedException("This operation is not supported because an Omni buffer is not resizable.");
     }
 }

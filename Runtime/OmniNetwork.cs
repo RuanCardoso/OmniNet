@@ -12,9 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using Omni.Resolvers;
-using Omni.Unity;
-using Omni.Unity.Extension;
 using Newtonsoft.Json.Utilities;
 using System;
 #if OMNI_MULTI_THREADED
@@ -37,6 +34,10 @@ using static Omni.Core.PlatformSettings;
 using EventType = Omni.Core.Enums.EventType;
 using LocalPhysicsMode = Omni.Core.Enums.LocalPhysicsMode;
 using MessageType = Omni.Core.Enums.MessageType;
+using MessagePack;
+using MessagePack.Resolvers;
+using MessagePack.Unity.Extension;
+using MessagePack.Unity;
 
 namespace Omni.Core
 {

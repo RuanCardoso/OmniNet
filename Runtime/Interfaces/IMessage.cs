@@ -12,7 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using Omni;
+using MessagePack;
 
 namespace Omni.Core
 {
