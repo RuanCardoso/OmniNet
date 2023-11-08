@@ -22,21 +22,20 @@ namespace Omni.Core
         public override bool CanRead => true;
         public override bool CanSeek => true;
         public override bool CanWrite => true;
-        public override long Length => msgStream.BytesWritten;
+        public override long Length => IOHandler.BytesWritten;
         public override long Position
         {
-            get => msgStream.Position;
-            set => msgStream.Position = (int)value;
+            get => IOHandler.Position;
+            set => IOHandler.Position = (int)value;
         }
 
-        public ByteStream GetStream() => msgStream;
-
-        private readonly ByteStream msgStream;
+        public DataIOHandler GetIOHandler() => IOHandler;
+        private readonly DataIOHandler IOHandler;
         public MessageStream()
         {
             try
             {
-                msgStream = new ByteStream(ServerSettings.maxPacketSize);
+                IOHandler = new DataIOHandler(ServerSettings.maxPacketSize);
             }
             catch
             {
@@ -46,16 +45,16 @@ namespace Omni.Core
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            msgStream.Write(buffer, offset, count);
+            IOHandler.Write(buffer, offset, count);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            msgStream.Read(buffer, offset, count);
-            return msgStream.Position;
+            IOHandler.Read(buffer, offset, count);
+            return IOHandler.Position;
         }
 
-        public override void Flush() => msgStream.Write();
+        public override void Flush() => IOHandler.Write();
         public override long Seek(long offset, SeekOrigin origin) => throw new System.NotImplementedException("This operation is not supported. Please modify the Position property instead.");
         public override void SetLength(long value) => throw new System.NotImplementedException("This operation is not supported because an Omni buffer is not resizable.");
     }

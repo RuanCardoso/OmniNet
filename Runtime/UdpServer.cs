@@ -40,7 +40,7 @@ namespace Omni.Core
             clients.TryAdd(playerId, Client);
         }
 
-        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             switch (messageType)
             {
@@ -60,32 +60,32 @@ namespace Omni.Core
                         if (clients.TryAdd(uniqueId, _client_))
                         {
                             #region Response
-                            ByteStream stream = ByteStream.Get(messageType);
-                            stream.Write(uniqueId);
-                            _client_.Send(stream, channel, target);
-                            stream.Release();
+                            DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
+                            _IOHandler_.Write(uniqueId);
+                            _client_.Send(_IOHandler_, deliveryMode, target);
+                            _IOHandler_.Release();
                             #endregion
 
                             #region Process Message
-                            OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                            OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                             #endregion
                         }
                         else
                         {
                             OmniLogger.Print("Unreliable -> Previous connection attempt failed, re-establishing connection.");
                             #region Response
-                            ByteStream stream = ByteStream.Get(messageType);
-                            stream.Write(uniqueId);
+                            DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
+                            _IOHandler_.Write(uniqueId);
                             UdpClient connectedClient = GetClient(remoteEndPoint);
                             if (connectedClient != null)
                             {
-                                connectedClient.Send(stream, channel, target);
+                                connectedClient.Send(_IOHandler_, deliveryMode, target);
                             }
                             else
                             {
                                 OmniLogger.PrintError("Connect -> Client is null!");
                             }
-                            stream.Release();
+                            _IOHandler_.Release();
                             #endregion
                             _client_.Close(true);
                         }
@@ -97,12 +97,12 @@ namespace Omni.Core
                         if (client != null)
                         {
                             client.lastTimeReceivedPing = OmniTime.LocalTime;
-                            double timeOfClient = RECV_STREAM.ReadDouble();
-                            ByteStream stream = ByteStream.Get(messageType);
-                            stream.Write(timeOfClient);
-                            stream.Write(OmniTime.LocalTime);
-                            client.Send(stream, channel, target);
-                            stream.Release();
+                            double timeOfClient = IOHandler.ReadDouble();
+                            DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
+                            _IOHandler_.Write(timeOfClient);
+                            _IOHandler_.Write(OmniTime.LocalTime);
+                            client.Send(_IOHandler_, deliveryMode, target);
+                            _IOHandler_.Release();
                         }
                         else
                         {
@@ -111,7 +111,7 @@ namespace Omni.Core
                     }
                     break;
                 default:
-                    OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                    OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                     break;
             }
         }
@@ -119,45 +119,45 @@ namespace Omni.Core
         internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => GetClient((ushort)remoteEndPoint.GetPort());
         internal UdpClient GetClient(ushort playerId) => clients.TryGetValue(playerId, out UdpClient udpClient) ? udpClient : null;
 
-        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort playerId) => Send(byteStream, channel, target, subTarget, cacheMode, GetClient(playerId));
-        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpEndPoint remoteEndPoint) => Send(byteStream, channel, target, subTarget, cacheMode, GetClient(remoteEndPoint));
-        internal void Send(ByteStream byteStream, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpClient sender)
+        internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort playerId) => Send(IOHandler, deliveryMode, target, processingOption, cachingOption, GetClient(playerId));
+        internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpEndPoint remoteEndPoint) => Send(IOHandler, deliveryMode, target, processingOption, cachingOption, GetClient(remoteEndPoint));
+        internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpClient sender)
         {
-            // When we send the data to itself, we will always use the Unreliable channel.
+            // When we send the data to itself, we will always use the Unreliable deliveryMode.
             // LocalHost(Loopback), there are no risks of drops or clutter.
             if (sender != null)
             {
                 switch (target)
                 {
-                    case Target.Me:
+                    case DataTarget.Self:
                         {
-                            if (subTarget == SubTarget.Server) // Defines whether to execute the instruction on the server when the server itself is the sender.
+                            if (processingOption == DataProcessingOption.ProcessOnServer) // Defines whether to execute the instruction on the server when the server itself is the sender.
                             {
-                                SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
+                                SendUnreliable(IOHandler, Client.remoteEndPoint, target, processingOption, cachingOption);
                             }
 
                             if (!sender.itSelf)
                             {
-                                if (!byteStream.isRawBytes)
+                                if (!IOHandler.isRawBytes)
                                 {
-                                    sender.Send(byteStream, channel, target, subTarget, cacheMode);
+                                    sender.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
                                 }
                                 else
                                 {
-                                    sender.Send(byteStream);
+                                    sender.Send(IOHandler);
                                 }
                             }
-                            else if (subTarget != SubTarget.Server)
+                            else if (processingOption != DataProcessingOption.ProcessOnServer)
                             {
-                                OmniLogger.PrintError("Are you trying to execute this instruction on yourself? Please use SubTarget.Server or verify if 'IsMine' is being used correctly.");
+                                OmniLogger.PrintError("Are you trying to execute this instruction on yourself? Please use DataProcessingOption.ProcessOnServer or verify if 'IsMine' is being used correctly.");
                             }
                         }
                         break;
-                    case Target.All:
+                    case DataTarget.Broadcast:
                         {
-                            if (subTarget == SubTarget.Server)
+                            if (processingOption == DataProcessingOption.ProcessOnServer)
                             {
-                                SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
+                                SendUnreliable(IOHandler, Client.remoteEndPoint, target, processingOption, cachingOption);
                             }
 
                             foreach (var (_, otherClient) in clients)
@@ -166,23 +166,23 @@ namespace Omni.Core
                                     continue;
                                 else
                                 {
-                                    if (!byteStream.isRawBytes)
+                                    if (!IOHandler.isRawBytes)
                                     {
-                                        otherClient.Send(byteStream, channel, target, subTarget, cacheMode);
+                                        otherClient.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
                                     }
                                     else
                                     {
-                                        otherClient.Send(byteStream);
+                                        otherClient.Send(IOHandler);
                                     }
                                 }
                             }
                         }
                         break;
-                    case Target.Others:
+                    case DataTarget.BroadcastExcludingSelf:
                         {
-                            if (subTarget == SubTarget.Server)
+                            if (processingOption == DataProcessingOption.ProcessOnServer)
                             {
-                                SendUnreliable(byteStream, Client.remoteEndPoint, target, subTarget, cacheMode);
+                                SendUnreliable(IOHandler, Client.remoteEndPoint, target, processingOption, cachingOption);
                             }
 
                             foreach (var (id, otherClient) in clients)
@@ -193,13 +193,13 @@ namespace Omni.Core
                                 {
                                     if (id != sender.Id)
                                     {
-                                        if (!byteStream.isRawBytes)
+                                        if (!IOHandler.isRawBytes)
                                         {
-                                            otherClient.Send(byteStream, channel, target, subTarget, cacheMode);
+                                            otherClient.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
                                         }
                                         else
                                         {
-                                            otherClient.Send(byteStream);
+                                            otherClient.Send(IOHandler);
                                         }
                                     }
                                     else continue;
@@ -207,7 +207,7 @@ namespace Omni.Core
                             }
                         }
                         break;
-                    case Target.Server:
+                    case DataTarget.Server:
                         break;
                     default:
                         OmniLogger.PrintError($"Invalid target -> {target}");

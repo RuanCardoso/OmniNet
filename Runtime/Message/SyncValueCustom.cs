@@ -20,11 +20,11 @@ namespace Omni.Core
     [Serializable]
     public class SyncValueCustom<T> : SyncBase<T> where T : unmanaged, ISyncCustom
     {
-        public SyncValueCustom(OmniObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority, value)
+        public SyncValueCustom(OmniObject @this, T value = default, Action<T> onChanged = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, deliveryMode, target, processingOption, cachingOption, authority, value)
         {
             @this.OnSyncBase += (id, message) =>
             {
-                if (this.id == id)
+                if (this.Id == id)
                 {
                     this.Read(message);
                     onChanged?.Invoke(Get());

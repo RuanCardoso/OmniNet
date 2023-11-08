@@ -62,7 +62,7 @@ namespace Omni.Core
 
         private bool isInRoot = false;
         private Dictionary<byte, OmniObject> omniObjects;
-        private readonly Dictionary<(byte rpcId, byte instanceId), Action<ByteStream, ushort, ushort, RemoteStats>> RPCMethods = new(); // [RPC ID, Instance Id]
+        private readonly Dictionary<(byte rpcId, byte instanceId), Action<DataIOHandler, ushort, ushort, RemoteStats>> RPCMethods = new(); // [RPC ID, Instance Id]
 
         private Transform RootOr() => rootMode ? transform.root : transform;
 #pragma warning disable IDE0051
@@ -217,7 +217,7 @@ namespace Omni.Core
             }
         }
 
-        internal void AddRpc(byte instanceId, byte rpcId, Action<ByteStream, ushort, ushort, RemoteStats> method)
+        internal void AddRpc(byte instanceId, byte rpcId, Action<DataIOHandler, ushort, ushort, RemoteStats> method)
         {
             if (!RPCMethods.TryAdd((rpcId, instanceId), method))
             {
@@ -225,10 +225,10 @@ namespace Omni.Core
             }
         }
 
-        internal Action<ByteStream, ushort, ushort, RemoteStats> GetRpc(byte instanceId, byte rpcId)
+        internal Action<DataIOHandler, ushort, ushort, RemoteStats> GetRpc(byte instanceId, byte rpcId)
         {
             var key = (rpcId, instanceId);
-            if (!RPCMethods.TryGetValue(key, out Action<ByteStream, ushort, ushort, RemoteStats> value))
+            if (!RPCMethods.TryGetValue(key, out Action<DataIOHandler, ushort, ushort, RemoteStats> value))
             {
                 OmniLogger.PrintError($"Remote RPC does not exist! Key: {key}, IsServer: {isItFromTheServer}");
             }

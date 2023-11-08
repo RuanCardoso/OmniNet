@@ -21,12 +21,12 @@ namespace Omni.Core
     [Serializable]
     public class SyncBase<T> : ISyncBase, ISyncBaseValue<T>
     {
-        internal protected readonly byte id;
         internal static readonly IValueTypeConverter<T> Converter = ValueTypeConverter._self as IValueTypeConverter<T>;
 
+        public byte Id { get; }
         public TypeCode TypeCode { get; }
-        private Enum enumType;
 
+        private Enum enumType;
         [SerializeField] private T value = default;
         private bool HasAuthority => authority switch
         {
@@ -42,22 +42,22 @@ namespace Omni.Core
         private readonly bool isValueTypeSupported;
         private readonly OmniObject @this;
         private readonly ISyncCustom ISerialize;
-        private readonly Channel channel;
-        private readonly Target target;
-        private readonly SubTarget subTarget;
-        private readonly CacheMode cacheMode;
+        private readonly DataDeliveryMode deliveryMode;
+        private readonly DataTarget target;
+        private readonly DataProcessingOption processingOption;
+        private readonly DataCachingOption cachingOption;
         private readonly AuthorityMode authority;
-        public SyncBase(OmniObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, Enum enumType = null)
+        public SyncBase(OmniObject @this, T value, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, AuthorityMode authority, Enum enumType = null)
         {
             this.enumType = enumType;
             this.value = value;
             this.@this = @this;
-            this.channel = channel;
+            this.deliveryMode = deliveryMode;
             this.target = target;
-            this.subTarget = subTarget;
-            this.cacheMode = cacheMode;
+            this.processingOption = processingOption;
+            this.cachingOption = cachingOption;
             this.authority = authority;
-            id = @this.OnSyncBaseId++;
+            Id = ++@this.OnSyncBaseId;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
             isStruct = type.IsValueType;
@@ -66,17 +66,17 @@ namespace Omni.Core
             TypeCode = Type.GetTypeCode(type);
         }
 
-        public SyncBase(OmniObject @this, T value, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, AuthorityMode authority, ISyncCustom ISerialize)
+        public SyncBase(OmniObject @this, T value, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, AuthorityMode authority, ISyncCustom ISerialize)
         {
             this.value = value;
             this.@this = @this;
             this.ISerialize = ISerialize;
-            this.channel = channel;
+            this.deliveryMode = deliveryMode;
             this.target = target;
-            this.subTarget = subTarget;
-            this.cacheMode = cacheMode;
+            this.processingOption = processingOption;
+            this.cachingOption = cachingOption;
             this.authority = authority;
-            id = @this.OnSyncBaseId++;
+            Id = ++@this.OnSyncBaseId;
             // Determine if the value is reference type or value type!
             var type = value.GetType();
             isStruct = type.IsValueType;
@@ -147,7 +147,7 @@ namespace Omni.Core
                 return;
             }
 
-            ByteStream message = ByteStream.Get();
+            DataIOHandler IOHandler = DataIOHandler.Get();
             if (!isReferenceType)
             {
                 if (isValueTypeSupported)
@@ -157,19 +157,19 @@ namespace Omni.Core
                         switch (TypeCode)
                         {
                             case TypeCode.Int32:
-                                message.Write(Converter.GetInt(value));
+                                IOHandler.Write(Converter.GetInt(value));
                                 break;
                             case TypeCode.Boolean:
-                                message.Write(Converter.GetBool(value));
+                                IOHandler.Write(Converter.GetBool(value));
                                 break;
                             case TypeCode.Single:
-                                message.Write(Converter.GetFloat(value));
+                                IOHandler.Write(Converter.GetFloat(value));
                                 break;
                             case TypeCode.Byte:
-                                message.Write(Converter.GetByte(value));
+                                IOHandler.Write(Converter.GetByte(value));
                                 break;
                             default:
-                                message.Write((byte)0x00000000);
+                                IOHandler.Write((byte)0x00000000);
                                 break;
                         }
                     }
@@ -181,12 +181,12 @@ namespace Omni.Core
                 else
                 {
                     ISyncCustom ISerialize = isStruct ? (ISyncCustom)Get() : this.ISerialize;
-                    if (ISerialize != null) ISerialize.Serialize(message);
+                    if (ISerialize != null) ISerialize.Serialize(IOHandler);
                     else OmniLogger.PrintError($"SyncValue -> Custom type is not supported, use {nameof(ISyncCustom)} instead!");
                 }
             }
-            else message.SerializeWithMsgPack(value);
-            @this.SentOnSyncBase(id, message, HasAuthority, channel, target, subTarget, cacheMode);
+            else IOHandler.SerializeWithMsgPack(value);
+            @this.SentOnSyncBase(Id, IOHandler, HasAuthority, deliveryMode, target, processingOption, cachingOption);
         }
 
         public static implicit operator T(SyncBase<T> value) => value.value;

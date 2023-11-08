@@ -17,22 +17,22 @@ using static Omni.Core.PlatformSettings;
 
 namespace Omni.Core
 {
-    internal class ByteStreamPool
+    internal class DataIOHandlerPool
     {
 #if OMNI_MULTI_THREADED
         private readonly object _lock = new();
 #endif
-        private readonly Stack<ByteStream> pool = new();
+        private readonly Stack<DataIOHandler> pool = new();
 
-        public ByteStreamPool(int length = 128)
+        public DataIOHandlerPool(int length = 128)
         {
             for (int i = 0; i < length; i++)
             {
-                pool.Push(new ByteStream(ServerSettings.maxPacketSize, true));
+                pool.Push(new DataIOHandler(ServerSettings.maxPacketSize, true));
             }
         }
 
-        public ByteStream Get()
+        public DataIOHandler Get()
         {
 #if OMNI_MULTI_THREADED
             lock (_lock)
@@ -41,7 +41,7 @@ namespace Omni.Core
 #pragma warning disable IDE0046
                 if (pool.Count == 0)
                 {
-                    return new ByteStream(ServerSettings.maxPacketSize, true);
+                    return new DataIOHandler(ServerSettings.maxPacketSize, true);
                 }
                 else
                 {
@@ -51,14 +51,14 @@ namespace Omni.Core
             }
         }
 
-        public void Release(ByteStream stream)
+        public void Release(DataIOHandler IOHandler)
         {
-            stream.Write();
+            IOHandler.Write();
 #if OMNI_MULTI_THREADED
             lock (_lock)
 #endif
             {
-                pool.Push(stream);
+                pool.Push(IOHandler);
             }
         }
 

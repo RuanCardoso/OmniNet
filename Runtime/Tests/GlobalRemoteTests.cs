@@ -9,12 +9,12 @@ public class GlobalRemoteTests : OmniBehaviour
     {
         if (Input.GetKey(KeyCode.G))
         {
-            Remote(1, new ByteStream(0), false, cacheMode: Enums.CacheMode.Overwrite);
+            Remote(1, new DataIOHandler(0), false, cachingOption: Enums.DataCachingOption.Overwrite);
         }
     }
 
     [Remote(1)]
-    public void RemoteEg(ByteStream byteStream, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
+    public void RemoteEg(DataIOHandler IOHandler, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
     {
         OmniLogger.Print("Global Remote Eg");
     }

@@ -77,9 +77,9 @@ namespace Omni.Core
 
         internal void Disconnect()
         {
-            ByteStream message = ByteStream.Get(MessageType.Disconnect, true);
-            Send(message, Channel.Reliable, Target.Me);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(MessageType.Disconnect, true);
+            Send(IOHandler, DataDeliveryMode.Secured, DataTarget.Self);
+            IOHandler.Release();
             OnDisconnected();
         }
 
@@ -101,10 +101,10 @@ namespace Omni.Core
 
             while (!IsConnected)
             {
-                ByteStream message = ByteStream.Get();
-                message.WritePacket(MessageType.Connect);
-                Send(message, Channel.Unreliable, Target.Me);
-                message.Release();
+                DataIOHandler IOHandler = DataIOHandler.Get();
+                IOHandler.WritePacket(MessageType.Connect);
+                Send(IOHandler, DataDeliveryMode.Unsecured, DataTarget.Self);
+                IOHandler.Release();
                 yield return WAIT_FOR_CONNECT;
                 if (!IsConnected)
                     OmniLogger.Log("Retrying to establish connection...");
@@ -117,17 +117,17 @@ namespace Omni.Core
             // Send the ping to server to keep alive and calc de RTT.
             while (IsConnected)
             {
-                ByteStream message = ByteStream.Get();
-                message.WritePacket(MessageType.Ping);
-                message.Write(OmniTime.LocalTime);
-                Send(message, Channel.Unreliable, Target.Me);
-                message.Release();
+                DataIOHandler IOHandler = DataIOHandler.Get();
+                IOHandler.WritePacket(MessageType.Ping);
+                IOHandler.Write(OmniTime.LocalTime);
+                Send(IOHandler, DataDeliveryMode.Unsecured, DataTarget.Self);
+                IOHandler.Release();
                 yield return WAIT_FOR_PING;
             }
         }
 
-        internal int Send(ByteStream byteStream) => Send(byteStream, remoteEndPoint, 0);
-        internal int Send(ByteStream byteStream, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        internal int Send(DataIOHandler IOHandler) => Send(IOHandler, remoteEndPoint, 0);
+        internal int Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             if (remoteEndPoint == null)
             {
@@ -135,10 +135,10 @@ namespace Omni.Core
             }
             else
             {
-                return channel switch
+                return deliveryMode switch
                 {
-                    Channel.Unreliable => SendUnreliable(byteStream, remoteEndPoint, target, subTarget, cacheMode),
-                    Channel.Reliable => SendReliable(byteStream, remoteEndPoint, target, subTarget, cacheMode),
+                    DataDeliveryMode.Unsecured => SendUnreliable(IOHandler, remoteEndPoint, target, processingOption, cachingOption),
+                    DataDeliveryMode.Secured => SendReliable(IOHandler, remoteEndPoint, target, processingOption, cachingOption),
                     _ => 0,
                 };
             }
@@ -146,7 +146,7 @@ namespace Omni.Core
             return 0;
         }
 
-        protected override void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint)
+        protected override void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             switch (messageType)
             {
@@ -154,10 +154,10 @@ namespace Omni.Core
                     {
                         if (!IsConnected)
                         {
-                            Id = RECV_STREAM.ReadUShort();
+                            Id = IOHandler.ReadUShort();
                             IsConnected = true;
                             Instance.StartCoroutine(Ping());
-                            OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                            OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                         }
                         else
                         {
@@ -167,13 +167,13 @@ namespace Omni.Core
                     break;
                 case MessageType.Ping:
                     {
-                        double timeOfClient = RECV_STREAM.ReadDouble();
-                        double timeOfServer = RECV_STREAM.ReadDouble();
+                        double timeOfClient = IOHandler.ReadDouble();
+                        double timeOfServer = IOHandler.ReadDouble();
                         OmniTime.SetTime(timeOfClient, timeOfServer);
                     }
                     break;
                 default:
-                    OmniNetwork.OnMessage(RECV_STREAM, messageType, channel, target, subTarget, cacheMode, remoteEndPoint, IsServer);
+                    OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                     break;
             }
         }

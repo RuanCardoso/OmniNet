@@ -16,7 +16,7 @@ namespace Omni.Core
 {
     public interface ISyncCustom
     {
-        void Serialize(ByteStream parameters);
-        void Deserialize(ByteStream parameters);
+        void Serialize(DataIOHandler IOHandler);
+        void Deserialize(DataIOHandler IOHandler);
     }
 }

@@ -24,7 +24,7 @@ namespace Omni.Core
     {
         protected const byte GLOBAL_SPAWN_ID = 255;
         protected virtual byte Id => 0;
-        protected ByteStream Get => ByteStream.Get();
+        protected DataIOHandler Get => DataIOHandler.Get();
 
         // Start is called before the first frame update
         protected virtual void Awake() => GetRemoteAttributes();
@@ -37,7 +37,7 @@ namespace Omni.Core
             else
             {
                 #region Signature
-                static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats) => MethodBase.GetCurrentMethod();
+                static MethodBase MethodSignature(DataIOHandler IOHandler, ushort fromId, ushort toId, bool isServer, RemoteStats stats) => MethodBase.GetCurrentMethod();
                 MethodBase methodSignature = MethodSignature(default, default, default, default, default);
                 ParameterInfo[] parametersSignature = methodSignature.GetParameters();
                 int parametersCount = parametersSignature.Length;
@@ -69,7 +69,7 @@ namespace Omni.Core
                             {
                                 try
                                 {
-                                    var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, bool, RemoteStats>), this) as Action<ByteStream, ushort, ushort, bool, RemoteStats>;
+                                    var remote = method.CreateDelegate(typeof(Action<DataIOHandler, ushort, ushort, bool, RemoteStats>), this) as Action<DataIOHandler, ushort, ushort, bool, RemoteStats>;
                                     if (!Dictionaries.RPCMethods.TryAdd((attr.id, Id), remote))
                                     {
                                         OmniLogger.PrintError($"Error: The RPC ID {attr.id} is already registered for this script instance. Solution: Ensure that each RPC ID is unique within the script instance.");
@@ -88,9 +88,9 @@ namespace Omni.Core
             }
         }
 
-        internal static Action<ByteStream, ushort, ushort, bool, RemoteStats> GetRpc(byte rpcId, byte instanceId, bool isServer)
+        internal static Action<DataIOHandler, ushort, ushort, bool, RemoteStats> GetRpc(byte rpcId, byte instanceId, bool isServer)
         {
-            if (!Dictionaries.RPCMethods.TryGetValue((rpcId, instanceId), out Action<ByteStream, ushort, ushort, bool, RemoteStats> value))
+            if (!Dictionaries.RPCMethods.TryGetValue((rpcId, instanceId), out Action<DataIOHandler, ushort, ushort, bool, RemoteStats> value))
             {
                 OmniLogger.PrintError($"Global Remote does not exist! RPC ID: {rpcId}, Instance ID: {instanceId}, IsServer: {isServer}");
             }
@@ -98,59 +98,59 @@ namespace Omni.Core
             return value;
         }
 
-        protected void Remote(byte id, ByteStream parameters, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void Remote(byte id, DataIOHandler IOHandler, bool fromServer, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            OmniNetwork.Remote(id, Id, OmniHelper.GetPlayerId(fromServer), OmniHelper.GetPlayerId(fromServer), fromServer, parameters, channel, target, subTarget, cacheMode);
+            OmniNetwork.Remote(id, Id, OmniHelper.GetPlayerId(fromServer), OmniHelper.GetPlayerId(fromServer), fromServer, IOHandler, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void Remote(byte id, ByteStream parameters, ushort fromId, ushort toId, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void Remote(byte id, DataIOHandler IOHandler, ushort fromId, ushort toId, bool fromServer, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            OmniNetwork.Remote(id, Id, fromId, toId, fromServer, parameters, channel, target, subTarget, cacheMode);
+            OmniNetwork.Remote(id, Id, fromId, toId, fromServer, IOHandler, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void Remote(byte id, ByteStream parameters, ushort toId, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void Remote(byte id, DataIOHandler IOHandler, ushort toId, bool fromServer, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            OmniNetwork.Remote(id, Id, OmniHelper.GetPlayerId(fromServer), toId, fromServer, parameters, channel, target, subTarget, cacheMode);
+            OmniNetwork.Remote(id, Id, OmniHelper.GetPlayerId(fromServer), toId, fromServer, IOHandler, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void Remote(byte id, ushort fromId, ByteStream parameters, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void Remote(byte id, ushort fromId, DataIOHandler IOHandler, bool fromServer, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            OmniNetwork.Remote(id, Id, fromId, OmniHelper.GetPlayerId(fromServer), fromServer, parameters, channel, target, subTarget, cacheMode);
+            OmniNetwork.Remote(id, Id, fromId, OmniHelper.GetPlayerId(fromServer), fromServer, IOHandler, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, bool fromServer = false, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            ByteStream message = ByteStream.Get();
-            message.Write(position);
-            message.Write(rotation);
-            parameters?.Invoke(message);
-            Remote(GLOBAL_SPAWN_ID, message, fromServer, channel, target, subTarget, cacheMode);
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            IOHandler.Write(position);
+            IOHandler.Write(rotation);
+            _IOHandler_?.Invoke(IOHandler);
+            Remote(GLOBAL_SPAWN_ID, IOHandler, fromServer, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, bool fromServer = false, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            ByteStream message = ByteStream.Get();
-            message.Write(position);
-            message.Write(rotation);
-            parameters?.Invoke(message);
-            Remote(GLOBAL_SPAWN_ID, message, toId, fromServer, channel, target, subTarget, cacheMode);
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            IOHandler.Write(position);
+            IOHandler.Write(rotation);
+            _IOHandler_?.Invoke(IOHandler);
+            Remote(GLOBAL_SPAWN_ID, IOHandler, toId, fromServer, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, bool fromServer = false, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            ByteStream message = ByteStream.Get();
-            message.Write(position);
-            message.Write(rotation);
-            parameters?.Invoke(message);
-            Remote(GLOBAL_SPAWN_ID, message, fromId, toId, fromServer, channel, target, subTarget, cacheMode);
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            IOHandler.Write(position);
+            IOHandler.Write(rotation);
+            _IOHandler_?.Invoke(IOHandler);
+            Remote(GLOBAL_SPAWN_ID, IOHandler, fromId, toId, fromServer, deliveryMode, target, processingOption, cachingOption);
         }
 
         [Remote(GLOBAL_SPAWN_ID)]
-        internal void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
+        internal void SpawnRemote(DataIOHandler IOHandler, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
         {
-            Vector3 position = parameters.ReadVector3();
-            Quaternion rotation = parameters.ReadQuaternion();
-            OmniIdentity omniIdentity = OnSpawnedObject(position, rotation, parameters, fromId, toId, isServer, stats);
+            Vector3 position = IOHandler.ReadVector3();
+            Quaternion rotation = IOHandler.ReadQuaternion();
+            OmniIdentity omniIdentity = OnSpawnedObject(position, rotation, IOHandler, fromId, toId, isServer, stats);
             if (omniIdentity != null)
             {
                 if (omniIdentity.objectType == ObjectType.Dynamic)
@@ -169,7 +169,7 @@ namespace Omni.Core
             }
         }
 
-        protected virtual OmniIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
+        protected virtual OmniIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, DataIOHandler IOHandler, ushort fromId, ushort toId, bool isServer, RemoteStats stats)
         {
             throw new NotImplementedException($"Override the {nameof(OnSpawnedObject)} method!");
         }

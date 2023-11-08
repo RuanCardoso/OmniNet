@@ -28,14 +28,14 @@ namespace Omni.Core
     {
         private int lastIndex = 0;
         private int windowSize = 0;
-        internal ByteStream[] window;
+        internal DataIOHandler[] window;
 
         internal void Initialize()
         {
             if (window == null)
             {
                 windowSize = ServerSettings.windowSize;
-                window = new ByteStream[windowSize];
+                window = new DataIOHandler[windowSize];
                 Resize(window.Length - 1);
             }
         }
@@ -71,9 +71,9 @@ namespace Omni.Core
         {
             if (window.IsInBounds(acknowledgment))
             {
-                ByteStream byteStream = window[acknowledgment];
-                if (byteStream != null)
-                    byteStream.IsAcked = true;
+                DataIOHandler IOHandler = window[acknowledgment];
+                if (IOHandler != null)
+                    IOHandler.IsAcked = true;
             }
             else
             {
@@ -85,7 +85,7 @@ namespace Omni.Core
 #else
         internal int GetSequence() => ++sequence;
 #endif
-        internal ByteStream GetWindow(int sequence)
+        internal DataIOHandler GetWindow(int sequence)
         {
 #if OMNI_MULTI_THREADED
             lock (window_resize_lock)
@@ -128,11 +128,11 @@ namespace Omni.Core
 #if OMNI_AGRESSIVE_RELAY
                             ByteStream window = this.window[i];
 #else
-                            ByteStream window = this.window[nextSequence];
+                            DataIOHandler wIOHandler = this.window[nextSequence];
 #endif
-                            if (window.BytesWritten > 0)
+                            if (wIOHandler.BytesWritten > 0)
                             {
-                                if (window.IsAcked == true)
+                                if (wIOHandler.IsAcked == true)
                                 {
 #if !OMNI_AGRESSIVE_RELAY
                                     nextSequence++;
@@ -150,12 +150,12 @@ namespace Omni.Core
                                 }
                                 else
                                 {
-                                    double totalSeconds = DateTime.UtcNow.Subtract(window.LastWriteTime).TotalSeconds;
+                                    double totalSeconds = DateTime.UtcNow.Subtract(wIOHandler.LastWriteTime).TotalSeconds;
                                     if (totalSeconds > timeout)
                                     {
-                                        window.Position = 0;
-                                        window.SetLastWriteTime();
-                                        socket.Send(window, remoteEndPoint);
+                                        wIOHandler.Position = 0;
+                                        wIOHandler.SetLastWriteTime();
+                                        socket.Send(wIOHandler, remoteEndPoint);
                                     }
                                 }
                             }
@@ -197,7 +197,7 @@ namespace Omni.Core
         internal int ExpectedSequence { get; set; } = 0;
         internal int LastProcessedPacket { get; set; } = 0;
 
-        internal int Acknowledgment(int sequence, ByteStream RECV_STREAM, out MessageRoute route)
+        internal int Acknowledgment(int sequence, DataIOHandler IOHandler, out MessageRoute route)
         {
             #region Message Route
             route = MessageRoute.Orderly;
@@ -217,13 +217,13 @@ namespace Omni.Core
                     {
                         Resize(sequence);
                         //***************************************
-                        ByteStream window = this.window[sequence];
-                        if (window.BytesWritten <= 0)
+                        DataIOHandler wIOHandler = this.window[sequence];
+                        if (wIOHandler.BytesWritten <= 0)
                         {
-                            int POS = RECV_STREAM.Position + sizeof(byte);
-                            window.Write(RECV_STREAM, POS, RECV_STREAM.BytesWritten);
-                            window.isRawBytes = RECV_STREAM.isRawBytes;
-                            window.Position = 0;
+                            int POS = IOHandler.Position + sizeof(byte);
+                            wIOHandler.Write(IOHandler, POS, IOHandler.BytesWritten);
+                            wIOHandler.isRawBytes = IOHandler.isRawBytes;
+                            wIOHandler.Position = 0;
                         }
                         else { } // Duplicate!
                         break;

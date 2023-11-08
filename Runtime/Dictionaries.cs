@@ -6,7 +6,7 @@ namespace Omni.Core
 {
     public class Dictionaries
     {
-        internal static readonly Dictionary<(byte, byte), Action<ByteStream, ushort, ushort, bool, RemoteStats>> RPCMethods = new(); // [RPC ID, INSTANCE ID]
+        internal static readonly Dictionary<(byte, byte), Action<DataIOHandler, ushort, ushort, bool, RemoteStats>> RPCMethods = new(); // [RPC ID, INSTANCE ID]
         internal static readonly Dictionary<(ushort, ushort, bool, byte, ObjectType), OmniIdentity> Identities = new();
         internal static readonly Dictionary<int, Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats>> Handlers = new();
         internal static readonly Dictionary<(byte remoteId, ushort identityId, byte instanceId, ushort playerId, byte sceneId, ObjectType objectType), OmniCache> RemoteDataCache = new();

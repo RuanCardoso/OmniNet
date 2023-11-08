@@ -35,17 +35,17 @@ namespace Omni.Core
 
         internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
         internal static bool IsInBounds<T>(this T[] array, int index) => (index >= 0) && (index < array.Length);
-        internal static void Read<T>(this SyncRef<T> value, ByteStream message) where T : class
+        internal static void Read<T>(this SyncRef<T> value, DataIOHandler IOHandler) where T : class
         {
-            ISyncBaseValue<T> ISyncBaseValue = value as ISyncBaseValue<T>;
-            ISyncBaseValue.Intern_Set(message.DeserializeWithMsgPack<T>());
+            ISyncBaseValue<T> ISyncBaseValue = value;
+            ISyncBaseValue.Intern_Set(IOHandler.DeserializeWithMsgPack<T>());
         }
 
-        internal static void Read<T>(this SyncRefCustom<T> value, ByteStream message) where T : class, ISyncCustom
+        internal static void Read<T>(this SyncRefCustom<T> value, DataIOHandler IOHandler) where T : class, ISyncCustom
         {
             if (value.Get() is ISyncCustom ISerialize)
             {
-                ISerialize.Deserialize(message);
+                ISerialize.Deserialize(IOHandler);
             }
             else
             {
@@ -53,12 +53,12 @@ namespace Omni.Core
             }
         }
 
-        internal static void Read<T>(this SyncValueCustom<T> value, ByteStream message) where T : unmanaged, ISyncCustom
+        internal static void Read<T>(this SyncValueCustom<T> value, DataIOHandler IOHandler) where T : unmanaged, ISyncCustom
         {
             T get_value = value.Get();
             if (get_value is ISyncCustom ISerialize)
             {
-                ISerialize.Deserialize(message);
+                ISerialize.Deserialize(IOHandler);
                 ((ISyncBaseValue<T>)value).Intern_Set((T)ISerialize);
             }
             else
@@ -67,29 +67,29 @@ namespace Omni.Core
             }
         }
 
-        internal static void Read<T>(this ISyncBaseValue<T> value, ByteStream message) where T : unmanaged
+        internal static void Read<T>(this ISyncBaseValue<T> value, DataIOHandler IOHandler) where T : unmanaged
         {
             var converter = SyncValue<T>.Converter;
             switch (value.TypeCode)
             {
                 case TypeCode.Int32:
                     {
-                        value.Intern_Set(converter.GetInt(message.ReadInt()));
+                        value.Intern_Set(converter.GetInt(IOHandler.ReadInt()));
                     }
                     break;
                 case TypeCode.Boolean:
                     {
-                        value.Intern_Set(converter.GetBool(message.ReadBool()));
+                        value.Intern_Set(converter.GetBool(IOHandler.ReadBool()));
                     }
                     break;
                 case TypeCode.Single:
                     {
-                        value.Intern_Set(converter.GetFloat(message.ReadFloat()));
+                        value.Intern_Set(converter.GetFloat(IOHandler.ReadFloat()));
                     }
                     break;
                 case TypeCode.Byte:
                     {
-                        value.Intern_Set(converter.GetByte(message.ReadByte()));
+                        value.Intern_Set(converter.GetByte(IOHandler.ReadByte()));
                     }
                     break;
                 default:
@@ -101,20 +101,20 @@ namespace Omni.Core
         }
 
         public static T GetMessage<T>(this ReadOnlyMemory<byte> message, MessagePackSerializerOptions options = null) => MessagePackSerializer.Deserialize<T>(message, options);
-        public static void SendMessage<T>(this T message, MessageStream messageStream, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage => SendMessage(message, messageStream, OmniHelper.GetPlayerId(fromServer), fromServer, channel, target, subTarget, cacheMode, options);
-        public static void SendMessage<T>(this T message, MessageStream messageStream, ushort playerId, bool fromServer, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage
+        public static void SendMessage<T>(this T message, MessageStream messageStream, bool fromServer, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, MessagePackSerializerOptions options = null) where T : IMessage => SendMessage(message, messageStream, OmniHelper.GetPlayerId(fromServer), fromServer, deliveryMode, target, processingOption, cachingOption, options);
+        public static void SendMessage<T>(this T message, MessageStream messageStream, ushort playerId, bool fromServer, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, MessagePackSerializerOptions options = null) where T : IMessage
         {
             MessagePackSerializer.Serialize(messageStream, message, options);
-            ByteStream msgStream = messageStream.GetStream();
-            OmniNetwork.GlobalMessage(msgStream, message.Id, playerId, fromServer, channel, target, subTarget, cacheMode);
+            DataIOHandler _IOHandler_ = messageStream.GetIOHandler();
+            OmniNetwork.GlobalMessage(_IOHandler_, message.Id, playerId, fromServer, deliveryMode, target, processingOption, cachingOption);
         }
 
-        public static void SendMessage<T>(this T message, MessageStream messageStream, OmniObject @this, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage => SendMessage(message, messageStream, @this, @this.identity.playerId, channel, target, subTarget, cacheMode, options);
-        public static void SendMessage<T>(this T message, MessageStream messageStream, OmniObject @this, ushort playerId, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, MessagePackSerializerOptions options = null) where T : IMessage
+        public static void SendMessage<T>(this T message, MessageStream messageStream, OmniObject @this, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, MessagePackSerializerOptions options = null) where T : IMessage => SendMessage(message, messageStream, @this, @this.identity.playerId, deliveryMode, target, processingOption, cachingOption, options);
+        public static void SendMessage<T>(this T message, MessageStream messageStream, OmniObject @this, ushort playerId, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, MessagePackSerializerOptions options = null) where T : IMessage
         {
             MessagePackSerializer.Serialize(messageStream, message, options);
-            ByteStream msgStream = messageStream.GetStream();
-            @this.Intern_Message(msgStream, message.Id, playerId, channel, target, subTarget, cacheMode);
+            DataIOHandler _IOHandler_ = messageStream.GetIOHandler();
+            @this.Intern_Message(_IOHandler_, message.Id, playerId, deliveryMode, target, processingOption, cachingOption);
         }
 
         public static T To<T>(this Query query)

@@ -9,13 +9,13 @@ public class RemoteTests : OmniObject
         {
             if (Input.GetKey(KeyCode.R))
             {
-                Remote(1, new ByteStream(0), cacheMode: Enums.CacheMode.Overwrite);
+                Remote(1, new DataIOHandler(0), cachingOption: Enums.DataCachingOption.Overwrite, deliveryMode: Enums.DataDeliveryMode.Unsecured);
             }
         }
     }
 
     [Remote(1)]
-    public void RemoteEg(ByteStream byteStream, ushort fromId, ushort toId, RemoteStats stats)
+    public void RemoteEg(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats)
     {
         OmniLogger.Print("Remote Eg (:");
     }

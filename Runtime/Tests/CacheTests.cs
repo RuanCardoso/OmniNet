@@ -16,8 +16,9 @@ public class CacheTests : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.C))
         {
-            OmniNetwork.GetCache(Enums.CacheType.GlobalRemote, true, 1, false, Enums.Channel.Unreliable);
-            OmniNetwork.GetCache(Enums.CacheType.Remote, true, 1, false, Enums.Channel.Unreliable);
+            OmniNetwork.GetCache(Enums.DataStorageType.GlobalRemote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
+            OmniNetwork.GetCache(Enums.DataStorageType.Remote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
+            OmniNetwork.GetCache(Enums.DataStorageType.OnSync, true, 1, false, Enums.DataDeliveryMode.Unsecured);
         }
     }
 }

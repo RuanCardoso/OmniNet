@@ -50,33 +50,33 @@ namespace Omni.Core
             }
         }
 
-        internal static void CreateCache<TKey, TValue>(IDictionary<TKey, TValue> dict, TKey key, CacheMode cacheMode, ByteStream data, ushort sourceId,
-        ushort destinationId, byte sceneId, ushort identityId, byte remoteId, byte instanceId, MessageType msgType, Channel channel, ObjectType objType)
+        internal static void CreateCache<TKey, TValue>(IDictionary<TKey, TValue> dict, TKey key, DataCachingOption cachingOption, DataIOHandler IOHandler, ushort sourceId,
+        ushort destinationId, byte sceneId, ushort identityId, byte remoteId, byte instanceId, MessageType msgType, DataDeliveryMode deliveryMode, ObjectType objType)
         where TValue : OmniCache
         where TKey : System.Runtime.CompilerServices.ITuple
         {
-            switch (cacheMode)
+            switch (cachingOption)
             {
-                case CacheMode.Append:
+                case DataCachingOption.Append:
                     {
                         OmniLogger.PrintError("Error: Append mode is not currently supported. It will be added in a future update.");
                         OmniLogger.Print("Warning: Using 'Append' mode in the Cache System is not recommended due to high memory usage and increased bandwidth consumption.");
                         OmniLogger.Print("This is caused by sending all stored states when using the 'Append' mode. We recommend using 'Overwrite' mode instead.");
                     }
                     break;
-                case CacheMode.Overwrite:
+                case DataCachingOption.Overwrite:
                     {
                         if (dict.TryGetValue(key, out TValue value))
                         {
-                            value.SetData(data.Buffer, data.BytesWritten);
+                            value.SetData(IOHandler.Buffer, IOHandler.BytesWritten);
                         }
                         else
                         {
                             byte[] packet = new byte[ServerSettings.maxPacketSize];
                             if (packet.Length > 0)
                             {
-                                Buffer.BlockCopy(data.Buffer, 0, packet, 0, data.BytesWritten);
-                                TValue _ = new OmniCache(packet, data.BytesWritten, sourceId, destinationId, sceneId, identityId, remoteId, instanceId, msgType, channel, objType) as TValue;
+                                Buffer.BlockCopy(IOHandler.Buffer, 0, packet, 0, IOHandler.BytesWritten);
+                                TValue _ = new OmniCache(packet, IOHandler.BytesWritten, sourceId, destinationId, sceneId, identityId, remoteId, instanceId, msgType, deliveryMode, objType) as TValue;
                                 dict.Add(key, _);
                             }
                         }
@@ -85,7 +85,7 @@ namespace Omni.Core
             }
         }
 
-        internal static void GetCache<TKey>(IDictionary<TKey, OmniCache> dict, Func<KeyValuePair<TKey, OmniCache>, bool> predicate, Action<OmniCache, ByteStream> func, bool ownerCache, ushort fromPort, bool isServer, bool where = true)
+        internal static void GetCache<TKey>(IDictionary<TKey, OmniCache> dict, Func<KeyValuePair<TKey, OmniCache>, bool> predicate, Action<OmniCache, DataIOHandler> func, bool ownerCache, ushort fromPort, bool isServer, bool where = true)
         {
             var datas = where ? dict.Where(predicate) : dict;
             int dataCount = datas.Count();
@@ -100,11 +100,11 @@ namespace Omni.Core
                     }
                     else
                     {
-                        var message = ByteStream.Get();
-                        message.Write(cache.Buffer);
+                        var IOHandler = DataIOHandler.Get();
+                        IOHandler.Write(cache.Buffer);
                         if (isServer && fromPort != OmniNetwork.Port)
                         {
-                            func(cache, message);
+                            func(cache, IOHandler);
                         }
                     }
                 }
@@ -208,7 +208,7 @@ namespace Omni.Core
             };
         }
 
-        internal static SubTarget GetSubTarget(bool fromServer, SubTarget subTarget) => fromServer ? subTarget : SubTarget.Server;
+        internal static DataProcessingOption GetSubTarget(bool fromServer, DataProcessingOption processingOption) => fromServer ? processingOption : DataProcessingOption.ProcessOnServer;
         internal static ushort GetPlayerId(ushort senderId, ushort playerId) => senderId == 0 ? playerId : senderId;
         internal static ushort GetPlayerId(bool fromServer) => fromServer ? OmniNetwork.NetworkId : (ushort)OmniNetwork.Id;
         internal static int GetAvailableId<T>(T[] array, Func<T, int> predicate, int maxRange, int minRange = 0)

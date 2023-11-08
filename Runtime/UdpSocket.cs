@@ -35,7 +35,7 @@ namespace Omni.Core
 
         internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
         protected abstract void Disconnect(UdpEndPoint endPoint, string msg = "");
-        protected abstract void OnMessage(ByteStream RECV_STREAM, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, MessageType messageType, UdpEndPoint remoteEndPoint);
+        protected abstract void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint);
 
         internal bool IsConnected { get; set; }
         protected abstract string Name { get; }
@@ -113,17 +113,17 @@ namespace Omni.Core
 #else
         protected void WINDOW(UdpEndPoint remoteEndPoint) => WINDOW_COROUTINE = Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
 #endif
-        protected int SendUnreliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected int SendUnreliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            ByteStream message = ByteStream.Get();
-            message.WritePayload(Channel.Unreliable, target, subTarget, cacheMode);
-            message.Write(data);
-            int length = Send(message, remoteEndPoint);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            IOHandler.WritePayload(DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
+            IOHandler.Write(_IOHandler_);
+            int length = Send(IOHandler, remoteEndPoint);
+            IOHandler.Release();
             return length;
         }
 
-        protected int SendReliable(ByteStream data, UdpEndPoint remoteEndPoint, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected int SendReliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             if (IsServer)
             {
@@ -131,36 +131,36 @@ namespace Omni.Core
             }
             else
             {
-                ByteStream message = ByteStream.Get();
-                message.WritePayload(Channel.Reliable, target, subTarget, cacheMode);
+                DataIOHandler IOHandler = DataIOHandler.Get();
+                IOHandler.WritePayload(DataDeliveryMode.Secured, target, processingOption, cachingOption);
                 int _sequence_ = SENT_WINDOW.GetSequence();
-                message.Write(_sequence_);
-                message.Write(data);
-                ByteStream window = SENT_WINDOW.GetWindow(_sequence_);
-                window.Write();
-                window.SetLastWriteTime();
-                window.Write(message);
-                int length = Send(message, remoteEndPoint);
-                message.Release();
+                IOHandler.Write(_sequence_);
+                IOHandler.Write(_IOHandler_);
+                DataIOHandler wIOHandler = SENT_WINDOW.GetWindow(_sequence_);
+                wIOHandler.Write();
+                wIOHandler.SetLastWriteTime();
+                wIOHandler.Write(IOHandler);
+                int length = Send(IOHandler, remoteEndPoint);
+                IOHandler.Release();
                 return length;
             }
             return 0;
         }
 
-        internal int Send(ByteStream data, UdpEndPoint remoteEndPoint, int offset = 0)
+        internal int Send(DataIOHandler IOHandler, UdpEndPoint remoteEndPoint, int offset = 0)
         {
             try
             {
                 // overwrite an existing sequence.....
-                if (data.isRawBytes)
+                if (IOHandler.isRawBytes)
                 {
-                    data.Position = 0;
-                    data.ReadPayload(out Channel channel, out _, out _, out _);
-                    switch (channel)
+                    IOHandler.Position = 0;
+                    IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out _, out _, out _);
+                    switch (deliveryMode)
                     {
-                        case Channel.Reliable:
+                        case DataDeliveryMode.Secured:
                             {
-                                byte[] buffer = data.Buffer;
+                                byte[] buffer = IOHandler.Buffer;
                                 int _sequence_ = SENT_WINDOW.GetSequence();
                                 buffer[++offset] = (byte)_sequence_;
                                 buffer[++offset] = (byte)(_sequence_ >> 8);
@@ -168,17 +168,17 @@ namespace Omni.Core
                                 buffer[++offset] = (byte)(_sequence_ >> 24);
                                 offset = 0;
 
-                                ByteStream window = SENT_WINDOW.GetWindow(_sequence_);
-                                window.Write();
-                                window.SetLastWriteTime();
-                                window.Write(data);
+                                DataIOHandler wIOHandler = SENT_WINDOW.GetWindow(_sequence_);
+                                wIOHandler.Write();
+                                wIOHandler.SetLastWriteTime();
+                                wIOHandler.Write(IOHandler);
                                 break;
                             }
                     }
                 }
 
-                int bytesWritten = data.BytesWritten;
-                int length = globalSocket.SendTo(data.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
+                int bytesWritten = IOHandler.BytesWritten;
+                int length = globalSocket.SendTo(IOHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
                 if (length != bytesWritten) OmniLogger.PrintError($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
                 return length;
             }
@@ -231,18 +231,18 @@ namespace Omni.Core
                             {
                                 var remoteEndPoint = (UdpEndPoint)endPoint;
                                 // Slice the received bytes and read the payload.
-                                ByteStream RECV_STREAM = ByteStream.Get();
-                                RECV_STREAM.Write(buffer, 0, totalBytesReceived);
-                                RECV_STREAM.Position = 0;
-                                RECV_STREAM.isRawBytes = true;
-                                RECV_STREAM.ReadPayload(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode);
+                                DataIOHandler IOHandler = DataIOHandler.Get();
+                                IOHandler.Write(buffer, 0, totalBytesReceived);
+                                IOHandler.Position = 0;
+                                IOHandler.isRawBytes = true;
+                                IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
                                 // Check for corrupted payload.
                                 // Random data will not have a valid header.
-                                if ((byte)target > 0x3 || (byte)channel > 0x1)
+                                if ((byte)target > 0x3 || (byte)deliveryMode > 0x1)
                                 {
-                                    OmniLogger.PrintError($"{Name} - ReadData - Invalid target -> {channel} or channel -> {target}");
+                                    OmniLogger.PrintError($"{Name} - ReadData - Invalid target -> {deliveryMode} or deliveryMode -> {target}");
                                     //*************************************************************************************************
-                                    RECV_STREAM.Release();
+                                    IOHandler.Release();
 #if !OMNI_MULTI_THREADED
                                     yield return null;
 #endif
@@ -250,34 +250,34 @@ namespace Omni.Core
                                 }
                                 else
                                 {
-                                    switch (channel)
+                                    switch (deliveryMode)
                                     {
-                                        case Channel.Unreliable:
+                                        case DataDeliveryMode.Unsecured:
                                             {
-                                                MessageType msgType = RECV_STREAM.ReadPacket();
+                                                MessageType msgType = IOHandler.ReadPacket();
                                                 switch (msgType)
                                                 {
                                                     case MessageType.Acknowledgement:
-                                                        int acknowledgment = RECV_STREAM.ReadInt();
+                                                        int acknowledgment = IOHandler.ReadInt();
                                                         UdpClient _client_ = GetClient(remoteEndPoint);
                                                         _client_.SENT_WINDOW.Acknowledgement(acknowledgment);
                                                         break;
                                                     default:
-                                                        OnMessage(RECV_STREAM, channel, target, subTarget, cacheMode, msgType, remoteEndPoint);
+                                                        OnMessage(IOHandler, deliveryMode, target, processingOption, cachingOption, msgType, remoteEndPoint);
                                                         break;
                                                 }
                                             }
                                             break;
-                                        case Channel.Reliable:
+                                        case DataDeliveryMode.Secured:
                                             {
-                                                int sequence = RECV_STREAM.ReadInt();
+                                                int sequence = IOHandler.ReadInt();
                                                 UdpClient _client_ = GetClient(remoteEndPoint);
-                                                int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, RECV_STREAM, out RecvWindow.MessageRoute msgRoute);
+                                                int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, IOHandler, out RecvWindow.MessageRoute msgRoute);
                                                 if (acknowledgment > -1)
                                                 {
                                                     if (msgRoute == RecvWindow.MessageRoute.Unk)
                                                     {
-                                                        RECV_STREAM.Release();
+                                                        IOHandler.Release();
 #if !OMNI_MULTI_THREADED
                                                         yield return null;
 #endif
@@ -285,23 +285,23 @@ namespace Omni.Core
                                                     }
 
                                                     #region Send Acknowledgement
-                                                    ByteStream windowStream = ByteStream.Get();
-                                                    windowStream.WritePacket(MessageType.Acknowledgement);
-                                                    windowStream.Write(acknowledgment);
-                                                    SendUnreliable(windowStream, remoteEndPoint, Target.Me); // ACK IS SENT BY UNRELIABLE CHANNEL!
-                                                    windowStream.Release();
+                                                    DataIOHandler wIOHandler = DataIOHandler.Get();
+                                                    wIOHandler.WritePacket(MessageType.Acknowledgement);
+                                                    wIOHandler.Write(acknowledgment);
+                                                    SendUnreliable(wIOHandler, remoteEndPoint, DataTarget.Self); // ACK IS SENT BY UNRELIABLE CHANNEL!
+                                                    wIOHandler.Release();
                                                     #endregion
 
                                                     if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
                                                     {
-                                                        RECV_STREAM.Release();
+                                                        IOHandler.Release();
 #if !OMNI_MULTI_THREADED
                                                         yield return null;
 #endif
                                                         continue; // skip
                                                     }
 
-                                                    MessageType msgType = RECV_STREAM.ReadPacket();
+                                                    MessageType msgType = IOHandler.ReadPacket();
                                                     switch (msgType)
                                                     {
                                                         default:
@@ -309,7 +309,7 @@ namespace Omni.Core
                                                                 RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
                                                                 while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0) // Head-of-line blocking
                                                                 {
-                                                                    OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], channel, target, subTarget, cacheMode, msgType, remoteEndPoint);
+                                                                    OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], deliveryMode, target, processingOption, cachingOption, msgType, remoteEndPoint);
                                                                     if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)
                                                                         RECV_WINDOW.ExpectedSequence++;
                                                                     // remove the references to make it eligible for the garbage collector.
@@ -326,7 +326,7 @@ namespace Omni.Core
                                                 }
                                                 else
                                                 {
-                                                    RECV_STREAM.Release();
+                                                    IOHandler.Release();
 #if !OMNI_MULTI_THREADED
                                                     yield return null;
 #endif
@@ -334,11 +334,11 @@ namespace Omni.Core
                                                 }
                                             }
                                         default:
-                                            OmniLogger.PrintError($"Unknown channel {channel} received from {remoteEndPoint}");
+                                            OmniLogger.PrintError($"Unknown deliveryMode {deliveryMode} received from {remoteEndPoint}");
                                             break;
                                     }
                                 }
-                                RECV_STREAM.Release();
+                                IOHandler.Release();
                             }
                             else
                             {

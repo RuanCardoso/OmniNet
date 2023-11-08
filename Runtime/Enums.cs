@@ -16,7 +16,7 @@ namespace Omni.Core
 {
     public static class Enums
     {
-        internal enum EventType : byte
+        internal enum NetworkEvents : byte
         {
             OnPlayerConnected,
             OnPlayerDisconnected
@@ -29,38 +29,31 @@ namespace Omni.Core
             Acknowledgement = 2,
             Zone = 3,
             GlobalMessage = 4,
-            // Bandwidth Optimize
             RemotePlayer = 5,
             RemoteDynamic = 6,
             RemoteScene = 7,
             RemoteStatic = 8,
-            //......................
             Ping = 9,
-            // Bandwidth Optimize
             OnSerializeStatic = 10,
             OnSerializePlayer = 11,
             OnSerializeDynamic = 12,
             OnSerializeScene = 13,
-            // Bandwidth Optimize
             OnSyncBaseStatic = 14,
             OnSyncBasePlayer = 15,
             OnSyncBaseDynamic = 16,
             OnSyncBaseScene = 17,
-            //......................
             GetCache = 18,
-            // Bandwidth Optimize
             LocalMessageStatic = 19,
             LocalMessagePlayer = 20,
             LocalMessageDynamic = 21,
             LocalMessageScene = 22,
-            //......................
             Remote = 23,
             FireEvent = 24,
             Connect = 254,
             Disconnect = 255,
         }
 
-        public enum CacheType : byte
+        public enum DataStorageType : byte
         {
             Remote = 0,
             OnSerialize = 1,
@@ -70,27 +63,27 @@ namespace Omni.Core
             GlobalRemote,
         }
 
-        public enum Channel : byte
+        public enum DataDeliveryMode : byte
         {
-            Unreliable = 0,
-            Reliable = 1,
+            Unsecured = 0,
+            Secured = 1,
         }
 
-        public enum Target : byte
+        public enum DataTarget : byte
         {
             Server = 0,
-            All = 1,
-            Others = 2,
-            Me = 3,
+            Broadcast = 1,
+            BroadcastExcludingSelf = 2,
+            Self = 3,
         }
 
-        public enum SubTarget : byte
+        public enum DataProcessingOption : byte
         {
-            None = 0,
-            Server = 1
+            DoNotProcessOnServer = 0,
+            ProcessOnServer = 1,
         }
 
-        public enum CacheMode : byte
+        public enum DataCachingOption : byte
         {
             None = 0,
             Append = 1,

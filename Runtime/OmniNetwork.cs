@@ -31,7 +31,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Scripting;
 using static Omni.Core.Enums;
 using static Omni.Core.PlatformSettings;
-using EventType = Omni.Core.Enums.EventType;
+using NetworkEvents = Omni.Core.Enums.NetworkEvents;
 using LocalPhysicsMode = Omni.Core.Enums.LocalPhysicsMode;
 using MessageType = Omni.Core.Enums.MessageType;
 using MessagePack;
@@ -62,7 +62,7 @@ namespace Omni.Core
         private static readonly UdpClient udpClient = new();
 
         #region Events
-        public static event Action<bool, IPEndPoint, ByteStream> OnConnected;
+        public static event Action<bool, IPEndPoint, DataIOHandler> OnConnected;
         #endregion
 
         internal static OmniNetwork Instance { get; private set; }
@@ -135,7 +135,7 @@ namespace Omni.Core
         private void Awake()
         {
             Instance = this;
-            ByteStream.bsPool = new ByteStreamPool(ServerSettings.bSPoolSize);
+            DataIOHandler.bsPool = new DataIOHandlerPool(ServerSettings.bSPoolSize);
 
             _ = AddResolver(null);
             dispatcher = GetComponent<OmniDispatcher>();
@@ -236,7 +236,7 @@ namespace Omni.Core
         }
 #endif
 
-        private void OmniNetwork_OnConnected(bool isServer, IPEndPoint endPoint, ByteStream parameters)
+        private void OmniNetwork_OnConnected(bool isServer, IPEndPoint endPoint, DataIOHandler IOHandler)
         {
             if (ServerSettings.loadNextScene)
             {
@@ -428,20 +428,20 @@ namespace Omni.Core
 #endif
         }
 
-        private static void SendDataViaSocket(ByteStream byteStream, ushort id, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        private static void SendDataViaSocket(DataIOHandler IOHandler, ushort id, bool fromServer, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption)
         {
             ThrowErrorIfWrongSocket(fromServer);
             if (fromServer && IsBind)
             {
-                udpServer.Send(byteStream, channel, target, subTarget, cacheMode, id);
+                udpServer.Send(IOHandler, deliveryMode, target, processingOption, cachingOption, id);
             }
             else
             {
-                udpClient.Send(byteStream, channel, target, subTarget, cacheMode);
+                udpClient.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
             }
         }
 
-        internal static void OnMessage(ByteStream parameters, MessageType messageType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, UdpEndPoint remoteEndPoint, bool isServer)
+        internal static void OnMessage(DataIOHandler _IOHandler_, MessageType messageType, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpEndPoint remoteEndPoint, bool isServer)
         {
             var selfType = OmniHelper.GetObjectType(messageType);
             // Let's process packets with maximum performance!
@@ -457,37 +457,37 @@ namespace Omni.Core
 
                         var ipAddress = new IPAddress(remoteEndPoint.GetIPAddress());
                         var remoteIPEndPoint = new IPEndPoint(ipAddress, remoteEndPoint.GetPort());
-                        OnConnected?.Invoke(isServer, remoteIPEndPoint, parameters);
+                        OnConnected?.Invoke(isServer, remoteIPEndPoint, _IOHandler_);
                         break;
                     }
                 case MessageType.Remote: // Global
                     {
-                        var sourceId = parameters.ReadUShort();
-                        var destinationId = parameters.ReadUShort();
-                        var remoteId = parameters.ReadByte();
-                        var instanceId = parameters.ReadByte();
+                        var sourceId = _IOHandler_.ReadUShort();
+                        var destinationId = _IOHandler_.ReadUShort();
+                        var remoteId = _IOHandler_.ReadByte();
+                        var instanceId = _IOHandler_.ReadByte();
 
-                        ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(parameters);
+                        DataIOHandler IOHandler = DataIOHandler.Get();
+                        IOHandler.WriteRemainingBytes(_IOHandler_);
 
                         #region Cache System
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
                             var _ = (remoteId, instanceId, sourceId);
-                            OmniHelper.CreateCache(Dictionaries.RemoteGlobalDataCache, _, cacheMode, message, sourceId, destinationId, 0, 0, remoteId, instanceId, default, channel, default);
+                            OmniHelper.CreateCache(Dictionaries.RemoteGlobalDataCache, _, cachingOption, IOHandler, sourceId, destinationId, 0, 0, remoteId, instanceId, default, deliveryMode, default);
 #endif
                         }
                         #endregion
 
                         #region Process RPC
-                        SubTarget processedSubTarget = OmniHelper.GetSubTarget(isServer, subTarget);
+                        DataProcessingOption processedSubTarget = OmniHelper.GetSubTarget(isServer, processingOption);
                         switch (processedSubTarget)
                         {
-                            case SubTarget.Server:
+                            case DataProcessingOption.ProcessOnServer:
                                 {
                                     var rpc = OmniBehaviour.GetRpc(remoteId, instanceId, isServer);
-                                    rpc?.Invoke(parameters, sourceId, destinationId, isServer, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
+                                    rpc?.Invoke(_IOHandler_, sourceId, destinationId, isServer, new RemoteStats(OmniTime.Time, _IOHandler_.BytesRemaining));
                                     break;
                                 }
                         }
@@ -497,7 +497,7 @@ namespace Omni.Core
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
                         {
-                            Remote(remoteId, instanceId, sourceId, destinationId, isServer, message, channel, target, SubTarget.None, cacheMode);
+                            Remote(remoteId, instanceId, sourceId, destinationId, isServer, IOHandler, deliveryMode, target, DataProcessingOption.DoNotProcessOnServer, cachingOption);
                         }
                         #endregion
 
@@ -508,15 +508,15 @@ namespace Omni.Core
                 case MessageType.RemotePlayer:
                 case MessageType.RemoteDynamic:
                     {
-                        var fromId = parameters.ReadUShort();
-                        var toId = parameters.ReadUShort();
-                        var sceneId = parameters.ReadByte();
-                        var identityId = parameters.ReadUShort();
-                        var remoteId = parameters.ReadByte();
-                        var instanceId = parameters.ReadByte();
+                        var fromId = _IOHandler_.ReadUShort();
+                        var toId = _IOHandler_.ReadUShort();
+                        var sceneId = _IOHandler_.ReadByte();
+                        var identityId = _IOHandler_.ReadUShort();
+                        var remoteId = _IOHandler_.ReadByte();
+                        var instanceId = _IOHandler_.ReadByte();
 
-                        ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(parameters);
+                        DataIOHandler IOHandler = DataIOHandler.Get();
+                        IOHandler.WriteRemainingBytes(_IOHandler_);
                         ushort pIdInIdentity = messageType == MessageType.RemoteStatic || messageType == MessageType.RemoteScene ? OmniHelper.GetPlayerId(isServer) : toId;
 
                         #region Cache System
@@ -524,21 +524,21 @@ namespace Omni.Core
                         {
 #if UNITY_SERVER || UNITY_EDITOR
                             var _ = (remoteId, identityId, instanceId, fromId, sceneId, selfType);
-                            OmniHelper.CreateCache(Dictionaries.RemoteDataCache, _, cacheMode, message, fromId, toId, sceneId, identityId, remoteId, instanceId, messageType, channel, selfType);
+                            OmniHelper.CreateCache(Dictionaries.RemoteDataCache, _, cachingOption, IOHandler, fromId, toId, sceneId, identityId, remoteId, instanceId, messageType, deliveryMode, selfType);
 #endif
                         }
                         #endregion
 
                         #region Process RPC
-                        switch (OmniHelper.GetSubTarget(isServer, subTarget))
+                        switch (OmniHelper.GetSubTarget(isServer, processingOption))
                         {
-                            case SubTarget.Server:
+                            case DataProcessingOption.ProcessOnServer:
                                 {
                                     OmniIdentity identity = GetIdentity(identityId, pIdInIdentity, isServer, sceneId, selfType);
                                     if (identity != null)
                                     {
                                         var rpc = identity.GetRpc(instanceId, remoteId);
-                                        rpc?.Invoke(parameters, fromId, toId, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
+                                        rpc?.Invoke(_IOHandler_, fromId, toId, new RemoteStats(OmniTime.Time, _IOHandler_.BytesRemaining));
                                     }
                                     else
                                     {
@@ -552,7 +552,7 @@ namespace Omni.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            Remote(remoteId, sceneId, identityId, instanceId, fromId, toId, isServer, message, messageType, channel, target, SubTarget.None, cacheMode);
+                            Remote(remoteId, sceneId, identityId, instanceId, fromId, toId, isServer, IOHandler, messageType, deliveryMode, target, DataProcessingOption.DoNotProcessOnServer, cachingOption);
                         #endregion
                     }
                     break;
@@ -561,38 +561,38 @@ namespace Omni.Core
                 case MessageType.OnSerializePlayer:
                 case MessageType.OnSerializeDynamic:
                     {
-                        var identityId = parameters.ReadUShort();
-                        var playerId = parameters.ReadUShort();
-                        var instanceId = parameters.ReadByte();
-                        var sceneId = parameters.ReadByte();
+                        var identityId = _IOHandler_.ReadUShort();
+                        var playerId = _IOHandler_.ReadUShort();
+                        var instanceId = _IOHandler_.ReadByte();
+                        var sceneId = _IOHandler_.ReadByte();
 
-                        ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(parameters);
-                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSerializeStatic || messageType == MessageType.OnSerializeScene ? OmniHelper.GetPlayerId(isServer) : playerId;
+                        DataIOHandler IOHandler = DataIOHandler.Get();
+                        IOHandler.WriteRemainingBytes(_IOHandler_);
+                        ushort pIdInIdentity = messageType == MessageType.OnSerializeStatic || messageType == MessageType.OnSerializeScene ? OmniHelper.GetPlayerId(isServer) : playerId;
 
                         #region Cache System
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
                             var _ = (identityId, instanceId, playerId, sceneId, selfType);
-                            OmniHelper.CreateCache(Dictionaries.SerializeDataCache, _, cacheMode, message, playerId, playerId, sceneId, identityId, 0, instanceId, messageType, channel, selfType);
+                            OmniHelper.CreateCache(Dictionaries.SerializeDataCache, _, cachingOption, IOHandler, playerId, playerId, sceneId, identityId, 0, instanceId, messageType, deliveryMode, selfType);
 #endif
                         }
                         #endregion
 
                         #region Process OnSerializeView
-                        switch (OmniHelper.GetSubTarget(isServer, subTarget))
+                        switch (OmniHelper.GetSubTarget(isServer, processingOption))
                         {
-                            case SubTarget.Server:
+                            case DataProcessingOption.ProcessOnServer:
                                 {
-                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, selfType);
+                                    OmniIdentity identity = GetIdentity(identityId, pIdInIdentity, isServer, sceneId, selfType);
                                     if (identity != null)
                                     {
-                                        identity.GetOmniObject(instanceId).OnSerializeView(parameters, false, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
+                                        identity.GetOmniObject(instanceId).OnSerializeView(_IOHandler_, false, new RemoteStats(OmniTime.Time, _IOHandler_.BytesRemaining));
                                     }
                                     else
                                     {
-                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {pIdInIdentity}, {isServer}]");
                                     }
                                     break;
                                 }
@@ -602,7 +602,7 @@ namespace Omni.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            OnSerializeView(message, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
+                            OnSerializeView(IOHandler, identityId, instanceId, playerId, sceneId, isServer, messageType, deliveryMode, target, DataProcessingOption.DoNotProcessOnServer, cachingOption);
                         #endregion
                     }
                     break;
@@ -611,39 +611,39 @@ namespace Omni.Core
                 case MessageType.OnSyncBasePlayer:
                 case MessageType.OnSyncBaseDynamic:
                     {
-                        var fieldId = parameters.ReadByte();
-                        var identityId = parameters.ReadUShort();
-                        var playerId = parameters.ReadUShort();
-                        var instanceId = parameters.ReadByte();
-                        var sceneId = parameters.ReadByte();
+                        var fieldId = _IOHandler_.ReadByte();
+                        var identityId = _IOHandler_.ReadUShort();
+                        var playerId = _IOHandler_.ReadUShort();
+                        var instanceId = _IOHandler_.ReadByte();
+                        var sceneId = _IOHandler_.ReadByte();
 
-                        ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(parameters);
-                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.OnSyncBaseStatic || messageType == MessageType.OnSyncBaseScene ? OmniHelper.GetPlayerId(isServer) : playerId;
+                        DataIOHandler IOHandler = DataIOHandler.Get();
+                        IOHandler.WriteRemainingBytes(_IOHandler_);
+                        ushort pIdInIdentity = messageType == MessageType.OnSyncBaseStatic || messageType == MessageType.OnSyncBaseScene ? OmniHelper.GetPlayerId(isServer) : playerId;
 
                         #region Cache System
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
                             var _ = (fieldId, identityId, instanceId, playerId, sceneId, selfType);
-                            OmniHelper.CreateCache(Dictionaries.SyncDataCache, _, cacheMode, message, playerId, playerId, sceneId, identityId, fieldId, instanceId, messageType, channel, selfType);
+                            OmniHelper.CreateCache(Dictionaries.SyncDataCache, _, cachingOption, IOHandler, playerId, playerId, sceneId, identityId, fieldId, instanceId, messageType, deliveryMode, selfType);
 #endif
                         }
                         #endregion
 
                         #region Process OnSyncBase
-                        switch (OmniHelper.GetSubTarget(isServer, subTarget))
+                        switch (OmniHelper.GetSubTarget(isServer, processingOption))
                         {
-                            case SubTarget.Server:
+                            case DataProcessingOption.ProcessOnServer:
                                 {
-                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, selfType);
+                                    OmniIdentity identity = GetIdentity(identityId, pIdInIdentity, isServer, sceneId, selfType);
                                     if (identity != null)
                                     {
-                                        identity.GetOmniObject(instanceId).OnSyncBase?.Invoke(fieldId, parameters);
+                                        identity.GetOmniObject(instanceId).OnSyncBase?.Invoke(fieldId, _IOHandler_);
                                     }
                                     else
                                     {
-                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {pIdInIdentity}, {isServer}]");
                                     }
                                     break;
                                 }
@@ -653,64 +653,64 @@ namespace Omni.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            OnSyncBase(message, fieldId, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
+                            OnSyncBase(IOHandler, fieldId, identityId, instanceId, playerId, sceneId, isServer, messageType, deliveryMode, target, DataProcessingOption.DoNotProcessOnServer, cachingOption);
                         #endregion
                     }
                     break;
                 case MessageType.GetCache:
                     {
-                        var cacheType = (CacheType)parameters.ReadByte();
-                        var id = parameters.ReadByte();
-                        var ownerCache = parameters.ReadBool();
+                        var cacheType = (DataStorageType)_IOHandler_.ReadByte();
+                        var id = _IOHandler_.ReadByte();
+                        var ownerCache = _IOHandler_.ReadBool();
                         var fromPort = (ushort)remoteEndPoint.GetPort();
 
                         switch (cacheType)
                         {
-                            case CacheType.Remote:
+                            case DataStorageType.Remote:
                                 {
-                                    OmniHelper.GetCache(Dictionaries.RemoteDataCache, x => x.Key.remoteId == id, (data, message) =>
+                                    OmniHelper.GetCache(Dictionaries.RemoteDataCache, x => x.Key.remoteId == id, (data, IOHandler) =>
                                     {
-                                        Remote(data.rpcId, data.sceneId, data.identityId, data.instanceId, data.fromId, data.toId, isServer, message, data.messageType, data.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
+                                        Remote(data.rpcId, data.sceneId, data.identityId, data.instanceId, data.fromId, data.toId, isServer, IOHandler, data.messageType, data.deliveryMode, DataTarget.Self, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None, fromPort);
                                     }, ownerCache, fromPort, isServer);
                                 }
                                 break;
-                            case CacheType.GlobalRemote:
+                            case DataStorageType.GlobalRemote:
                                 {
-                                    OmniHelper.GetCache(Dictionaries.RemoteGlobalDataCache, x => x.Key.remoteId == id, (data, message) =>
+                                    OmniHelper.GetCache(Dictionaries.RemoteGlobalDataCache, x => x.Key.remoteId == id, (data, IOHandler) =>
                                     {
-                                        Remote(data.rpcId, data.instanceId, data.fromId, data.toId, isServer, message, data.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
+                                        Remote(data.rpcId, data.instanceId, data.fromId, data.toId, isServer, IOHandler, data.deliveryMode, DataTarget.Self, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None, fromPort);
                                     }, ownerCache, fromPort, isServer);
                                 }
                                 break;
-                            case CacheType.OnSerialize:
+                            case DataStorageType.OnSerialize:
                                 {
-                                    OmniHelper.GetCache(Dictionaries.SerializeDataCache, default, (data, message) =>
+                                    OmniHelper.GetCache(Dictionaries.SerializeDataCache, default, (data, IOHandler) =>
                                     {
-                                        OnSerializeView(message, data.identityId, data.instanceId, data.toId, data.sceneId, isServer, data.messageType, data.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
+                                        OnSerializeView(IOHandler, data.identityId, data.instanceId, data.toId, data.sceneId, isServer, data.messageType, data.deliveryMode, DataTarget.Self, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None, fromPort);
                                     }, ownerCache, fromPort, isServer, false);
                                 }
                                 break;
-                            case CacheType.OnSync:
+                            case DataStorageType.OnSync:
                                 {
-                                    OmniHelper.GetCache(Dictionaries.SyncDataCache, x => x.Key.varId == id, (data, message) =>
+                                    OmniHelper.GetCache(Dictionaries.SyncDataCache, x => x.Key.varId == id, (data, IOHandler) =>
                                     {
-                                        OnSyncBase(message, data.rpcId, data.identityId, data.instanceId, data.toId, data.sceneId, isServer, data.messageType, data.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
+                                        OnSyncBase(IOHandler, data.rpcId, data.identityId, data.instanceId, data.toId, data.sceneId, isServer, data.messageType, data.deliveryMode, DataTarget.Self, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None, fromPort);
                                     }, ownerCache, fromPort, isServer);
                                 }
                                 break;
-                            case CacheType.GlobalMessage:
+                            case DataStorageType.GlobalMessage:
                                 {
-                                    OmniHelper.GetCache(Dictionaries.GlobalDataCache, x => x.Key.id == id, (data, message) =>
+                                    OmniHelper.GetCache(Dictionaries.GlobalDataCache, x => x.Key.id == id, (data, IOHandler) =>
                                     {
-                                        GlobalMessage(message, data.rpcId, data.toId, isServer, data.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
+                                        GlobalMessage(IOHandler, data.rpcId, data.toId, isServer, data.deliveryMode, DataTarget.Self, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None, fromPort);
                                     }, ownerCache, fromPort, isServer);
                                 }
                                 break;
-                            case CacheType.LocalMessage:
+                            case DataStorageType.LocalMessage:
                                 {
-                                    OmniHelper.GetCache(Dictionaries.LocalDataCache, x => x.Key.id == id, (cache, message) =>
+                                    OmniHelper.GetCache(Dictionaries.LocalDataCache, x => x.Key.id == id, (cache, IOHandler) =>
                                     {
-                                        LocalMessage(message, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.channel, Target.Me, SubTarget.None, CacheMode.None, fromPort);
+                                        LocalMessage(IOHandler, cache.rpcId, cache.identityId, cache.instanceId, cache.toId, cache.sceneId, isServer, cache.messageType, cache.deliveryMode, DataTarget.Self, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None, fromPort);
                                     }, ownerCache, fromPort, isServer);
                                 }
                                 break;
@@ -719,29 +719,29 @@ namespace Omni.Core
                     break;
                 case MessageType.GlobalMessage:
                     {
-                        var id = parameters.ReadByte();
-                        var playerId = parameters.ReadUShort();
+                        var id = _IOHandler_.ReadByte();
+                        var playerId = _IOHandler_.ReadUShort();
 
-                        ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(parameters);
+                        DataIOHandler IOHandler = DataIOHandler.Get();
+                        IOHandler.WriteRemainingBytes(_IOHandler_);
 
                         #region Cache System
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
                             var _ = (id, playerId);
-                            OmniHelper.CreateCache(Dictionaries.GlobalDataCache, _, cacheMode, message, playerId, playerId, 0, 0, id, 0, default, channel, default);
+                            OmniHelper.CreateCache(Dictionaries.GlobalDataCache, _, cachingOption, IOHandler, playerId, playerId, 0, 0, id, 0, default, deliveryMode, default);
 #endif
                         }
                         #endregion
 
                         #region Execute Message
-                        switch (OmniHelper.GetSubTarget(isServer, subTarget))
+                        switch (OmniHelper.GetSubTarget(isServer, processingOption))
                         {
-                            case SubTarget.Server:
+                            case DataProcessingOption.ProcessOnServer:
                                 {
                                     var handler = GetHandler(id);
-                                    handler?.Invoke(parameters.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
+                                    handler?.Invoke(_IOHandler_.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(OmniTime.Time, _IOHandler_.BytesRemaining));
                                 }
                                 break;
                         }
@@ -750,7 +750,7 @@ namespace Omni.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            GlobalMessage(message, id, playerId, isServer, channel, target, SubTarget.None, cacheMode);
+                            GlobalMessage(IOHandler, id, playerId, isServer, deliveryMode, target, DataProcessingOption.DoNotProcessOnServer, cachingOption);
                         #endregion
                     }
                     break;
@@ -759,41 +759,41 @@ namespace Omni.Core
                 case MessageType.LocalMessagePlayer:
                 case MessageType.LocalMessageDynamic:
                     {
-                        var id = parameters.ReadByte();
-                        var identityId = parameters.ReadUShort();
-                        var playerId = parameters.ReadUShort();
-                        var instanceId = parameters.ReadByte();
-                        var sceneId = parameters.ReadByte();
+                        var id = _IOHandler_.ReadByte();
+                        var identityId = _IOHandler_.ReadUShort();
+                        var playerId = _IOHandler_.ReadUShort();
+                        var instanceId = _IOHandler_.ReadByte();
+                        var sceneId = _IOHandler_.ReadByte();
 
-                        ByteStream message = ByteStream.Get();
-                        message.WriteRemainingBytes(parameters);
-                        ushort PLAYER_ID_OF_IDENTITY = messageType == MessageType.LocalMessageStatic || messageType == MessageType.LocalMessageScene ? OmniHelper.GetPlayerId(isServer) : playerId;
+                        DataIOHandler IOHandler = DataIOHandler.Get();
+                        IOHandler.WriteRemainingBytes(_IOHandler_);
+                        ushort pIdInIdentity = messageType == MessageType.LocalMessageStatic || messageType == MessageType.LocalMessageScene ? OmniHelper.GetPlayerId(isServer) : playerId;
 
                         #region Cache System
                         if (isServer)
                         {
 #if UNITY_SERVER || UNITY_EDITOR
                             var _ = (id, identityId, instanceId, playerId, sceneId, selfType);
-                            OmniHelper.CreateCache(Dictionaries.LocalDataCache, _, cacheMode, message, playerId, playerId, sceneId, identityId, id, instanceId, messageType, channel, selfType);
+                            OmniHelper.CreateCache(Dictionaries.LocalDataCache, _, cachingOption, IOHandler, playerId, playerId, sceneId, identityId, id, instanceId, messageType, deliveryMode, selfType);
 #endif
                         }
                         #endregion
 
                         #region Execute Message
-                        switch (OmniHelper.GetSubTarget(isServer, subTarget))
+                        switch (OmniHelper.GetSubTarget(isServer, processingOption))
                         {
-                            case SubTarget.Server:
+                            case DataProcessingOption.ProcessOnServer:
                                 {
-                                    OmniIdentity identity = GetIdentity(identityId, PLAYER_ID_OF_IDENTITY, isServer, sceneId, OmniHelper.GetObjectType(messageType));
+                                    OmniIdentity identity = GetIdentity(identityId, pIdInIdentity, isServer, sceneId, OmniHelper.GetObjectType(messageType));
                                     if (identity != null)
                                     {
                                         OmniObject @this = identity.GetOmniObject(instanceId);
                                         var handler = @this.GetHandler(id);
-                                        handler?.Invoke(parameters.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(OmniTime.Time, parameters.BytesRemaining));
+                                        handler?.Invoke(_IOHandler_.ReadAsReadOnlyMemory(), playerId, isServer, new RemoteStats(OmniTime.Time, _IOHandler_.BytesRemaining));
                                     }
                                     else
                                     {
-                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {PLAYER_ID_OF_IDENTITY}, {isServer}]");
+                                        OmniLogger.PrintError($"The identity has been destroyed or does not exist! -> [IsServer]={isServer} -> [{identityId}, {pIdInIdentity}, {isServer}]");
                                     }
                                 }
                                 break;
@@ -803,7 +803,7 @@ namespace Omni.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                            LocalMessage(message, id, identityId, instanceId, playerId, sceneId, isServer, messageType, channel, target, SubTarget.None, cacheMode);
+                            LocalMessage(IOHandler, id, identityId, instanceId, playerId, sceneId, isServer, messageType, deliveryMode, target, DataProcessingOption.DoNotProcessOnServer, cachingOption);
                         #endregion
                     }
                     break;
@@ -833,106 +833,106 @@ namespace Omni.Core
             }
         }
 
-        internal static void Remote(byte id, byte sceneId, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
+        internal static void Remote(byte id, byte sceneId, ushort identity, byte instanceId, ushort fromId, ushort toId, bool fromServer, DataIOHandler _IOHandler_, MessageType msgType, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort senderId = 0)
         {
-            ByteStream message = ByteStream.Get(msgType);
-            message.Write(fromId);
-            message.Write(toId);
-            message.Write(sceneId);
-            message.Write(identity);
-            message.Write(id);
-            message.Write(instanceId);
-            message.Write(msg);
-            msg.Release();
-            SendDataViaSocket(message, OmniHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(msgType);
+            IOHandler.Write(fromId);
+            IOHandler.Write(toId);
+            IOHandler.Write(sceneId);
+            IOHandler.Write(identity);
+            IOHandler.Write(id);
+            IOHandler.Write(instanceId);
+            IOHandler.Write(_IOHandler_);
+            _IOHandler_.Release();
+            SendDataViaSocket(IOHandler, OmniHelper.GetPlayerId(senderId, toId), fromServer, deliveryMode, target, processingOption, cachingOption);
+            IOHandler.Release();
         }
 
-        internal static void Remote(byte id, byte instanceId, ushort fromId, ushort toId, bool fromServer, ByteStream msg, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
+        internal static void Remote(byte id, byte instanceId, ushort fromId, ushort toId, bool fromServer, DataIOHandler _IOHandler_, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort senderId = 0)
         {
-            ByteStream message = ByteStream.Get(MessageType.Remote);
-            message.Write(fromId);
-            message.Write(toId);
-            message.Write(id);
-            message.Write(instanceId);
-            message.Write(msg);
-            msg.Release();
-            SendDataViaSocket(message, OmniHelper.GetPlayerId(senderId, toId), fromServer, channel, target, subTarget, cacheMode);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(MessageType.Remote);
+            IOHandler.Write(fromId);
+            IOHandler.Write(toId);
+            IOHandler.Write(id);
+            IOHandler.Write(instanceId);
+            IOHandler.Write(_IOHandler_);
+            _IOHandler_.Release();
+            SendDataViaSocket(IOHandler, OmniHelper.GetPlayerId(senderId, toId), fromServer, deliveryMode, target, processingOption, cachingOption);
+            IOHandler.Release();
         }
 
-        internal static void OnSerializeView(ByteStream msg, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
+        internal static void OnSerializeView(DataIOHandler _IOHandler_, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort senderId = 0)
         {
-            ByteStream message = ByteStream.Get(msgType);
-            message.Write(identity);
-            message.Write(playerId);
-            message.Write(instanceId);
-            message.Write(sceneId);
-            message.Write(msg);
-            msg.Release();
-            SendDataViaSocket(message, OmniHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(msgType);
+            IOHandler.Write(identity);
+            IOHandler.Write(playerId);
+            IOHandler.Write(instanceId);
+            IOHandler.Write(sceneId);
+            IOHandler.Write(_IOHandler_);
+            _IOHandler_.Release();
+            SendDataViaSocket(IOHandler, OmniHelper.GetPlayerId(senderId, playerId), fromServer, deliveryMode, target, processingOption, cachingOption);
+            IOHandler.Release();
         }
 
-        internal static void OnSyncBase(ByteStream msg, byte varId, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
+        internal static void OnSyncBase(DataIOHandler _IOHandler_, byte varId, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort senderId = 0)
         {
-            ByteStream message = ByteStream.Get(msgType);
-            message.Write(varId);
-            message.Write(identity);
-            message.Write(playerId);
-            message.Write(instanceId);
-            message.Write(sceneId);
-            message.Write(msg);
-            msg.Release();
-            SendDataViaSocket(message, OmniHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(msgType);
+            IOHandler.Write(varId);
+            IOHandler.Write(identity);
+            IOHandler.Write(playerId);
+            IOHandler.Write(instanceId);
+            IOHandler.Write(sceneId);
+            IOHandler.Write(_IOHandler_);
+            _IOHandler_.Release();
+            SendDataViaSocket(IOHandler, OmniHelper.GetPlayerId(senderId, playerId), fromServer, deliveryMode, target, processingOption, cachingOption);
+            IOHandler.Release();
         }
 
-        public static void GetCache(CacheType cacheType, bool ownerCache, byte cacheId, bool fromServer, Channel channel) => GetCache(cacheType, ownerCache, cacheId, OmniHelper.GetPlayerId(fromServer), fromServer, channel);
-        public static void GetCache(CacheType cacheType, bool ownerCache, byte cacheId, ushort playerId, bool fromServer, Channel channel)
+        public static void GetCache(DataStorageType cacheType, bool ownerCache, byte cacheId, bool fromServer, DataDeliveryMode deliveryMode) => GetCache(cacheType, ownerCache, cacheId, OmniHelper.GetPlayerId(fromServer), fromServer, deliveryMode);
+        public static void GetCache(DataStorageType cacheType, bool ownerCache, byte cacheId, ushort playerId, bool fromServer, DataDeliveryMode deliveryMode)
         {
-            ByteStream message = ByteStream.Get(MessageType.GetCache);
-            message.Write((byte)cacheType);
-            message.Write(cacheId);
-            message.Write(ownerCache);
-            SendDataViaSocket(message, playerId, fromServer, channel, Target.Me, SubTarget.None, CacheMode.None);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(MessageType.GetCache);
+            IOHandler.Write((byte)cacheType);
+            IOHandler.Write(cacheId);
+            IOHandler.Write(ownerCache);
+            SendDataViaSocket(IOHandler, playerId, fromServer, deliveryMode, DataTarget.Self, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None);
+            IOHandler.Release();
         }
 
-        internal static void GlobalMessage(ByteStream msg, byte id, ushort playerId, bool fromServer, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
+        internal static void GlobalMessage(DataIOHandler _IOHandler_, byte id, ushort playerId, bool fromServer, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort senderId = 0)
         {
-            ByteStream message = ByteStream.Get(MessageType.GlobalMessage);
-            message.Write(id);
-            message.Write(playerId);
-            message.Write(msg);
-            msg.Release();
-            SendDataViaSocket(message, OmniHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(MessageType.GlobalMessage);
+            IOHandler.Write(id);
+            IOHandler.Write(playerId);
+            IOHandler.Write(_IOHandler_);
+            _IOHandler_.Release();
+            SendDataViaSocket(IOHandler, OmniHelper.GetPlayerId(senderId, playerId), fromServer, deliveryMode, target, processingOption, cachingOption);
+            IOHandler.Release();
         }
 
-        internal static void LocalMessage(ByteStream msg, byte id, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode, ushort senderId = 0)
+        internal static void LocalMessage(DataIOHandler _IOHandler_, byte id, ushort identity, byte instanceId, ushort playerId, byte sceneId, bool fromServer, MessageType msgType, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort senderId = 0)
         {
-            ByteStream message = ByteStream.Get(msgType);
-            message.Write(id);
-            message.Write(identity);
-            message.Write(playerId);
-            message.Write(instanceId);
-            message.Write(sceneId);
-            message.Write(msg);
-            msg.Release();
-            SendDataViaSocket(message, OmniHelper.GetPlayerId(senderId, playerId), fromServer, channel, target, subTarget, cacheMode);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(msgType);
+            IOHandler.Write(id);
+            IOHandler.Write(identity);
+            IOHandler.Write(playerId);
+            IOHandler.Write(instanceId);
+            IOHandler.Write(sceneId);
+            IOHandler.Write(_IOHandler_);
+            _IOHandler_.Release();
+            SendDataViaSocket(IOHandler, OmniHelper.GetPlayerId(senderId, playerId), fromServer, deliveryMode, target, processingOption, cachingOption);
+            IOHandler.Release();
         }
 
-        internal static void FireEvent(ByteStream msg, EventType eventType, Target target = Target.All)
+        internal static void FireEvent(DataIOHandler _IOHandler_, NetworkEvents eventType, DataTarget target = DataTarget.Broadcast)
         {
 #if UNITY_EDITOR || UNITY_SERVER
-            ByteStream message = ByteStream.Get(MessageType.FireEvent);
-            message.Write((byte)eventType);
-            message.Write(msg);
-            msg.Release();
-            SendDataViaSocket(message, NetworkId, true, Channel.Reliable, target, SubTarget.None, CacheMode.None);
-            message.Release();
+            DataIOHandler IOHandler = DataIOHandler.Get(MessageType.FireEvent);
+            IOHandler.Write((byte)eventType);
+            IOHandler.Write(_IOHandler_);
+            _IOHandler_.Release();
+            SendDataViaSocket(IOHandler, NetworkId, true, DataDeliveryMode.Secured, target, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None);
+            IOHandler.Release();
 #else
             OmniLogger.PrintError("Fire Event not work on client side!");
 #endif

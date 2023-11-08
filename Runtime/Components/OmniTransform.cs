@@ -23,10 +23,10 @@ namespace Omni.Core
         [SerializeField] private float lerpSpeed = 1f;
         [SerializeField][Range(0, 1f)] private float syncInterval = 0.1f;
         [SerializeField] private AuthorityMode authority = AuthorityMode.Mine;
-        [SerializeField] private Channel channel = Channel.Unreliable;
-        [SerializeField] private Target target = Target.Others;
-        [SerializeField] private SubTarget subTarget = SubTarget.None;
-        [SerializeField] private CacheMode cacheMode = CacheMode.None;
+        [SerializeField] private DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured;
+        [SerializeField] private DataTarget target = DataTarget.BroadcastExcludingSelf;
+        [SerializeField] private DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer;
+        [SerializeField] private DataCachingOption cachingOption = DataCachingOption.None;
 
         private Vector3 netPos;
         private Quaternion netRot;
@@ -46,10 +46,10 @@ namespace Omni.Core
             }
         }
 
-        protected override Channel OnSerializeViewChannel => channel;
-        protected override Target OnSerializeViewTarget => target;
-        protected override SubTarget OnSerializeViewSubTarget => subTarget;
-        protected override CacheMode OnSerializeViewCacheMode => cacheMode;
+        protected override DataDeliveryMode OnSerializeViewChannel => deliveryMode;
+        protected override DataTarget OnSerializeViewTarget => target;
+        protected override DataProcessingOption OnSerializeViewSubTarget => processingOption;
+        protected override DataCachingOption OnSerializeViewCacheMode => cachingOption;
 
         private void Start()
         {
@@ -74,17 +74,17 @@ namespace Omni.Core
             }
         }
 
-        protected internal override void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
+        protected internal override void OnSerializeView(DataIOHandler IOHandler, bool isWriting, RemoteStats stats)
         {
             if (isWriting)
             {
-                parameters.Write(netPos);
-                parameters.Write(netRot);
+                IOHandler.Write(netPos);
+                IOHandler.Write(netRot);
             }
             else if (!isWriting)
             {
-                netPos = parameters.ReadVector3();
-                netRot = parameters.ReadQuaternion();
+                netPos = IOHandler.ReadVector3();
+                netRot = IOHandler.ReadQuaternion();
             }
         }
     }

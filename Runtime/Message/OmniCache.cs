@@ -29,10 +29,10 @@ namespace Omni.Core
         internal readonly byte rpcId;
         internal readonly byte instanceId;
         internal readonly MessageType messageType;
-        internal readonly Channel channel;
+        internal readonly DataDeliveryMode deliveryMode;
         internal readonly ObjectType objectType;
 
-        internal OmniCache(byte[] data, int length, ushort fromId, ushort toId, byte sceneId, ushort identityId, byte rpcId, byte instanceId, MessageType messageType, Channel channel, ObjectType objectType)
+        internal OmniCache(byte[] data, int length, ushort fromId, ushort toId, byte sceneId, ushort identityId, byte rpcId, byte instanceId, MessageType messageType, DataDeliveryMode deliveryMode, ObjectType objectType)
         {
             this.data = data;
             this.fromId = fromId;
@@ -42,7 +42,7 @@ namespace Omni.Core
             this.rpcId = rpcId;
             this.instanceId = instanceId;
             this.messageType = messageType;
-            this.channel = channel;
+            this.deliveryMode = deliveryMode;
             this.objectType = objectType;
 
             Buffer = this.data;

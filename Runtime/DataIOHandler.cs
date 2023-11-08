@@ -24,7 +24,7 @@ using static Omni.Core.Enums;
 
 namespace Omni.Core
 {
-    public sealed class ByteStream
+    public sealed class DataIOHandler
     {
         internal bool isRawBytes;
 
@@ -54,9 +54,9 @@ namespace Omni.Core
 #if UNITY_SERVER && !UNITY_EDITOR
         static int allocated = 0;
 #endif
-        internal static ByteStreamPool bsPool;
+        internal static DataIOHandlerPool bsPool;
         internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
-        public ByteStream(int size, bool isPoolObject = false)
+        public DataIOHandler(int size, bool isPoolObject = false)
         {
             buffer = new byte[size];
             this.isPoolObject = isPoolObject;
@@ -78,10 +78,10 @@ namespace Omni.Core
             }
         }
 
-        internal void WritePayload(Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal void WritePayload(DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption)
         {
             // Packed to optimize bandwidth!
-            byte payload = (byte)((byte)channel | (byte)target << 1 | (byte)subTarget << 3 | (byte)cacheMode << 4);
+            byte payload = (byte)((byte)deliveryMode | (byte)target << 1 | (byte)processingOption << 3 | (byte)cachingOption << 4);
             Write(payload);
         }
 
@@ -285,29 +285,29 @@ namespace Omni.Core
             }
         }
 
-        public void Write(ByteStream value)
+        public void Write(DataIOHandler IOHandler)
         {
-            Write(value.buffer, 0, value.bytesWritten);
+            Write(IOHandler.buffer, 0, IOHandler.bytesWritten);
         }
 
-        public void WriteRemainingBytes(ByteStream parameters)
+        public void WriteRemainingBytes(DataIOHandler IOHandler)
         {
-            Write(parameters, parameters.position, parameters.bytesWritten);
+            Write(IOHandler, IOHandler.position, IOHandler.bytesWritten);
         }
 
-        public void Write(ByteStream value, int offset, int size)
+        public void Write(DataIOHandler IOHandler, int offset, int size)
         {
-            Write(value.buffer, offset, size);
+            Write(IOHandler.buffer, offset, size);
         }
 
         public byte ReadByte() => ThrowIfNotEnoughData(sizeof(byte)) ? buffer[position++] : default;
-        internal void ReadPayload(out Channel channel, out Target target, out SubTarget subTarget, out CacheMode cacheMode)
+        internal void ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption)
         {
             byte bPackedPayload = ReadByte();
-            channel = (Channel)(bPackedPayload & 0x1);
-            target = (Target)((bPackedPayload >> 1) & 0x3);
-            subTarget = (SubTarget)((bPackedPayload >> 3) & 0x1);
-            cacheMode = (CacheMode)((bPackedPayload >> 4) & 0x3);
+            deliveryMode = (DataDeliveryMode)(bPackedPayload & 0x1);
+            target = (DataTarget)((bPackedPayload >> 1) & 0x3);
+            processingOption = (DataProcessingOption)((bPackedPayload >> 3) & 0x1);
+            cachingOption = (DataCachingOption)((bPackedPayload >> 4) & 0x3);
         }
 
         internal MessageType ReadPacket()
@@ -611,20 +611,20 @@ namespace Omni.Core
             }
         }
 
-        public static ByteStream Get()
+        public static DataIOHandler Get()
         {
             ThrowIfNotInitialized();
-            ByteStream _get_ = bsPool.Get();
+            DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             return _get_;
         }
 
-        internal static ByteStream Get(MessageType msgType)
+        internal static DataIOHandler Get(MessageType msgType)
         {
             ThrowIfNotInitialized();
-            ByteStream _get_ = bsPool.Get();
+            DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
@@ -633,11 +633,11 @@ namespace Omni.Core
         }
 
 #pragma warning disable IDE0060
-        internal static ByteStream Get(MessageType msgType, bool _)
+        internal static DataIOHandler Get(MessageType msgType, bool _)
 #pragma warning restore IDE0060
         {
             ThrowIfNotInitialized();
-            ByteStream _get_ = bsPool.Get();
+            DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");

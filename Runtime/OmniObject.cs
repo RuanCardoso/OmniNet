@@ -40,7 +40,7 @@ namespace Omni.Core
         [SerializeField][ReadOnly][HorizontalLine(SEPARATOR_HEIGHT, below: true)][Space(SEPARATOR)] internal byte id;
 
         internal byte Id => id;
-        protected ByteStream Get => ByteStream.Get();
+        protected DataIOHandler Get => DataIOHandler.Get();
         protected OmniIdentity Identity => identity;
         protected internal bool IsItFromTheServer => identity.isItFromTheServer && identity.itIsRegistered;
         protected internal bool IsMine => !identity.isItFromTheServer && identity.playerId == OmniNetwork.Id && identity.itIsRegistered;
@@ -50,15 +50,15 @@ namespace Omni.Core
 
         #region OnSerializeView
         protected virtual bool OnSerializeViewAuthority => IsMine;
-        protected virtual Channel OnSerializeViewChannel => Channel.Unreliable;
-        protected virtual Target OnSerializeViewTarget => Target.Others;
-        protected virtual SubTarget OnSerializeViewSubTarget => SubTarget.None;
-        protected virtual CacheMode OnSerializeViewCacheMode => CacheMode.None;
+        protected virtual DataDeliveryMode OnSerializeViewChannel => DataDeliveryMode.Unsecured;
+        protected virtual DataTarget OnSerializeViewTarget => DataTarget.BroadcastExcludingSelf;
+        protected virtual DataProcessingOption OnSerializeViewSubTarget => DataProcessingOption.DoNotProcessOnServer;
+        protected virtual DataCachingOption OnSerializeViewCacheMode => DataCachingOption.None;
         #endregion
 
         private readonly Dictionary<int, Action<ReadOnlyMemory<byte>, ushort, bool, RemoteStats>> handlers = new();
         internal byte OnSyncBaseId = 0;
-        internal Action<byte, ByteStream> OnSyncBase;
+        internal Action<byte, DataIOHandler> OnSyncBase;
 
         internal void OnAwake()
         {
@@ -79,7 +79,7 @@ namespace Omni.Core
         private void GetRemoteAttributes()
         {
             #region Signature
-            static MethodBase MethodSignature(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats) => MethodBase.GetCurrentMethod();
+            static MethodBase MethodSignature(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats) => MethodBase.GetCurrentMethod();
             MethodBase methodSignature = MethodSignature(default, default, default, default);
             ParameterInfo[] parametersSignature = methodSignature.GetParameters();
             int parametersCount = parametersSignature.Length;
@@ -111,7 +111,7 @@ namespace Omni.Core
                         {
                             try
                             {
-                                var remote = method.CreateDelegate(typeof(Action<ByteStream, ushort, ushort, RemoteStats>), this) as Action<ByteStream, ushort, ushort, RemoteStats>;
+                                var remote = method.CreateDelegate(typeof(Action<DataIOHandler, ushort, ushort, RemoteStats>), this) as Action<DataIOHandler, ushort, ushort, RemoteStats>;
                                 identity.AddRpc(id, attr.id, remote);
                             }
                             catch (ArgumentException)
@@ -152,65 +152,65 @@ namespace Omni.Core
 
         protected virtual bool OnCustomAuthority() => throw new NotImplementedException($"Override the {nameof(OnCustomAuthority)} method!");
         protected void OnSerializeView(WaitForSeconds seconds) => StartCoroutine(SentOnSerializeView(seconds));
-        protected void GetCache(CacheType cacheType, byte cacheId, bool ownerCache = false, Channel channel = Channel.Unreliable)
+        protected void GetCache(DataStorageType cacheType, byte cacheId, bool ownerCache = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured)
         {
-            OmniNetwork.GetCache(cacheType, ownerCache, cacheId, identity.playerId, IsItFromTheServer, channel);
+            OmniNetwork.GetCache(cacheType, ownerCache, cacheId, identity.playerId, IsItFromTheServer, deliveryMode);
         }
 
-        private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        private void Intern_Remote(byte id, byte sceneId, ushort fromId, ushort toId, DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption)
         {
-            OmniNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, parameters, REMOTE_MSG_TYPE, channel, target, subTarget, cacheMode);
+            OmniNetwork.Remote(id, sceneId, identity.id, this.id, fromId, toId, IsItFromTheServer, IOHandler, REMOTE_MSG_TYPE, deliveryMode, target, processingOption, cachingOption);
         }
 
-        internal void Intern_Message(ByteStream msg, byte id, ushort playerId, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal void Intern_Message(DataIOHandler IOHandler, byte id, ushort playerId, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption)
         {
-            OmniNetwork.LocalMessage(msg, id, identity.id, this.id, playerId, identity.sceneId, IsItFromTheServer, LOCAL_MESSAGE_MSG_TYPE, channel, target, subTarget, cacheMode);
+            OmniNetwork.LocalMessage(IOHandler, id, identity.id, this.id, playerId, identity.sceneId, IsItFromTheServer, LOCAL_MESSAGE_MSG_TYPE, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void Remote(byte id, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, ByteStream parameters, OmniIdentity fromIdentity, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, fromIdentity.playerId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, ByteStream parameters, OmniIdentity fromIdentity, OmniIdentity toIdentity, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, toIdentity.sceneId, fromIdentity.playerId, toIdentity.playerId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, OmniIdentity toIdentity, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, toIdentity.sceneId, identity.playerId, toIdentity.playerId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, ByteStream parameters, ushort toId, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, identity.playerId, toId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, ByteStream parameters, byte sceneId, ushort toId, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, sceneId, identity.playerId, toId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, ushort fromId, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, fromId, identity.playerId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, ushort fromId, ushort toId, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, identity.sceneId, fromId, toId, parameters, channel, target, subTarget, cacheMode);
-        protected void Remote(byte id, byte sceneId, ushort fromId, ushort toId, ByteStream parameters, Channel channel = Channel.Unreliable, Target target = Target.Me, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None) => Intern_Remote(id, sceneId, fromId, toId, parameters, channel, target, subTarget, cacheMode);
+        protected void Remote(byte id, DataIOHandler IOHandler, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, identity.sceneId, identity.playerId, identity.playerId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, DataIOHandler IOHandler, OmniIdentity fromIdentity, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, identity.sceneId, fromIdentity.playerId, identity.playerId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, DataIOHandler IOHandler, OmniIdentity fromIdentity, OmniIdentity toIdentity, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, toIdentity.sceneId, fromIdentity.playerId, toIdentity.playerId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, OmniIdentity toIdentity, DataIOHandler IOHandler, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, toIdentity.sceneId, identity.playerId, toIdentity.playerId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, DataIOHandler IOHandler, ushort toId, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, identity.sceneId, identity.playerId, toId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, DataIOHandler IOHandler, byte sceneId, ushort toId, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, sceneId, identity.playerId, toId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, ushort fromId, DataIOHandler IOHandler, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, identity.sceneId, fromId, identity.playerId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, ushort fromId, ushort toId, DataIOHandler IOHandler, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, identity.sceneId, fromId, toId, IOHandler, deliveryMode, target, processingOption, cachingOption);
+        protected void Remote(byte id, byte sceneId, ushort fromId, ushort toId, DataIOHandler IOHandler, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None) => Intern_Remote(id, sceneId, fromId, toId, IOHandler, deliveryMode, target, processingOption, cachingOption);
 
         #region Intern Network Methods
-        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            ByteStream message = ByteStream.Get();
-            message.Write(position);
-            message.Write(rotation);
-            parameters?.Invoke(message);
-            Remote(SPAWN_ID, message, channel, target, subTarget, cacheMode);
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            IOHandler.Write(position);
+            IOHandler.Write(rotation);
+            _IOHandler_?.Invoke(IOHandler);
+            Remote(SPAWN_ID, IOHandler, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            ByteStream message = ByteStream.Get();
-            message.Write(position);
-            message.Write(rotation);
-            parameters?.Invoke(message);
-            Remote(SPAWN_ID, message, toId, channel, target, subTarget, cacheMode);
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            IOHandler.Write(position);
+            IOHandler.Write(rotation);
+            _IOHandler_?.Invoke(IOHandler);
+            Remote(SPAWN_ID, IOHandler, toId, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<ByteStream> parameters = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None)
+        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
-            ByteStream message = ByteStream.Get();
-            message.Write(position);
-            message.Write(rotation);
-            parameters?.Invoke(message);
-            Remote(SPAWN_ID, fromId, toId, message, channel, target, subTarget, cacheMode);
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            IOHandler.Write(position);
+            IOHandler.Write(rotation);
+            _IOHandler_?.Invoke(IOHandler);
+            Remote(SPAWN_ID, fromId, toId, IOHandler, deliveryMode, target, processingOption, cachingOption);
         }
 
         [Remote(SPAWN_ID)]
-        internal void SpawnRemote(ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        internal void SpawnRemote(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats)
         {
-            Vector3 position = parameters.ReadVector3();
-            Quaternion rotation = parameters.ReadQuaternion();
-            OmniIdentity identity = OnSpawnedObject(position, rotation, parameters, fromId, toId, stats);
+            Vector3 position = IOHandler.ReadVector3();
+            Quaternion rotation = IOHandler.ReadQuaternion();
+            OmniIdentity identity = OnSpawnedObject(position, rotation, IOHandler, fromId, toId, stats);
             if (identity != null)
             {
                 if (identity.objectType == ObjectType.Dynamic)
@@ -224,21 +224,21 @@ namespace Omni.Core
             }
         }
 
-        protected virtual OmniIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, ByteStream parameters, ushort fromId, ushort toId, RemoteStats stats)
+        protected virtual OmniIdentity OnSpawnedObject(Vector3 position, Quaternion rotation, DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats)
         {
             throw new NotImplementedException($"Override the {nameof(OnSpawnedObject)} method!");
         }
 
-        protected internal virtual void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
+        protected internal virtual void OnSerializeView(DataIOHandler IOHandler, bool isWriting, RemoteStats stats)
         {
             throw new NotImplementedException($"Override the {nameof(OnSerializeView)} method!");
         }
 
-        internal void SentOnSyncBase(byte id, ByteStream parameters, bool hasAuthority, Channel channel, Target target, SubTarget subTarget, CacheMode cacheMode)
+        internal void SentOnSyncBase(byte id, DataIOHandler IOHandler, bool hasAuthority, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption)
         {
             if (hasAuthority)
             {
-                OmniNetwork.OnSyncBase(parameters, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, SYNC_BASE_MSG_TYPE, channel, target, subTarget, cacheMode);
+                OmniNetwork.OnSyncBase(IOHandler, id, identity.id, this.id, identity.playerId, identity.sceneId, IsItFromTheServer, SYNC_BASE_MSG_TYPE, deliveryMode, target, processingOption, cachingOption);
             }
         }
 
@@ -249,9 +249,9 @@ namespace Omni.Core
             {
                 if (OnSerializeViewAuthority)
                 {
-                    ByteStream message = ByteStream.Get();
-                    OnSerializeView(message, true, default);
-                    OmniNetwork.OnSerializeView(message, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, OnSerializeViewCacheMode);
+                    DataIOHandler IOHandler = DataIOHandler.Get();
+                    OnSerializeView(IOHandler, true, default);
+                    OmniNetwork.OnSerializeView(IOHandler, identity.id, id, identity.playerId, identity.sceneId, IsItFromTheServer, msgType, OnSerializeViewChannel, OnSerializeViewTarget, OnSerializeViewSubTarget, OnSerializeViewCacheMode);
                 }
                 else
                     break;

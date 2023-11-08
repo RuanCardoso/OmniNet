@@ -20,7 +20,7 @@ namespace Omni.Core
     [Serializable]
     public class SyncValue<T> : SyncBase<T> where T : unmanaged
     {
-        public SyncValue(OmniObject @this, T value = default, Action<T> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, channel, target, subTarget, cacheMode, authority)
+        public SyncValue(OmniObject @this, T value = default, Action<T> onChanged = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, value, deliveryMode, target, processingOption, cachingOption, authority)
         {
             Type _ = value.GetType();
             if (_.IsEnum)
@@ -30,7 +30,7 @@ namespace Omni.Core
 
             @this.OnSyncBase += (id, message) =>
             {
-                if (this.id == id)
+                if (this.Id == id)
                 {
                     this.Read(message);
                     onChanged?.Invoke(Get());
@@ -42,11 +42,11 @@ namespace Omni.Core
     [Serializable]
     public class SyncValue : SyncBase<Trigger>
     {
-        public SyncValue(OmniObject @this, Action onChanged, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, default, channel, target, subTarget, cacheMode, authority)
+        public SyncValue(OmniObject @this, Action onChanged, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, default, deliveryMode, target, processingOption, cachingOption, authority)
         {
             @this.OnSyncBase += (id, message) =>
             {
-                if (this.id == id)
+                if (this.Id == id)
                 {
                     this.Read(message);
                     onChanged?.Invoke();
@@ -66,11 +66,11 @@ namespace Omni.Core
         where T : unmanaged
     {
         public T Value => base.Get();
-        public SyncValue(OmniObject @this, Enum value = default, Action<Enum> onChanged = null, Channel channel = Channel.Unreliable, Target target = Target.All, SubTarget subTarget = SubTarget.None, CacheMode cacheMode = CacheMode.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, (T)Convert.ChangeType(value, typeof(T)), channel, target, subTarget, cacheMode, authority, value)
+        public SyncValue(OmniObject @this, Enum value = default, Action<Enum> onChanged = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(@this, (T)Convert.ChangeType(value, typeof(T)), deliveryMode, target, processingOption, cachingOption, authority, value)
         {
             @this.OnSyncBase += (id, message) =>
             {
-                if (this.id == id)
+                if (this.Id == id)
                 {
                     this.Read(message);
                     onChanged?.Invoke(ToEnum());

@@ -31,10 +31,10 @@ namespace Omni.Core
         [HorizontalLine(below: true, height: SEPARATOR_HEIGHT)][Space(SEPARATOR)] public List<AnimatorParameter> parameters;
         [SerializeField][Range(0, 1f)] private float syncInterval = 0.1f;
         [SerializeField] private AuthorityMode authority = AuthorityMode.Mine;
-        [SerializeField] private Channel channel = Channel.Unreliable;
-        [SerializeField] private Target target = Target.Others;
-        [SerializeField] private SubTarget subTarget = SubTarget.None;
-        [SerializeField] private CacheMode cacheMode = CacheMode.None;
+        [SerializeField] private DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured;
+        [SerializeField] private DataTarget target = DataTarget.BroadcastExcludingSelf;
+        [SerializeField] private DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer;
+        [SerializeField] private DataCachingOption cachingOption = DataCachingOption.None;
 
         protected override bool OnSerializeViewAuthority
         {
@@ -51,10 +51,10 @@ namespace Omni.Core
             }
         }
 
-        protected override Channel OnSerializeViewChannel => channel;
-        protected override Target OnSerializeViewTarget => target;
-        protected override SubTarget OnSerializeViewSubTarget => subTarget;
-        protected override CacheMode OnSerializeViewCacheMode => cacheMode;
+        protected override DataDeliveryMode OnSerializeViewChannel => deliveryMode;
+        protected override DataTarget OnSerializeViewTarget => target;
+        protected override DataProcessingOption OnSerializeViewSubTarget => processingOption;
+        protected override DataCachingOption OnSerializeViewCacheMode => cachingOption;
 
         private void Start()
         {
@@ -64,7 +64,7 @@ namespace Omni.Core
             }
         }
 
-        protected internal override void OnSerializeView(ByteStream parameters, bool isWriting, RemoteStats stats)
+        protected internal override void OnSerializeView(DataIOHandler IOHandler, bool isWriting, RemoteStats stats)
         {
             for (int i = 0; i < this.parameters.Count; i++)
             {
@@ -80,31 +80,31 @@ namespace Omni.Core
                         case AnimatorControllerParameterType.Float:
                             if (isWriting)
                             {
-                                parameters.Write(animator.GetFloat(parameter.ParameterName));
+                                IOHandler.Write(animator.GetFloat(parameter.ParameterName));
                             }
                             else if (!isWriting)
                             {
-                                animator.SetFloat(parameter.ParameterName, parameters.ReadFloat());
+                                animator.SetFloat(parameter.ParameterName, IOHandler.ReadFloat());
                             }
                             break;
                         case AnimatorControllerParameterType.Int:
                             if (isWriting)
                             {
-                                parameters.Write(animator.GetInteger(parameter.ParameterName));
+                                IOHandler.Write(animator.GetInteger(parameter.ParameterName));
                             }
                             else if (!isWriting)
                             {
-                                animator.SetInteger(parameter.ParameterName, parameters.ReadInt());
+                                animator.SetInteger(parameter.ParameterName, IOHandler.ReadInt());
                             }
                             break;
                         case AnimatorControllerParameterType.Bool:
                             if (isWriting)
                             {
-                                parameters.Write(animator.GetBool(parameter.ParameterName));
+                                IOHandler.Write(animator.GetBool(parameter.ParameterName));
                             }
                             else if (!isWriting)
                             {
-                                animator.SetBool(parameter.ParameterName, parameters.ReadBool());
+                                animator.SetBool(parameter.ParameterName, IOHandler.ReadBool());
                             }
                             break;
                         case AnimatorControllerParameterType.Trigger:
