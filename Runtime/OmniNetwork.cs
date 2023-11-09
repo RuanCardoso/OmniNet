@@ -61,10 +61,6 @@ namespace Omni.Core
         private static readonly UdpServer udpServer = new();
         private static readonly UdpClient udpClient = new();
 
-        #region Events
-        public static event Action<bool, IPEndPoint, DataIOHandler> OnConnected;
-        #endregion
-
         internal static OmniNetwork Instance { get; private set; }
 
         #region Properties
@@ -154,7 +150,7 @@ namespace Omni.Core
             // Registers
             SceneManager.sceneLoaded += OnSceneLoaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
-            OnConnected += OmniNetwork_OnConnected;
+            //OnConnected += OmniNetwork_OnConnected;
 
             // Framerate
             QualitySettings.vSyncCount = 0;
@@ -236,53 +232,22 @@ namespace Omni.Core
         }
 #endif
 
-        private void OmniNetwork_OnConnected(bool isServer, IPEndPoint endPoint, DataIOHandler IOHandler)
-        {
-            if (ServerSettings.loadNextScene)
-            {
-                LoadNextScene(isServer);
-            }
-        }
-
         private void OnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
         {
+            ClientEventHandler.FireSceneLoaded(scene, loadSceneMode);
 #if UNITY_SERVER && !UNITY_EDITOR
+            ServerEventHandler.FireSceneLoaded(scene, loadSceneMode);
             OmniLogger.Print($"The scene X was loaded -> {scene.name}");
 #endif
         }
 
         private void OnSceneUnloaded(Scene scene)
         {
+            ClientEventHandler.FireSceneUnloaded(scene);
 #if UNITY_SERVER && !UNITY_EDITOR
+            ServerEventHandler.FireSceneUnloaded(scene);
             OmniLogger.Print($"The scene X was unloaded -> {scene.name}");
 #endif
-        }
-
-        private void LoadNextScene(bool isServer)
-        {
-            int currentIndex = SceneManager.GetActiveScene().buildIndex;
-            int nextIndex = currentIndex + 1;
-
-#if UNITY_EDITOR
-            if (!isServer)
-            {
-                LoadScene(nextIndex);
-                UnsubscribeOnConnected();
-            }
-#else
-            LoadScene(nextIndex);
-            UnsubscribeOnConnected();
-#endif
-        }
-
-        private void LoadScene(int sceneIndex)
-        {
-            SceneManager.LoadScene(sceneIndex, LoadSceneMode.Additive);
-        }
-
-        private void UnsubscribeOnConnected()
-        {
-            OnConnected -= OmniNetwork_OnConnected;
         }
 
         private void Main()
@@ -448,18 +413,44 @@ namespace Omni.Core
             // Data must be read in the same order in which they are written.
             switch (messageType)
             {
+                case MessageType.Ping:
+                    {
+                        if (isServer)
+                        {
+                            ServerEventHandler.FirePlayerPingReceived(GetPlayerFromServer((ushort)remoteEndPoint.GetPort()));
+                        }
+                        else
+                        {
+                            ClientEventHandler.FirePingReceived();
+                        }
+                    }
+                    break;
                 case MessageType.Connect:
                     {
                         if (isServer)
                         {
+                            ServerEventHandler.FirePlayerConnected(GetPlayerFromServer((ushort)remoteEndPoint.GetPort()));
                             OmniLogger.Print($"Info: The endpoint {remoteEndPoint} has been successfully established on the server.");
                         }
-
-                        var ipAddress = new IPAddress(remoteEndPoint.GetIPAddress());
-                        var remoteIPEndPoint = new IPEndPoint(ipAddress, remoteEndPoint.GetPort());
-                        OnConnected?.Invoke(isServer, remoteIPEndPoint, _IOHandler_);
-                        break;
+                        else
+                        {
+                            ClientEventHandler.FireConnected();
+                        }
                     }
+                    break;
+                case MessageType.Disconnect:
+                    {
+                        if (isServer)
+                        {
+                            ServerEventHandler.FirePlayerDisconnected(GetPlayerFromServer((ushort)remoteEndPoint.GetPort()));
+                            OmniLogger.Print($"Info: The endpoint {remoteEndPoint} has been successfully established on the server.");
+                        }
+                        else
+                        {
+                            ClientEventHandler.FireDisconnected();
+                        }
+                    }
+                    break;
                 case MessageType.Remote: // Global
                     {
                         var sourceId = _IOHandler_.ReadUShort();
@@ -942,15 +933,19 @@ namespace Omni.Core
         {
             OmniPlayer player = udpServer.GetClient(playerId).Player;
             if (player == null)
-                OmniLogger.PrintError("Player not found!");
+            {
+                OmniLogger.PrintError("GetPlayerFromServer: Player not found for player ID " + playerId);
+            }
             return player;
         }
 
-        public static OmniPlayer GetPlayerFromClient(ushort playerId)
+        private static OmniPlayer GetPlayerFromClient(ushort playerId)
         {
             OmniPlayer player = udpClient.GetClient(playerId).Player;
             if (player == null)
-                OmniLogger.PrintError("Player not found!");
+            {
+                OmniLogger.PrintError("GetPlayerFromClient: Player not found for player ID " + playerId);
+            }
             return player;
         }
 

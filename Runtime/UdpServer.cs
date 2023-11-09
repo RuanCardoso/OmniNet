@@ -45,7 +45,12 @@ namespace Omni.Core
             switch (messageType)
             {
                 case MessageType.Disconnect:
-                    Disconnect(remoteEndPoint, "Info: The endpoint {0} has been successfully disconnected.");
+                    {
+                        Disconnect(remoteEndPoint, "Info: The endpoint {0} has been successfully disconnected.");
+
+                        // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                        OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
+                    }
                     break;
                 case MessageType.Connect:
                     {
@@ -66,9 +71,8 @@ namespace Omni.Core
                             _IOHandler_.Release();
                             #endregion
 
-                            #region Process Message
+                            // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
                             OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
-                            #endregion
                         }
                         else
                         {
@@ -103,6 +107,11 @@ namespace Omni.Core
                             _IOHandler_.Write(OmniTime.LocalTime);
                             client.Send(_IOHandler_, deliveryMode, target);
                             _IOHandler_.Release();
+
+                            // Reposiciona o IOHandler para a posição 0
+                            // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                            IOHandler.Position = 0;
+                            OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                         }
                         else
                         {

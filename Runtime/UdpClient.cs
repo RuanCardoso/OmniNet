@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System;
 using System.Collections;
 using System.Net;
 using System.Net.Sockets;
@@ -157,6 +158,10 @@ namespace Omni.Core
                             Id = IOHandler.ReadUShort();
                             IsConnected = true;
                             Instance.StartCoroutine(Ping());
+
+                            // Reposiciona o IOHandler para a posição 0
+                            // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                            IOHandler.Position = 0;
                             OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                         }
                         else
@@ -170,6 +175,11 @@ namespace Omni.Core
                         double timeOfClient = IOHandler.ReadDouble();
                         double timeOfServer = IOHandler.ReadDouble();
                         OmniTime.SetTime(timeOfClient, timeOfServer);
+
+                        // Reposiciona o IOHandler para a posição 0
+                        // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                        IOHandler.Position = 0;
+                        OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                     }
                     break;
                 default:
@@ -178,7 +188,7 @@ namespace Omni.Core
             }
         }
 
-        internal UdpClient GetClient(ushort playerId) => null;
+        internal UdpClient GetClient(ushort playerId) => throw new NotImplementedException("GetClient method is not implemented.");
         internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => this;
         protected override void Disconnect(UdpEndPoint endPoint, string msg = "") => OnDisconnected();
     }

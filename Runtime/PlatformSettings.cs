@@ -29,7 +29,6 @@ namespace Omni.Core
             public double ackTimeout = 0.3d; // seconds, Provavelmente quando um Ack deve ser dado como não reconhecido. SOCK_SEND será executado!
             public int ackSweep = 15; // ms, Varredura por reconhecimentos(Ack's)...
             public bool dontDestroy = false;
-            public bool loadNextScene = false;
             public bool hasCommands = false;
         }
 
