@@ -585,7 +585,7 @@ namespace Omni.Core
         {
             if (position + size > buffer.Length)
             {
-                OmniLogger.PrintError($"Byte Stream Error: Insufficient space to write {size} bytes. Current position: {position}, requested position: {position + size}");
+                OmniLogger.PrintError($"IOHandler: Insufficient space to write {size} bytes. Current position: {position}, requested position: {position + size}");
                 return false;
             }
 
@@ -596,7 +596,8 @@ namespace Omni.Core
         {
             if (position + size > bytesWritten)
             {
-                OmniLogger.PrintError($"Byte Stream Error: Not enough data to read. Requested: {size} bytes, available: {bytesWritten - position} bytes, current position: {position}");
+                OmniLogger.PrintError($"IOHandler: Not enough data to read. Requested: {size} bytes, available: {bytesWritten - position} bytes, current position: {position}");
+                OmniLogger.PrintError("Possible Error: Double event not registered for the same IOHandler? Possible double data read.");
                 return false;
             }
 

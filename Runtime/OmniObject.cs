@@ -39,9 +39,10 @@ namespace Omni.Core
         [SerializeField][ReadOnly][Required("Error: This instance must be registered in the OmniIdentity.")] internal OmniIdentity identity;
         [SerializeField][ReadOnly][HorizontalLine(SEPARATOR_HEIGHT, below: true)][Space(SEPARATOR)] internal byte id;
 
-        internal byte Id => id;
-        protected DataIOHandler Get => DataIOHandler.Get();
+        protected byte Id => id;
+        protected ushort PlayerId => identity.playerId;
         protected OmniIdentity Identity => identity;
+        protected DataIOHandler Get => DataIOHandler.Get();
         protected internal bool IsItFromTheServer => identity.isItFromTheServer && identity.itIsRegistered;
         protected internal bool IsMine => !identity.isItFromTheServer && identity.playerId == OmniNetwork.Id && identity.itIsRegistered;
         protected internal bool IsServer => identity.isItFromTheServer && identity.itIsRegistered;

@@ -31,7 +31,6 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Scripting;
 using static Omni.Core.Enums;
 using static Omni.Core.PlatformSettings;
-using NetworkEvents = Omni.Core.Enums.NetworkEvents;
 using LocalPhysicsMode = Omni.Core.Enums.LocalPhysicsMode;
 using MessageType = Omni.Core.Enums.MessageType;
 using MessagePack;
@@ -234,18 +233,28 @@ namespace Omni.Core
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode loadSceneMode)
         {
-            ClientEventHandler.FireSceneLoaded(scene, loadSceneMode);
+#if UNITY_EDITOR
+            GlobalEventHandler.FireSceneLoaded(scene, loadSceneMode, PlatformOp.Editor);
+#elif UNITY_SERVER
+            GlobalEventHandler.FireSceneLoaded(scene, loadSceneMode, PlatformOp.Server);
+#else
+            GlobalEventHandler.FireSceneLoaded(scene, loadSceneMode, PlatformOp.Client);
+#endif
 #if UNITY_SERVER && !UNITY_EDITOR
-            ServerEventHandler.FireSceneLoaded(scene, loadSceneMode);
             OmniLogger.Print($"The scene X was loaded -> {scene.name}");
 #endif
         }
 
         private void OnSceneUnloaded(Scene scene)
         {
-            ClientEventHandler.FireSceneUnloaded(scene);
+#if UNITY_EDITOR
+            GlobalEventHandler.FireSceneUnloaded(scene, PlatformOp.Editor);
+#elif UNITY_SERVER
+            GlobalEventHandler.FireSceneUnloaded(scene, PlatformOp.Server);
+#else                          
+            GlobalEventHandler.FireSceneUnloaded(scene, PlatformOp.Client);
+#endif
 #if UNITY_SERVER && !UNITY_EDITOR
-            ServerEventHandler.FireSceneUnloaded(scene);
             OmniLogger.Print($"The scene X was unloaded -> {scene.name}");
 #endif
         }
@@ -413,6 +422,12 @@ namespace Omni.Core
             // Data must be read in the same order in which they are written.
             switch (messageType)
             {
+                case MessageType.SendMessage:
+                    {
+                        var fromId = _IOHandler_.ReadUShort();
+                        GlobalEventHandler.FireMessageReceived(_IOHandler_, fromId, isServer);
+                    }
+                    break;
                 case MessageType.Ping:
                     {
                         if (isServer)
@@ -673,7 +688,7 @@ namespace Omni.Core
                                     }, ownerCache, fromPort, isServer);
                                 }
                                 break;
-                            case DataStorageType.OnSerialize:
+                            case DataStorageType.OnSerializeView:
                                 {
                                     OmniHelper.GetCache(Dictionaries.SerializeDataCache, default, (data, IOHandler) =>
                                     {
@@ -681,7 +696,7 @@ namespace Omni.Core
                                     }, ownerCache, fromPort, isServer, false);
                                 }
                                 break;
-                            case DataStorageType.OnSync:
+                            case DataStorageType.NetworkVars:
                                 {
                                     OmniHelper.GetCache(Dictionaries.SyncDataCache, x => x.Key.varId == id, (data, IOHandler) =>
                                     {
@@ -915,18 +930,19 @@ namespace Omni.Core
             IOHandler.Release();
         }
 
-        internal static void FireEvent(DataIOHandler _IOHandler_, NetworkEvents eventType, DataTarget target = DataTarget.Broadcast)
+        public static void SendMessage(DataIOHandler _IOHandler_, ushort playerId, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Secured, DataTarget target = DataTarget.BroadcastExcludingSelf, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer)
         {
-#if UNITY_EDITOR || UNITY_SERVER
-            DataIOHandler IOHandler = DataIOHandler.Get(MessageType.FireEvent);
-            IOHandler.Write((byte)eventType);
+            DataIOHandler IOHandler = DataIOHandler.Get(MessageType.SendMessage);
+            IOHandler.Write(playerId);
             IOHandler.Write(_IOHandler_);
             _IOHandler_.Release();
-            SendDataViaSocket(IOHandler, NetworkId, true, DataDeliveryMode.Secured, target, DataProcessingOption.DoNotProcessOnServer, DataCachingOption.None);
+            SendDataViaSocket(IOHandler, playerId, fromServer, deliveryMode, target, processingOption, DataCachingOption.None);
             IOHandler.Release();
-#else
-            OmniLogger.PrintError("Fire Event not work on client side!");
-#endif
+        }
+
+        public static void SendMessage(DataIOHandler _IOHandler_, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Secured, DataTarget target = DataTarget.BroadcastExcludingSelf, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer)
+        {
+            SendMessage(_IOHandler_, OmniHelper.GetPlayerId(fromServer), fromServer, deliveryMode, target, processingOption);
         }
 
         public static OmniPlayer GetPlayerFromServer(ushort playerId)

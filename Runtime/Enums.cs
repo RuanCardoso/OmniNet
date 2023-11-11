@@ -48,7 +48,7 @@ namespace Omni.Core
             LocalMessageDynamic = 21,
             LocalMessageScene = 22,
             Remote = 23,
-            FireEvent = 24,
+            SendMessage = 24,
             Connect = 254,
             Disconnect = 255,
         }
@@ -56,11 +56,11 @@ namespace Omni.Core
         public enum DataStorageType : byte
         {
             Remote = 0,
-            OnSerialize = 1,
-            OnSync = 2,
+            OnSerializeView = 1,
+            NetworkVars = 2,
             GlobalMessage = 3,
             LocalMessage = 4,
-            GlobalRemote,
+            GlobalRemote = 5,
         }
 
         public enum DataDeliveryMode : byte
@@ -124,6 +124,13 @@ namespace Omni.Core
             Server,
             Client,
             Custom
+        }
+
+        public enum PlatformOp
+        {
+            Editor,
+            Client,
+            Server
         }
     }
 }

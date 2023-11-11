@@ -18,7 +18,7 @@ public class CacheTests : MonoBehaviour
         {
             OmniNetwork.GetCache(Enums.DataStorageType.GlobalRemote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
             OmniNetwork.GetCache(Enums.DataStorageType.Remote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
-            OmniNetwork.GetCache(Enums.DataStorageType.OnSync, true, 1, false, Enums.DataDeliveryMode.Unsecured);
+            OmniNetwork.GetCache(Enums.DataStorageType.NetworkVars, true, 1, false, Enums.DataDeliveryMode.Unsecured);
         }
     }
 }
