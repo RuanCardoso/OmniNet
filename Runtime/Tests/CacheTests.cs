@@ -1,24 +1,25 @@
 using Omni.Core;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class CacheTests : MonoBehaviour
+namespace Omni.Tests
 {
-    // Start is called before the first frame update
-    void Start()
+    public class CacheTests : MonoBehaviour
     {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.C))
+        // Start is called before the first frame update
+        void Start()
         {
-            OmniNetwork.GetCache(Enums.DataStorageType.GlobalRemote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
-            OmniNetwork.GetCache(Enums.DataStorageType.Remote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
-            OmniNetwork.GetCache(Enums.DataStorageType.NetworkVars, true, 1, false, Enums.DataDeliveryMode.Unsecured);
+
+        }
+
+        // Update is called once per frame
+        void Update()
+        {
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                OmniNetwork.GetCache(Enums.DataStorageType.GlobalRemote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
+                OmniNetwork.GetCache(Enums.DataStorageType.Remote, true, 1, false, Enums.DataDeliveryMode.Unsecured);
+                OmniNetwork.GetCache(Enums.DataStorageType.NetworkVars, true, 1, false, Enums.DataDeliveryMode.Unsecured);
+            }
         }
     }
 }

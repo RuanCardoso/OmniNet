@@ -1,22 +1,25 @@
 using Omni.Core;
 using UnityEngine;
 
-public class RemoteTests : OmniObject
+namespace Omni.Tests
 {
-    private void Update()
+    public class RemoteTests : OmniObject
     {
-        if (IsMine)
+        private void Update()
         {
-            if (Input.GetKey(KeyCode.R))
+            if (IsMine)
             {
-                Remote(1, new DataIOHandler(0), cachingOption: Enums.DataCachingOption.Overwrite, deliveryMode: Enums.DataDeliveryMode.Unsecured);
+                if (Input.GetKey(KeyCode.R))
+                {
+                    Remote(1, new DataIOHandler(0), cachingOption: Enums.DataCachingOption.Overwrite, deliveryMode: Enums.DataDeliveryMode.Unsecured);
+                }
             }
         }
-    }
 
-    [Remote(1)]
-    public void RemoteEg(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats)
-    {
-        OmniLogger.Print("Remote Eg (:");
+        [Remote(1)]
+        public void RemoteEg(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats)
+        {
+            OmniLogger.Print("Remote Eg (:");
+        }
     }
 }

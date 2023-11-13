@@ -17,7 +17,9 @@ using System.Collections.Generic;
 
 namespace Omni.Core
 {
-    // Workaround for achieving high performance in SyncVar operations.
+    /// <summary>
+    /// Converts value types such as int, bool, float, and byte to each other.
+    /// </summary>
     internal class ValueTypeConverter : IValueTypeConverter<int>, IValueTypeConverter<bool>, IValueTypeConverter<float>, IValueTypeConverter<byte>
     {
         internal static readonly ValueTypeConverter _self = new();
@@ -44,7 +46,6 @@ namespace Omni.Core
         public bool GetBool(byte value) => throw new NotImplementedException();
         public float GetFloat(byte value) => throw new NotImplementedException();
         #endregion
-
         #region _
         bool IValueTypeConverter<bool>.GetInt(int value) => throw new NotImplementedException();
         float IValueTypeConverter<float>.GetInt(int value) => throw new NotImplementedException();

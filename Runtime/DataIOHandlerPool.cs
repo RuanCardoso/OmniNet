@@ -17,6 +17,9 @@ using static Omni.Core.PlatformSettings;
 
 namespace Omni.Core
 {
+    /// <summary>
+    /// Pool of reusable DataIOHandlers for efficient memory usage and CPU performance.
+    /// </summary>
     internal class DataIOHandlerPool
     {
 #if OMNI_MULTI_THREADED

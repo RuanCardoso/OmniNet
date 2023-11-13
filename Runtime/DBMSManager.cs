@@ -17,29 +17,47 @@ using System.Collections.Generic;
 
 namespace Omni.Core
 {
-    // Data Base Management System
+
+    /// <summary>
+    /// Manages a pool of DBMS connections for database queries.
+    /// This class is Thread-Safe.
+    /// </summary>
     public class DBMSManager
     {
         private readonly object _lock = new();
         private readonly Stack<DBMS> pool = new();
         private readonly Func<bool, DBMS> func;
 
-        public DBMSManager(Action<DBMS> func, int connections = 2, bool reuseTemporaryConnections = false)
+        /// <summary>
+        /// Initialize a pool of DBMS instances to handle database connections and operations.
+        /// </summary>
+        /// <param name="onFunc">Initialize the DBMS Object</param>
+        /// <param name="connections">The number of connections to be created in the pool.</param>
+        /// <param name="reuseTemporaryConnections">Whether temporary connections should be reused or not.</param>
+        public DBMSManager(Action<DBMS> onFunc, int connections = 2, bool reuseTemporaryConnections = false)
         {
-            this.func = (finishAfterUse) =>
+            func = (finishAfterUse) =>
             {
-                DBMS dbms = new DBMS();
-                dbms.finishAfterUse = !reuseTemporaryConnections && finishAfterUse;
-                func?.Invoke(dbms);
+                DBMS dbms = new()
+                {
+                    finishAfterUse = !reuseTemporaryConnections && finishAfterUse
+                };
+
+                onFunc?.Invoke(dbms);
                 return dbms;
             };
 
             for (int i = 0; i < connections; i++)
             {
-                pool.Push(this.func(false));
+                pool.Push(func(false));
             }
         }
 
+        /// <summary>
+        /// Get a DBMS instance from the pool.<br/>
+        /// If there are no instances available, a temporary instance will be created.<br/>
+        /// This method is Thread-Safe.
+        /// </summary>
         public DBMS Get()
         {
             lock (_lock)
@@ -56,6 +74,11 @@ namespace Omni.Core
             }
         }
 
+        /// <summary>
+        /// Release a DBMS instance back to the pool.<br/>
+        /// If the instance is temporary, it will be closed and disposed.<br/>
+        /// This method is Thread-Safe.
+        /// </summary>
         public void Release(DBMS dbms)
         {
             if (!dbms.finishAfterUse)
@@ -72,6 +95,11 @@ namespace Omni.Core
             }
         }
 
+        /// <summary>
+        /// Close all DBMS instances in the pool.<br/>
+        /// Used to close all connections when the application is closed.<br/>
+        /// This method is Thread-Safe.
+        /// </summary>
         public void Close()
         {
             lock (_lock)

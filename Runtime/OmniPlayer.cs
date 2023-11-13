@@ -27,6 +27,7 @@ namespace Omni.Core
         public string Name { get; private set; }
         public IPEndPoint IPEndPoint { get; }
         public int DatabaseId { get; private set; }
+        public OmniIdentity Identity { get; private set; }
 #if OMNI_MULTI_THREADED
         public readonly ConcurrentDictionary<ushort, object> properties = new();
 #else
@@ -41,5 +42,6 @@ namespace Omni.Core
 
         public void SetDbId(int databaseId) => DatabaseId = databaseId;
         public void SetName(string name) => Name = name;
+        public void SetIdentity(OmniIdentity identity) => Identity = identity;
     }
 }

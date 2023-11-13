@@ -14,32 +14,35 @@ public class Person : IMessage
     public int Age;
 }
 
-public class GlobalMessageTests : MonoBehaviour
+namespace Omni.Tests
 {
-    private MessageStream messageStream;
-
-    private void Awake()
+    public class GlobalMessageTests : MonoBehaviour
     {
-        messageStream = new MessageStream();
-    }
+        private MessageStream messageStream;
 
-    private void Start()
-    {
-        OmniNetwork.AddHandler<Person>(OnPersonReceived);
-    }
-
-    private void OnPersonReceived(ReadOnlyMemory<byte> data, ushort fromId, bool isServer, RemoteStats arg4)
-    {
-        OmniLogger.Print("Pessoa Ruan");
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (Input.GetKey(KeyCode.M))
+        private void Awake()
         {
-            Person pessoa = new Person();
-            pessoa.SendMessage(messageStream, false);
+            messageStream = new MessageStream();
+        }
+
+        private void Start()
+        {
+            OmniNetwork.AddHandler<Person>(OnPersonReceived);
+        }
+
+        private void OnPersonReceived(ReadOnlyMemory<byte> data, ushort fromId, bool isServer, RemoteStats arg4)
+        {
+            OmniLogger.Print("Pessoa Ruan");
+        }
+
+        // Update is called once per frame
+        void Update()
+        {
+            if (Input.GetKey(KeyCode.M))
+            {
+                Person pessoa = new Person();
+                pessoa.SendMessage(messageStream, false);
+            }
         }
     }
 }
