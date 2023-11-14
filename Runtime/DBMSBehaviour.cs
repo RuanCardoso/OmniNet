@@ -84,14 +84,19 @@ namespace Omni.Core
             {
                 while (true)
                 {
-                    if (tasks.TryDequeue(out Task task))
+                    if (tasks.Count > 0)
                     {
-                        task.Start();
-                        task.Wait();
+                        if (tasks.TryDequeue(out Task task))
+                        {
+                            task.Start();
+                            task.Wait();
+                        }
                     }
-
-                    // Prevents CPU from being overloaded
-                    Thread.Sleep(WhileDelay);
+                    else
+                    {
+                        // Prevents CPU from being overloaded
+                        Thread.Sleep(WhileDelay);
+                    }
                 }
             })
             {

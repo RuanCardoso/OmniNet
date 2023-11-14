@@ -16,7 +16,7 @@ namespace Omni.Tests
                 // mariadb string connection
                 string conn = "Server=localhost;Database=omni;Uid=root;Pwd=;";
                 dbms.Initialize("users", DBMSOp.MariaDB, conn);
-            }, 4, true)
+            }, 4, false)
             {
                 enableTemporaryConnections = false
             };
@@ -30,7 +30,7 @@ namespace Omni.Tests
                 dbms.Release();
             });
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 RunSequentially(() =>
                 {
