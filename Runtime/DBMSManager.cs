@@ -14,42 +14,48 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Omni.Core
 {
-
     /// <summary>
     /// Manages a pool of DBMS connections for database queries.
     /// This class is Thread-Safe.
     /// </summary>
     public class DBMSManager
     {
+        /// <summary>
+        /// Indicates whether temporary connections are enabled or not.
+        /// </summary>
+        public bool enableTemporaryConnections = true;
         private readonly object _lock = new();
         private readonly Stack<DBMS> pool = new();
-        private readonly Func<bool, DBMS> func;
+        private readonly Func<bool, DBMS> onInit;
 
         /// <summary>
         /// Initialize a pool of DBMS instances to handle database connections and operations.
         /// </summary>
-        /// <param name="onFunc">Initialize the DBMS Object</param>
+        /// <param name="onInit">Initialize the DBMS Object</param>
         /// <param name="connections">The number of connections to be created in the pool.</param>
-        /// <param name="reuseTemporaryConnections">Whether temporary connections should be reused or not.</param>
-        public DBMSManager(Action<DBMS> onFunc, int connections = 2, bool reuseTemporaryConnections = false)
+        /// <param name="enableTemporaryConnectionReuse">Whether temporary connections should be reused or not.</param>
+        public DBMSManager(Action<DBMS> onInit, int connections = 4, bool enableTemporaryConnectionReuse = false)
         {
-            func = (finishAfterUse) =>
+            this.onInit = (flushTemporaryConnection) =>
             {
                 DBMS dbms = new()
                 {
-                    finishAfterUse = !reuseTemporaryConnections && finishAfterUse
+                    manager = this,
+                    flushTemporaryConnection = !enableTemporaryConnectionReuse && flushTemporaryConnection
                 };
 
-                onFunc?.Invoke(dbms);
+                onInit?.Invoke(dbms);
                 return dbms;
             };
 
             for (int i = 0; i < connections; i++)
             {
-                pool.Push(func(false));
+                // Open a connection to the database
+                pool.Push(this.onInit(false));
             }
         }
 
@@ -64,8 +70,16 @@ namespace Omni.Core
             {
                 if (pool.Count == 0)
                 {
-                    OmniLogger.Print("Query: No database connections are currently available. A temporary connection will be opened to handle this query.");
-                    return func(true);
+                    if (enableTemporaryConnections)
+                    {
+                        OmniLogger.Print("Query: No database connections are currently available. A temporary connection will be opened to handle this query.");
+                        return onInit(true);
+                    }
+                    else
+                    {
+                        OmniLogger.PrintError("Query: No database connections are currently available. Waiting for a connection to become available...");
+                        return onInit(true);
+                    }
                 }
                 else
                 {
@@ -81,7 +95,7 @@ namespace Omni.Core
         /// </summary>
         public void Release(DBMS dbms)
         {
-            if (!dbms.finishAfterUse)
+            if (!dbms.flushTemporaryConnection)
             {
                 lock (_lock)
                 {
@@ -90,8 +104,8 @@ namespace Omni.Core
             }
             else
             {
-                dbms.Dispose();
                 dbms.Close();
+                dbms.Dispose();
             }
         }
 
@@ -110,7 +124,5 @@ namespace Omni.Core
                 }
             }
         }
-
-        public int Count => pool.Count;
     }
 }

@@ -30,7 +30,8 @@ namespace Omni.Core
         private IDbConnection iDbConnection;
         private Query query;
         private QueryFactory queryFactory;
-        internal bool finishAfterUse;
+        internal DBMSManager manager;
+        internal bool flushTemporaryConnection;
 
         /// <summary>
         /// Represents a database query, used to perform operations on a database.<br/>
@@ -97,7 +98,8 @@ namespace Omni.Core
             catch (Exception ex)
             {
                 OmniLogger.PrintError($"Error while initializing the DBMS: {ex.Message}");
-                OmniLogger.PrintError(ex.InnerException.Message);
+                if (ex.InnerException != null)
+                    OmniLogger.PrintError(ex.InnerException.Message);
             }
         }
 
@@ -159,6 +161,14 @@ namespace Omni.Core
         public void Dispose()
         {
             iDbConnection.Dispose();
+        }
+
+        /// <summary>
+        /// Releases the DBMS back to the DBMSManager.
+        /// </summary>
+        public void Release()
+        {
+            manager?.Release(this);
         }
 
         private void ThrowErrorIfNotInitialized()
