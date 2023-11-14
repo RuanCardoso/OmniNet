@@ -77,8 +77,7 @@ namespace Omni.Core
                     }
                     else
                     {
-                        OmniLogger.PrintError("Query: No database connections are currently available. Waiting for a connection to become available...");
-                        return onInit(true);
+                        throw new Exception("Query: No database connections are currently available. Consider enabling temporary connections or use sequential mode.");
                     }
                 }
                 else

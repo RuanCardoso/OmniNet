@@ -42,7 +42,7 @@ namespace Omni.Tests
                         {
                             name = "John Doe",
                             age = 30,
-                            emai = "aaa@gmail",
+                            email = "aaa@gmail",
                             password = "123456"
                         });
                         dbms.Release();
