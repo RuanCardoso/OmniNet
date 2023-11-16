@@ -5,14 +5,9 @@ namespace Omni.Tests
 {
     public class SyncsTests : OmniObject
     {
-        [SerializeField] private SyncValue<bool> value;
-
-        void Start()
+        protected override void OnSerializeView(DataIOHandler IOHandler, bool isWriting, RemoteStats stats)
         {
-            value = new SyncValue<bool>(this, false, (value) =>
-            {
-                OmniLogger.Print(value);
-            }, Enums.DataDeliveryMode.Unsecured, Enums.DataTarget.Broadcast, Enums.DataProcessingOption.DoNotProcessOnServer, Enums.DataCachingOption.Overwrite, Enums.AuthorityMode.Server);
+            
         }
     }
 }

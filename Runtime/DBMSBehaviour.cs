@@ -9,6 +9,7 @@ namespace Omni.Core
 {
     public class DBMSBehaviour : MonoBehaviour
     {
+        protected readonly CancellationTokenSource cancellationTokenSource = new();
         private readonly ConcurrentQueue<Task> tasks = new();
         /// <summary>
         /// Prevents CPU from being overloaded.<br/>
@@ -18,6 +19,7 @@ namespace Omni.Core
         /// <summary>
         /// Executes the given query on a thread pool thread.<br/>
         /// Prevents the main thread from being blocked while the query is being executed.<br/>
+        /// Fast execution, because a pool of connections is used.<br/>
         /// </summary>
         /// <param name="query">The query to execute.</param>
         protected Task RunAsync(Action query)
@@ -38,6 +40,7 @@ namespace Omni.Core
         /// <summary>
         /// Executes the given query on a thread pool thread.<br/>
         /// Prevents the main thread from being blocked while the query is being executed.<br/>
+        /// Fast execution, because a pool of connections is used.<br/>
         /// </summary>
         /// <param name="query">The query to execute.</param>
         protected void Run(Action query)
@@ -59,6 +62,7 @@ namespace Omni.Core
         /// Executes the given query on a thread pool thread.<br/>
         /// Prevents the main thread from being blocked while the query is being executed.<br/>
         /// Wait for the previous query to finish before executing the next one.<br/>
+        /// Slowest execution, because it waits for the previous query to finish before executing the next one.<br/>
         /// </summary>
         /// <param name="query"></param>
         protected void RunSequentially(Action query)
@@ -82,7 +86,7 @@ namespace Omni.Core
         {
             new Thread(() =>
             {
-                while (true)
+                while (!cancellationTokenSource.IsCancellationRequested)
                 {
                     if (tasks.Count > 0)
                     {
@@ -103,6 +107,12 @@ namespace Omni.Core
                 Name = "DBMSBehaviour",
                 Priority = ThreadPriority.Normal
             }.Start();
+        }
+
+        protected virtual void OnApplicationQuit()
+        {
+            cancellationTokenSource.Cancel();
+            cancellationTokenSource.Dispose();
         }
     }
 }

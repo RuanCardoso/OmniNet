@@ -17,6 +17,7 @@ using Newtonsoft.Json;
 using Omni.Execution;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using static Omni.Core.Enums;
 
@@ -117,11 +118,45 @@ namespace Omni.Core
             @this.Intern_Message(_IOHandler_, message.Id, playerId, deliveryMode, target, processingOption, cachingOption);
         }
 
-        public static T To<T>(this Query query)
+        public static T MapFirstResultTo<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
         {
-            var toJsonObject = query.First<object>();
+            var toJsonObject = query.First<object>(transaction, timeout);
             var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
             return JsonConvert.DeserializeObject<T>(fromJsonObject);
+        }
+
+        public static IEnumerable<T> MapAllResultsTo<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
+        {
+            var toJsonObject = query.Get<object>(transaction, timeout);
+            var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
+            return JsonConvert.DeserializeObject<IEnumerable<T>>(fromJsonObject);
+        }
+
+        public static IEnumerable<T> MapPageResultsTo<T>(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null)
+        {
+            var toJsonObject = query.Paginate<object>(page, perPage, transaction, timeout);
+            var fromJsonObject = JsonConvert.SerializeObject(toJsonObject.List);
+            return JsonConvert.DeserializeObject<IEnumerable<T>>(fromJsonObject);
+        }
+
+        public static void ProcessInChunks<T>(this Query query, int chunkSize, Func<IEnumerable<T>, int, bool> func, IDbTransaction transaction = null, int? timeout = null)
+        {
+            query.Chunk<T>(chunkSize, func, transaction, timeout);
+        }
+
+        public static void ProcessInChunks<T>(this Query query, int chunkSize, Action<IEnumerable<T>, int> action, IDbTransaction transaction = null, int? timeout = null)
+        {
+            query.Chunk<T>(chunkSize, action, transaction, timeout);
+        }
+
+        public static Row MapToRow(this Query query)
+        {
+            return MapFirstResultTo<Row>(query);
+        }
+
+        public static IEnumerable<Row> MapToRows(this Query query)
+        {
+            return MapAllResultsTo<Row>(query);
         }
     }
 }

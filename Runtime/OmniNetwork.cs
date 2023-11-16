@@ -169,7 +169,8 @@ namespace Omni.Core
 
 #if !UNITY_SERVER || UNITY_EDITOR
             udpClient.Bind(new UdpEndPoint(IPAddress.Any, OmniHelper.GetFreePort()));
-            udpClient.Connect(new UdpEndPoint(IPAddress.Parse(ClientSettings.hosts[0].host), remoteEndPoint.GetPort()));
+            var ip = IPAddress.Parse(ClientSettings.hosts[0].host);
+            udpClient.Connect(new UdpEndPoint(ip, remoteEndPoint.GetPort()), tokenSource.Token);
 #endif
 
 #if UNITY_EDITOR

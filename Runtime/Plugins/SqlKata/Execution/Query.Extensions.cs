@@ -28,128 +28,128 @@ namespace Omni.Execution
             return !(await CreateQueryFactory(query).ExistsAsync(query, transaction, timeout, cancellationToken));
         }
 
-        public static IEnumerable<T> Get<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
+        internal static IEnumerable<T> Get<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
         {
             return CreateQueryFactory(query).Get<T>(query, transaction, timeout);
         }
 
-        public static async Task<IEnumerable<T>> GetAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<IEnumerable<T>> GetAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await CreateQueryFactory(query).GetAsync<T>(query, transaction, timeout, cancellationToken);
         }
 
-        public static IEnumerable<dynamic> Get(this Query query, IDbTransaction transaction = null, int? timeout = null)
+        internal static IEnumerable<dynamic> Get(this Query query, IDbTransaction transaction = null, int? timeout = null)
         {
             return query.Get<dynamic>(transaction, timeout);
         }
 
-        public static async Task<IEnumerable<dynamic>> GetAsync(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<IEnumerable<dynamic>> GetAsync(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await GetAsync<dynamic>(query, transaction, timeout, cancellationToken);
         }
 
-        public static T FirstOrDefault<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
+        internal static T FirstOrDefault<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
         {
             return CreateQueryFactory(query).FirstOrDefault<T>(query, transaction, timeout);
         }
 
-        public static async Task<T> FirstOrDefaultAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<T> FirstOrDefaultAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await CreateQueryFactory(query).FirstOrDefaultAsync<T>(query, transaction, timeout, cancellationToken);
         }
 
-        public static dynamic FirstOrDefault(this Query query, IDbTransaction transaction = null, int? timeout = null)
+        internal static dynamic FirstOrDefault(this Query query, IDbTransaction transaction = null, int? timeout = null)
         {
             return FirstOrDefault<dynamic>(query, transaction, timeout);
         }
 
-        public static async Task<dynamic> FirstOrDefaultAsync(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<dynamic> FirstOrDefaultAsync(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await FirstOrDefaultAsync<dynamic>(query, transaction, timeout, cancellationToken);
         }
 
-        public static T First<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
+        internal static T First<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
         {
             return CreateQueryFactory(query).First<T>(query, transaction, timeout);
         }
 
-        public static async Task<T> FirstAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<T> FirstAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await CreateQueryFactory(query).FirstAsync<T>(query, transaction, timeout, cancellationToken);
         }
 
-        public static dynamic First(this Query query, IDbTransaction transaction = null, int? timeout = null)
+        internal static dynamic First(this Query query, IDbTransaction transaction = null, int? timeout = null)
         {
             return First<dynamic>(query, transaction, timeout);
         }
 
-        public static async Task<dynamic> FirstAsync(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<dynamic> FirstAsync(this Query query, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await FirstAsync<dynamic>(query, transaction, timeout, cancellationToken);
         }
 
-        public static PaginationResult<T> Paginate<T>(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null)
+        internal static PaginationResult<T> Paginate<T>(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null)
         {
             var db = CreateQueryFactory(query);
 
             return db.Paginate<T>(query, page, perPage, transaction, timeout);
         }
 
-        public static async Task<PaginationResult<T>> PaginateAsync<T>(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<PaginationResult<T>> PaginateAsync<T>(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             var db = CreateQueryFactory(query);
 
             return await db.PaginateAsync<T>(query, page, perPage, transaction, timeout, cancellationToken);
         }
 
-        public static PaginationResult<dynamic> Paginate(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null)
+        internal static PaginationResult<dynamic> Paginate(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null)
         {
             return query.Paginate<dynamic>(page, perPage, transaction, timeout);
         }
 
-        public static async Task<PaginationResult<dynamic>> PaginateAsync(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task<PaginationResult<dynamic>> PaginateAsync(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             return await PaginateAsync<dynamic>(query, page, perPage, transaction, timeout, cancellationToken);
         }
 
-        public static void Chunk<T>(this Query query, int chunkSize, Func<IEnumerable<T>, int, bool> func, IDbTransaction transaction = null, int? timeout = null)
+        internal static void Chunk<T>(this Query query, int chunkSize, Func<IEnumerable<T>, int, bool> func, IDbTransaction transaction = null, int? timeout = null)
         {
             var db = CreateQueryFactory(query);
 
             db.Chunk<T>(query, chunkSize, func, transaction, timeout);
         }
-        public static async Task ChunkAsync<T>(this Query query, int chunkSize, Func<IEnumerable<T>, int, bool> func, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task ChunkAsync<T>(this Query query, int chunkSize, Func<IEnumerable<T>, int, bool> func, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             await CreateQueryFactory(query).ChunkAsync<T>(query, chunkSize, func, transaction, timeout, cancellationToken);
         }
 
-        public static void Chunk(this Query query, int chunkSize, Func<IEnumerable<dynamic>, int, bool> func, IDbTransaction transaction = null, int? timeout = null)
+        internal static void Chunk(this Query query, int chunkSize, Func<IEnumerable<dynamic>, int, bool> func, IDbTransaction transaction = null, int? timeout = null)
         {
             query.Chunk<dynamic>(chunkSize, func, transaction, timeout);
         }
-        public static async Task ChunkAsync(this Query query, int chunkSize, Func<IEnumerable<dynamic>, int, bool> func, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task ChunkAsync(this Query query, int chunkSize, Func<IEnumerable<dynamic>, int, bool> func, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             await ChunkAsync<dynamic>(query, chunkSize, func, transaction, timeout, cancellationToken);
         }
 
-        public static void Chunk<T>(this Query query, int chunkSize, Action<IEnumerable<T>, int> action, IDbTransaction transaction = null, int? timeout = null)
+        internal static void Chunk<T>(this Query query, int chunkSize, Action<IEnumerable<T>, int> action, IDbTransaction transaction = null, int? timeout = null)
         {
             var db = CreateQueryFactory(query);
 
             db.Chunk(query, chunkSize, action, transaction, timeout);
         }
 
-        public static async Task ChunkAsync<T>(this Query query, int chunkSize, Action<IEnumerable<T>, int> action, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task ChunkAsync<T>(this Query query, int chunkSize, Action<IEnumerable<T>, int> action, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             await CreateQueryFactory(query).ChunkAsync<T>(query, chunkSize, action, transaction, timeout, cancellationToken);
         }
 
-        public static void Chunk(this Query query, int chunkSize, Action<IEnumerable<dynamic>, int> action, IDbTransaction transaction = null, int? timeout = null)
+        internal static void Chunk(this Query query, int chunkSize, Action<IEnumerable<dynamic>, int> action, IDbTransaction transaction = null, int? timeout = null)
         {
             query.Chunk<dynamic>(chunkSize, action, transaction, timeout);
         }
 
-        public static async Task ChunkAsync(this Query query, int chunkSize, Action<IEnumerable<dynamic>, int> action, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
+        internal static async Task ChunkAsync(this Query query, int chunkSize, Action<IEnumerable<dynamic>, int> action, IDbTransaction transaction = null, int? timeout = null, CancellationToken cancellationToken = default)
         {
             await ChunkAsync<dynamic>(query, chunkSize, action, transaction, timeout, cancellationToken);
         }

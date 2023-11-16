@@ -148,6 +148,26 @@ namespace Omni.Core
         }
 
         /// <summary>
+        /// Returns the raw SQL string of a given Query object.
+        /// </summary>
+        /// <param name="query">The Query object to compile.</param>
+        /// <returns>The raw SQL string.</returns>
+        public string GetRawSql(Query query)
+        {
+            return queryFactory.Compiler.Compile(query).RawSql;
+        }
+
+        /// <summary>
+        /// Returns the SQL string representation of the given Query object.
+        /// </summary>
+        /// <param name="query">The Query object to compile.</param>
+        /// <returns>The SQL string representation of the given Query object.</returns>
+        public string GetSql(Query query)
+        {
+            return queryFactory.Compiler.Compile(query).Sql;
+        }
+
+        /// <summary>
         /// Closes the database connection.
         /// </summary>
         public void Close()

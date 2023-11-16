@@ -16,6 +16,7 @@ using System;
 using System.Collections;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using static Omni.Core.Enums;
@@ -58,7 +59,7 @@ namespace Omni.Core
             WINDOW(this.remoteEndPoint);
         }
 
-        internal void Connect(UdpEndPoint remoteEndPoint)
+        internal void Connect(UdpEndPoint remoteEndPoint, CancellationToken cancellationToken)
         {
             this.remoteEndPoint = remoteEndPoint;
             WINDOW(this.remoteEndPoint);
@@ -67,13 +68,13 @@ namespace Omni.Core
             // Check if the host is available
             Task.Run(async () =>
             {
-                await Task.Delay(10000);
+                await Task.Delay(10000, cancellationToken);
                 if (!IsConnected)
                 {
-                    OmniLogger.LogError($"Sorry, it seems that the host is currently unavailable. Please try again later -> {remoteEndPoint}");
                     Instance.StopCoroutine(Connect());
+                    OmniLogger.LogError($"Sorry, it seems that the host is currently unavailable. Please try again later -> {remoteEndPoint}");
                 }
-            });
+            }, cancellationToken);
         }
 
         internal void Disconnect()
@@ -159,8 +160,8 @@ namespace Omni.Core
                             IsConnected = true;
                             Instance.StartCoroutine(Ping());
 
-                            // Reposiciona o IOHandler para a posição 0
-                            // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                            // Reposiciona o IOHandler para a posiï¿½ï¿½o 0
+                            // Chama o evento OnMessage do OmniNetwork com os parï¿½metros fornecidos
                             IOHandler.Position = 0;
                             OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                         }
@@ -176,8 +177,8 @@ namespace Omni.Core
                         double timeOfServer = IOHandler.ReadDouble();
                         OmniTime.SetTime(timeOfClient, timeOfServer);
 
-                        // Reposiciona o IOHandler para a posição 0
-                        // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                        // Reposiciona o IOHandler para a posiï¿½ï¿½o 0
+                        // Chama o evento OnMessage do OmniNetwork com os parï¿½metros fornecidos
                         IOHandler.Position = 0;
                         OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                     }

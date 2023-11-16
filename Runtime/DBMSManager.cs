@@ -120,6 +120,7 @@ namespace Omni.Core
                 foreach (DBMS dbms in pool)
                 {
                     dbms.Close();
+                    dbms.Dispose();
                 }
             }
         }
