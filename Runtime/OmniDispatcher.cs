@@ -55,6 +55,10 @@ namespace Omni.Core
             }
         }
 
+        /// <summary>
+        /// Dispatches an action to be executed on the main thread.
+        /// </summary>
+        /// <param name="action">The action to be executed.</param>
         protected void Dispatch(Action action)
         {
             lock (syncRoot)
@@ -63,6 +67,10 @@ namespace Omni.Core
             }
         }
 
+        /// <summary>
+        /// Dispatches an action to be executed on the main thread.<br/>
+        /// </summary>
+        /// <returns></returns>
         protected Task DispatchAsync(Action action)
         {
             TaskCompletionSource<bool> tcs = new();
@@ -72,6 +80,27 @@ namespace Omni.Core
                 {
                     action?.Invoke();
                     tcs.SetResult(true);
+                });
+            }
+            return tcs.Task;
+        }
+
+        /// <summary>
+        /// Dispatches an action to be executed on the main thread with a return value.<br/>
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="action"></param>
+        /// <param name="value">value when be returned</param>
+        /// <returns></returns>
+        protected Task<T> DispatchAsync<T>(Action action, T value)
+        {
+            TaskCompletionSource<T> tcs = new();
+            lock (syncRoot)
+            {
+                actions.Enqueue(() =>
+                {
+                    action?.Invoke();
+                    tcs.SetResult(value);
                 });
             }
             return tcs.Task;
