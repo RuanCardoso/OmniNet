@@ -15,12 +15,13 @@
 using Omni;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Omni.Core
 {
     [AddComponentMenu("")]
-    public class OmniDispatcher : MonoBehaviour
+    public class OmniDispatcher : DBMSBehaviour
     {
         [Header("Client & Editor")]
 #if !OMNI_MULTI_THREADED
@@ -35,9 +36,6 @@ namespace Omni.Core
 
         private readonly object syncRoot = new();
         private readonly Queue<Action> actions = new();
-
-        private void Start() { }
-        private void Update() { }
 
         protected void Process()
         {
@@ -63,6 +61,20 @@ namespace Omni.Core
             {
                 actions.Enqueue(action);
             }
+        }
+
+        protected Task DispatchAsync(Action action)
+        {
+            TaskCompletionSource<bool> tcs = new();
+            lock (syncRoot)
+            {
+                actions.Enqueue(() =>
+                {
+                    action?.Invoke();
+                    tcs.SetResult(true);
+                });
+            }
+            return tcs.Task;
         }
     }
 }

@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Omni.Tests
 {
-    public class DatabaseTests : DBMSBehaviour
+    public class DatabaseTests : OmniDispatcher
     {
         private DBMSManager DBMSManager;
         /// <summary>
@@ -21,6 +21,17 @@ namespace Omni.Tests
             //await CreateTable();
             // await Register();
             await GetUser();
+
+            Dispatch(() =>
+            {
+                Debug.Log("Teste");
+            });
+
+            Debug.Log("Await finished!");
+        }
+
+        private void Update() {
+            Process();
         }
 
         /// <summary>
@@ -74,7 +85,7 @@ namespace Omni.Tests
             Debug.Log(hash);
         }
     }
-    
+
     [JsonObject(MemberSerialization.Fields)]
     class User
     {
