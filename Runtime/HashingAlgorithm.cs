@@ -19,8 +19,15 @@ namespace Omni.Core.Hashing
   {
     public static bool Verify(string input, string hash, SecurityAlgorithm securityAlgorithm)
     {
-      string hashOfInput = Hash(input, securityAlgorithm);
-      return hashOfInput == hash;
+      if (securityAlgorithm == SecurityAlgorithm.BCrypt)
+      {
+        return BCrypt.Net.BCrypt.Verify(input, hash);
+      }
+      else
+      {
+        string hashOfInput = Hash(input, securityAlgorithm);
+        return hashOfInput == hash;
+      }
     }
 
     public static string Hash(string input, SecurityAlgorithm securityAlgorithm)
