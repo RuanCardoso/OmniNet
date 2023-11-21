@@ -48,7 +48,7 @@ namespace Omni.Core
                     {
                         Disconnect(remoteEndPoint, "Info: The endpoint {0} has been successfully disconnected.");
 
-                        // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                        // Chama o evento OnMessage do OmniNetwork com os parï¿½metros fornecidos
                         OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                     }
                     break;
@@ -71,7 +71,7 @@ namespace Omni.Core
                             _IOHandler_.Release();
                             #endregion
 
-                            // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                            // Chama o evento OnMessage do OmniNetwork com os parï¿½metros fornecidos
                             OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                         }
                         else
@@ -108,8 +108,8 @@ namespace Omni.Core
                             client.Send(_IOHandler_, deliveryMode, target);
                             _IOHandler_.Release();
 
-                            // Reposiciona o IOHandler para a posição 0
-                            // Chama o evento OnMessage do OmniNetwork com os parâmetros fornecidos
+                            // Reposiciona o IOHandler para a posiï¿½ï¿½o 0
+                            // Chama o evento OnMessage do OmniNetwork com os parï¿½metros fornecidos
                             IOHandler.Position = 0;
                             OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                         }
@@ -142,7 +142,7 @@ namespace Omni.Core
                         {
                             if (processingOption == DataProcessingOption.ProcessOnServer) // Defines whether to execute the instruction on the server when the server itself is the sender.
                             {
-                                SendUnreliable(IOHandler, Client.remoteEndPoint, target, processingOption, cachingOption);
+                                IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
                             }
 
                             if (!sender.itSelf)
@@ -166,7 +166,7 @@ namespace Omni.Core
                         {
                             if (processingOption == DataProcessingOption.ProcessOnServer)
                             {
-                                SendUnreliable(IOHandler, Client.remoteEndPoint, target, processingOption, cachingOption);
+                                IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
                             }
 
                             foreach (var (_, otherClient) in clients)
@@ -191,7 +191,7 @@ namespace Omni.Core
                         {
                             if (processingOption == DataProcessingOption.ProcessOnServer)
                             {
-                                SendUnreliable(IOHandler, Client.remoteEndPoint, target, processingOption, cachingOption);
+                                IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
                             }
 
                             foreach (var (id, otherClient) in clients)

@@ -5,7 +5,6 @@
  * CHANGE THE .tt FILE INSTEAD. */
 
 using System;
-using System.Buffers;
 
 namespace MessagePack
 {

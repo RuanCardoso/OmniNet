@@ -15,7 +15,7 @@ namespace Omni.Core.Hashing
     BCrypt
   }
 
-  public class HashingAlgorithm
+  public class HashingUtility
   {
     public static bool Verify(string input, string hash, SecurityAlgorithm securityAlgorithm)
     {
@@ -72,9 +72,10 @@ namespace Omni.Core.Hashing
       }
     }
 
-    private static string Hash(HashAlgorithm hashAlgorithm, string input)
+    private static string Hash(HashAlgorithm hashAlgorithm, string input, Encoding encoding = null)
     {
-      byte[] bytes = Encoding.UTF8.GetBytes(input);
+      encoding ??= Encoding.UTF8;
+      byte[] bytes = encoding.GetBytes(input);
       byte[] hash = hashAlgorithm.ComputeHash(bytes);
       return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }

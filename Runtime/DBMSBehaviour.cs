@@ -9,8 +9,13 @@ namespace Omni.Core
 {
     public class DBMSBehaviour : MonoBehaviour
     {
-        protected readonly CancellationTokenSource cancellationTokenSource = new();
+        private readonly CancellationTokenSource cancellationTokenSource = new();
         private readonly ConcurrentQueue<Task> tasks = new();
+
+        /// <summary>
+        /// Enable sequential execution of queries.<br/>
+        /// </summary>
+        protected virtual bool EnableSequentialExecution { get; } = false;
         /// <summary>
         /// Prevents CPU from being overloaded.<br/>
         /// Wait x milliseconds before executing the next block of queries.<br/>
@@ -82,31 +87,37 @@ namespace Omni.Core
             tasks.Enqueue(task);
         }
 
+        /// <summary>
+        /// Call base.Start() in your Start() method.
+        /// </summary>
         protected virtual void Start()
         {
-            new Thread(() =>
+            if (EnableSequentialExecution)
             {
-                while (!cancellationTokenSource.IsCancellationRequested)
+                new Thread(() =>
                 {
-                    if (tasks.Count > 0)
+                    while (!cancellationTokenSource.IsCancellationRequested)
                     {
-                        if (tasks.TryDequeue(out Task task))
+                        if (tasks.Count > 0)
                         {
-                            task.Start();
-                            task.Wait();
+                            if (tasks.TryDequeue(out Task task))
+                            {
+                                task.Start();
+                                task.Wait();
+                            }
+                        }
+                        else
+                        {
+                            // Prevents CPU from being overloaded
+                            Thread.Sleep(WhileDelay);
                         }
                     }
-                    else
-                    {
-                        // Prevents CPU from being overloaded
-                        Thread.Sleep(WhileDelay);
-                    }
-                }
-            })
-            {
-                Name = "DBMSBehaviour",
-                Priority = ThreadPriority.Normal
-            }.Start();
+                })
+                {
+                    Name = "DBMSBehaviour",
+                    Priority = ThreadPriority.Normal
+                }.Start();
+            }
         }
 
         protected virtual void OnApplicationQuit()

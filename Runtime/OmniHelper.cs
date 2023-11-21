@@ -31,6 +31,14 @@ namespace Omni.Core
 {
     internal static class OmniHelper
     {
+        /// <summary>
+        /// Receives data from a socket and stores it in a buffer, using the specified endpoint.
+        /// </summary>
+        /// <param name="socket">The socket to receive data from.</param>
+        /// <param name="buffer">The buffer to store the received data.</param>
+        /// <param name="endPoint">The endpoint from which the data is received.</param>
+        /// <param name="errorCode">When this method returns, contains the socket error code.</param>
+        /// <returns>The number of bytes received.</returns>
         internal static int ReceiveFrom(Socket socket, byte[] buffer, EndPoint endPoint, out SocketError errorCode)
         {
             try

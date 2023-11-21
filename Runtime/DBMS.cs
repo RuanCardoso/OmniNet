@@ -37,7 +37,7 @@ namespace Omni.Core
         /// Represents a database query, used to perform operations on a database.<br/>
         /// Operations such as: Insert, Update, Delete, Select, Where, etc...
         /// </summary>
-        public Query Db
+        public Query _
         {
             get
             {

@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using Omni;
-using Omni.Compilers;
 
 namespace Omni.Compilers
 {

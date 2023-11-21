@@ -54,7 +54,7 @@ namespace Omni.Tests
                 for (int i = 0; i < 10; i++)
                 {
                     var Db = DBMSManager.Get();
-                    Db.Db.Insert(new
+                    Db._.Insert(new
                     {
                         name = "Ruan: " + i,
                         email = "teste@gmail.com",
@@ -69,8 +69,8 @@ namespace Omni.Tests
         {
             return RunAsync(() =>
             {
-                var Db = DBMSManager.Get();
-                var row = Db.Db.Select("id", "name", "email", "password").MapPageResultsTo<User>(2, 10);
+                DBMS Db = DBMSManager.Get();
+                var row = Db._.Select("id", "name", "email", "password").MapPageResultsTo<User>(2, 10);
                 foreach (var item in row)
                 {
                     Debug.Log(item.Id);
@@ -81,7 +81,7 @@ namespace Omni.Tests
 
         private void Hash()
         {
-            string hash = HashingAlgorithm.Hash("ruan", SecurityAlgorithm.SHA512);
+            string hash = HashingUtility.Hash("ruan", SecurityAlgorithm.SHA512);
             Debug.Log(hash);
         }
     }

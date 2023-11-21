@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Omni
+﻿namespace Omni
 {
     public enum EConditionOperator
     {

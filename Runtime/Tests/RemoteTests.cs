@@ -9,9 +9,11 @@ namespace Omni.Tests
         {
             if (IsMine)
             {
-                if (Input.GetKey(KeyCode.R))
+                if (Input.GetKeyDown(KeyCode.R))
                 {
-                    Remote(1, new DataIOHandler(0), cachingOption: Enums.DataCachingOption.Overwrite, deliveryMode: Enums.DataDeliveryMode.Unsecured);
+                    var IOHandler = Get;
+                    IOHandler.Write("Unity Newbies (:");
+                    Remote(1, IOHandler, Enums.DataDeliveryMode.SecuredWithAes, Enums.DataTarget.BroadcastExcludingSelf, Enums.DataProcessingOption.ProcessOnServer, Enums.DataCachingOption.Overwrite);
                 }
             }
         }
@@ -19,7 +21,7 @@ namespace Omni.Tests
         [Remote(1)]
         public void RemoteEg(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats)
         {
-            OmniLogger.Print("Remote Eg (:");
+            OmniLogger.Print(IOHandler.ReadString());
         }
     }
 }

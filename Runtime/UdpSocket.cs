@@ -68,6 +68,7 @@ namespace Omni.Core
                 {
                     if (Application.platform == RuntimePlatform.WindowsServer || Application.platform == RuntimePlatform.WindowsEditor)
                     {
+                        // Disable ICMP error messages
                         globalSocket.IOControl(-1744830452, new byte[] { 0, 0, 0, 0 }, null);
                     }
 
@@ -113,45 +114,55 @@ namespace Omni.Core
 #else
         protected void WINDOW(UdpEndPoint remoteEndPoint) => WINDOW_COROUTINE = Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
 #endif
-        protected int SendUnreliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
+        protected int IOSend(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataDeliveryMode dataDeliveryMode, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
+        {
+            return dataDeliveryMode switch
+            {
+                DataDeliveryMode.Unsecured => SendUnreliable(_IOHandler_, remoteEndPoint, target, processingOption, cachingOption),
+                DataDeliveryMode.Secured or DataDeliveryMode.SecuredWithAes => SendReliable(_IOHandler_, remoteEndPoint, dataDeliveryMode, target, processingOption, cachingOption),
+                _ => 0,
+            };
+        }
+
+        private int SendUnreliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             DataIOHandler IOHandler = DataIOHandler.Get();
             IOHandler.WritePayload(DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
             IOHandler.Write(_IOHandler_);
             int length = Send(IOHandler, remoteEndPoint);
-            IOHandler.Release();
+            //IOHandler.Release();
             return length;
         }
 
-        protected int SendReliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
+        private int SendReliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataDeliveryMode dataDeliveryMode, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             if (IsServer)
             {
                 OmniLogger.PrintError("Error: The server cannot send data directly. Please use the GetClient method to obtain a client instance for sending data.");
+                return 0;
             }
-            else
-            {
-                DataIOHandler IOHandler = DataIOHandler.Get();
-                IOHandler.WritePayload(DataDeliveryMode.Secured, target, processingOption, cachingOption);
-                int _sequence_ = SENT_WINDOW.GetSequence();
-                IOHandler.Write(_sequence_);
-                IOHandler.Write(_IOHandler_);
-                DataIOHandler wIOHandler = SENT_WINDOW.GetWindow(_sequence_);
-                wIOHandler.Write();
-                wIOHandler.SetLastWriteTime();
-                wIOHandler.Write(IOHandler);
-                int length = Send(IOHandler, remoteEndPoint);
-                IOHandler.Release();
-                return length;
-            }
-            return 0;
+
+            // Write the payload and the sequence to the IOHandler.
+            DataIOHandler IOHandler = DataIOHandler.Get();
+            int _sequence_ = SENT_WINDOW.GetSequence();
+            IOHandler.WritePayload(dataDeliveryMode, target, processingOption, cachingOption);
+            IOHandler.Write(_sequence_);
+            IOHandler.Write(_IOHandler_);
+
+            // Write the data in UDP Window, is used to re-transmit data if it is lost, duplicated or arrives out of order.
+            DataIOHandler wIOHandler = SENT_WINDOW.GetWindow(_sequence_);
+            wIOHandler.Write();
+            wIOHandler.SetLastWriteTime();
+            wIOHandler.Write(IOHandler);
+            return Send(IOHandler, remoteEndPoint, AesEnabled: dataDeliveryMode == DataDeliveryMode.SecuredWithAes);
         }
 
-        internal int Send(DataIOHandler IOHandler, UdpEndPoint remoteEndPoint, int offset = 0)
+        internal int Send(DataIOHandler IOHandler, UdpEndPoint remoteEndPoint, int offset = 0, bool AesEnabled = false)
         {
             try
             {
-                // overwrite an existing sequence.....
+                // Increments the sequence in the existing IOHandler.
+                // This is not called for new IOHandlers, because they are already incremented in the SendReliable method.
                 if (IOHandler.isRawBytes)
                 {
                     IOHandler.Position = 0;
@@ -177,10 +188,35 @@ namespace Omni.Core
                     }
                 }
 
-                int bytesWritten = IOHandler.BytesWritten;
-                int length = globalSocket.SendTo(IOHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
-                if (length != bytesWritten) OmniLogger.PrintError($"{Name} - Send - Failed to send {bytesWritten} bytes to {remoteEndPoint}");
-                return length;
+                if (AesEnabled)
+                {
+                    // Crypt the data with AES create header.
+                    IOHandler.Position = 0;
+                    IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
+                    byte[] IV = IOHandler.EncryptBuffer(AuthStorage.AesKey, 1); // Skip the payload, because it is already written in the AesHandler. 1 Byte saved.
+                    DataIOHandler AesHandler = DataIOHandler.Get();
+                    AesHandler.WritePayload(deliveryMode, target, processingOption, cachingOption);
+                    AesHandler.WriteIV(IV);
+                    AesHandler.Write(IOHandler);
+
+                    // Send the data to the remoteEndPoint.
+                    int bytesWritten = AesHandler.BytesWritten;
+                    int length = globalSocket.SendTo(AesHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
+                    AesHandler.Release();
+                    IOHandler.Release();
+                    if (length != bytesWritten)
+                        OmniLogger.PrintError($"{Name} - Send Error - Failed to send {bytesWritten} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.");
+                    return length;
+                }
+                else
+                {
+                    int bytesWritten = IOHandler.BytesWritten;
+                    int length = globalSocket.SendTo(IOHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
+                    IOHandler.Release();
+                    if (length != bytesWritten)
+                        OmniLogger.PrintError($"{Name} - Send Error - Failed to send {bytesWritten} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.");
+                    return length;
+                }
             }
             catch (ObjectDisposedException) { return 0; }
         }
@@ -236,11 +272,10 @@ namespace Omni.Core
                                 IOHandler.Position = 0;
                                 IOHandler.isRawBytes = true;
                                 IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
-                                // Check for corrupted payload.
-                                // Random data will not have a valid header.
-                                if ((byte)target > 0x3 || (byte)deliveryMode > 0x1)
+
+                                if ((byte)target > 3 || (byte)deliveryMode > 2 || (byte)processingOption > 1 || (byte)cachingOption > 2)
                                 {
-                                    OmniLogger.PrintError($"{Name} - ReadData - Invalid target -> {deliveryMode} or deliveryMode -> {target}");
+                                    OmniLogger.PrintError($"Corrupted payload received from {remoteEndPoint} -> {deliveryMode}:{target}:{processingOption}:{cachingOption}");
                                     //*************************************************************************************************
                                     IOHandler.Release();
 #if !OMNI_MULTI_THREADED
@@ -250,6 +285,11 @@ namespace Omni.Core
                                 }
                                 else
                                 {
+                                    if (deliveryMode == DataDeliveryMode.SecuredWithAes)
+                                    {
+                                        IOHandler.DecryptBuffer(AuthStorage.AesKey, IOHandler.ReadIV(), IOHandler.Position);
+                                    }
+
                                     switch (deliveryMode)
                                     {
                                         case DataDeliveryMode.Unsecured:
@@ -269,6 +309,7 @@ namespace Omni.Core
                                             }
                                             break;
                                         case DataDeliveryMode.Secured:
+                                        case DataDeliveryMode.SecuredWithAes:
                                             {
                                                 int sequence = IOHandler.ReadInt();
                                                 UdpClient _client_ = GetClient(remoteEndPoint);

@@ -20,6 +20,10 @@ using static Omni.Core.Enums;
 
 namespace Omni.Core
 {
+    /// <summary>
+    /// This class is responsible for managing the console.
+    /// Enable console commands to be executed.
+    /// </summary>
     internal class OmniConsole
     {
         internal static void Initialize(CancellationToken cancellationToken, OmniNetwork self)
@@ -81,7 +85,7 @@ namespace Omni.Core
                                             if (!string.IsNullOrEmpty(command))
                                             {
                                                 int paramsCount = 0;
-                                                string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray();
+                                                string[][] parameters = command.Split('-').Select(x => x.Split()).ToArray(); // Split the command by '-' and then by ' '.
                                                 if (parameters.Length <= 1)
                                                 {
                                                     OmniLogger.Print("Continuing execution without provided parameters.");
@@ -101,6 +105,7 @@ namespace Omni.Core
                                                             else
                                                             {
                                                                 paramsCount++;
+                                                                // Add or update the parameter and value.
                                                                 if (!commands.TryAdd(parameter, value))
                                                                 {
                                                                     commands[parameter] = value;
@@ -113,6 +118,8 @@ namespace Omni.Core
                                                             break;
                                                         }
                                                     }
+
+                                                    // eg: Ban -user Ruan -days 300
                                                 }
 
                                                 command = parameters[0][0];

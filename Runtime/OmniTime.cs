@@ -41,7 +41,7 @@ namespace Omni.Core
         public static double RttSlope => _rttExAvg.Slope;
         public static double OffsetSlope => _offsetExAvg.Slope;
 
-        public static void SetTime(double clientTime, double serverTime)
+        internal static void SetTime(double clientTime, double serverTime)
         {
             double now = LocalTime - ((double)InternalTime.deltaTime);
             double rtt = now - clientTime;
@@ -65,7 +65,7 @@ namespace Omni.Core
             }
         }
 
-        public static void AddSent() => messagesSent++;
-        public static void AddReceived() => receivedMessages++;
+        internal static void AddSent() => messagesSent++;
+        internal static void AddReceived() => receivedMessages++;
     }
 }

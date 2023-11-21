@@ -4,6 +4,9 @@ using static Omni.Core.Enums;
 
 namespace Omni.Core
 {
+    /// <summary>
+    /// For high performance, hash tables are used to store data.
+    /// </summary>
     public class Dictionaries
     {
         internal static readonly Dictionary<(byte, byte), Action<DataIOHandler, ushort, ushort, bool, RemoteStats>> RPCMethods = new(); // [RPC ID, INSTANCE ID]

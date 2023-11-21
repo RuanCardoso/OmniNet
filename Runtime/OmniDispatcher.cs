@@ -12,7 +12,6 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using Omni;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -37,6 +36,10 @@ namespace Omni.Core
         private readonly object syncRoot = new();
         private readonly Queue<Action> actions = new();
 
+        /// <summary>
+        /// Enable processing of actions on the main thread.<br/>
+        /// Call this method in the Update method of a MonoBehaviour.<br/>
+        /// </summary>
         protected void Process()
         {
             lock (syncRoot)

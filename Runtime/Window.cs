@@ -155,7 +155,7 @@ namespace Omni.Core
                                     {
                                         wIOHandler.Position = 0;
                                         wIOHandler.SetLastWriteTime();
-                                        socket.Send(wIOHandler, remoteEndPoint);
+                                        //socket.Send(wIOHandler, remoteEndPoint);
                                     }
                                 }
                             }
@@ -216,7 +216,7 @@ namespace Omni.Core
                 case MessageRoute.OutOfOrder:
                     {
                         Resize(sequence);
-                        //***************************************
+                        //***********************************************
                         DataIOHandler wIOHandler = this.window[sequence];
                         if (wIOHandler.BytesWritten <= 0)
                         {

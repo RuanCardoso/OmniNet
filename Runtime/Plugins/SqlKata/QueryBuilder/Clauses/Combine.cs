@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace Omni
 {
     public abstract class AbstractCombine : AbstractClause

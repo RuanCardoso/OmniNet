@@ -13,6 +13,7 @@
     ===========================================================*/
 
 using System.IO;
+using System.Text;
 using static Omni.Core.PlatformSettings;
 
 namespace Omni.Core
@@ -31,11 +32,11 @@ namespace Omni.Core
 
         public DataIOHandler GetIOHandler() => IOHandler;
         private readonly DataIOHandler IOHandler;
-        public MessageStream()
+        public MessageStream(Encoding encoding = null)
         {
             try
             {
-                IOHandler = new DataIOHandler(ServerSettings.maxPacketSize);
+                IOHandler = new DataIOHandler(ServerSettings.maxPacketSize, encoding: encoding);
             }
             catch
             {

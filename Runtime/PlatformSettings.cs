@@ -1,4 +1,3 @@
-using Omni;
 using System;
 using UnityEngine;
 
@@ -23,10 +22,10 @@ namespace Omni.Core
         {
             public ushort port = 5055;
             [Range(32, ushort.MaxValue)] public ushort bSPoolSize = 128; // Byte Stream Pool Size, quantidade de items no Pool.
-            [Range(255, ushort.MaxValue)] public ushort windowSize = 255; // Define o tamanho da janela de recepção do protocolo.
+            [Range(255, ushort.MaxValue)] public ushort windowSize = 255; // Define o tamanho da janela de recepï¿½ï¿½o do protocolo.
             [Range(1, 1500)] public ushort maxPacketSize = 128;
-            [Range(1, 2040)] public int recvMultiplier = 1; // Quantas operações de recebimento/leitura de dados por quadro...
-            public double ackTimeout = 0.3d; // seconds, Provavelmente quando um Ack deve ser dado como não reconhecido. SOCK_SEND será executado!
+            [Range(1, 2040)] public int recvMultiplier = 1; // Quantas operaï¿½ï¿½es de recebimento/leitura de dados por quadro...
+            public double ackTimeout = 0.3d; // seconds, Provavelmente quando um Ack deve ser dado como nï¿½o reconhecido. SOCK_SEND serï¿½ executado!
             public int ackSweep = 15; // ms, Varredura por reconhecimentos(Ack's)...
             public bool dontDestroy = false;
             public bool hasCommands = false;
@@ -49,7 +48,7 @@ namespace Omni.Core
             };
 
             [Range(30, 32640)] public int maxFramerate = 60;
-            [Range(1, 2040)] public int recvMultiplier = 1; // Quantas operações de recebimento/leitura de dados por quadro...
+            [Range(1, 2040)] public int recvMultiplier = 1; // Quantas operaï¿½ï¿½es de recebimento/leitura de dados por quadro...
             [Range(128, ushort.MaxValue)] public int recvBufferSize = 8192;
             [Range(128, ushort.MaxValue)] public int sendBufferSize = 8192;
         }

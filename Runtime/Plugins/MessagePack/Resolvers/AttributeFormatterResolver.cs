@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.Linq;
-using System.Reflection;
 using MessagePack.Formatters;
 using MessagePack.Internal;
 

@@ -44,7 +44,7 @@ namespace Omni.Core
 #pragma warning disable IDE0046
                 if (pool.Count == 0)
                 {
-                    OmniLogger.Print("Query: No DataIOHandler's are currently available. A temporary DataIOHandler will be created to handle this data.");
+                    OmniLogger.Print("Pool: No DataIOHandler's are currently available. A temporary DataIOHandler will be created to handle this data.");
                     return new DataIOHandler(ServerSettings.maxPacketSize, true);
                 }
                 else

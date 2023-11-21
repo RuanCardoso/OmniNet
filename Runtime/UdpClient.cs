@@ -28,6 +28,7 @@ namespace Omni.Core
     {
         public OmniPlayer Player { get; }
         internal int Id { get; private set; }
+        internal static byte[] AesKey { get; set; }
 
         protected override string Name => "Omni_Client";
         protected override bool IsServer => false;
@@ -134,18 +135,10 @@ namespace Omni.Core
             if (remoteEndPoint == null)
             {
                 OmniLogger.PrintError("Error: Call Connect() before Send()");
-            }
-            else
-            {
-                return deliveryMode switch
-                {
-                    DataDeliveryMode.Unsecured => SendUnreliable(IOHandler, remoteEndPoint, target, processingOption, cachingOption),
-                    DataDeliveryMode.Secured => SendReliable(IOHandler, remoteEndPoint, target, processingOption, cachingOption),
-                    _ => 0,
-                };
+                return 0;
             }
 
-            return 0;
+            return IOSend(IOHandler, remoteEndPoint, deliveryMode, target, processingOption, cachingOption);
         }
 
         protected override void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint)

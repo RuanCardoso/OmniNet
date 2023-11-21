@@ -37,6 +37,8 @@ using MessagePack;
 using MessagePack.Resolvers;
 using MessagePack.Unity.Extension;
 using MessagePack.Unity;
+using Omni.Core.Cryptography;
+using System.Security.Cryptography;
 
 namespace Omni.Core
 {
@@ -46,13 +48,9 @@ namespace Omni.Core
     [RequireComponent(typeof(PlatformSettings))]
     public class OmniNetwork : MonoBehaviour
     {
-        [Header("Enums")]
-        [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
-        [SerializeField] private EncodingType encoding = EncodingType.ASCII;
-
         [Header("Others")]
+        [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
         [SerializeField][MaxValue(10)] private uint fpsUpdateRate = 4;
-        private Encoding _encoding = Encoding.ASCII;
 
         private static int frameCount = 0;
         private static float deltaTime = 0f;
@@ -65,11 +63,10 @@ namespace Omni.Core
         #region Properties
         public static float Framerate { get; private set; }
         public static float CpuTimeMs { get; private set; }
-        internal Encoding Encoding => _encoding;
 #if UNITY_EDITOR
         internal static Scene Scene { get; private set; }
-        public static PhysicsScene PhysicsScene { get; private set; }
-        public static PhysicsScene2D PhysicsScene2D { get; private set; }
+        internal static PhysicsScene PhysicsScene { get; private set; }
+        internal static PhysicsScene2D PhysicsScene2D { get; private set; }
 #endif
         public static OmniPlayer Player => udpClient.Player;
         internal static int Port { get; private set; }
@@ -181,19 +178,36 @@ namespace Omni.Core
                 PhysicsScene2D = Scene.GetPhysicsScene2D();
             }
 #endif
-            _encoding = encoding switch
+        }
+
+        private void GenerateAuthKeys()
+        {
+            // Generate AES Key
+            using (Aes aes = Aes.Create())
             {
-                EncodingType.UTF8 => Encoding.UTF8,
-                EncodingType.UTF7 => Encoding.UTF7,
-                EncodingType.UTF32 => Encoding.UTF32,
-                EncodingType.ASCII => Encoding.ASCII,
-                EncodingType.Unicode => Encoding.Unicode,
-                _ => Encoding.ASCII,
-            };
+                aes.GenerateKey();
+                AuthStorage.AesKey = aes.Key;
+            }
+#if UNITY_SERVER || UNITY_EDITOR
+            RSACryptography.GetRSAKeys(out var sPrivateKey, out var sPublicKey);
+            AuthStorage.RSA.Server.PrivateKey = sPrivateKey;
+            AuthStorage.RSA.Server.PublicKey = sPublicKey;
+#endif
+#if !UNITY_SERVER || UNITY_EDITOR
+            RSACryptography.GetRSAKeys(out var cPrivateKey, out var cPublicKey);
+            AuthStorage.RSA.Client.PrivateKey = cPrivateKey;
+            AuthStorage.RSA.Client.PublicKey = cPublicKey;
+#endif
+
+            string Ruan = "Ruan Cardoso";
+            byte[] dataCrypted = RSACryptography.Encrypt(Encoding.UTF8.GetBytes(Ruan), AuthStorage.RSA.Server.PublicKey);
+            byte[] dataDecrypted = RSACryptography.Decrypt(dataCrypted, AuthStorage.RSA.Server.PrivateKey);
+            OmniLogger.Print($"RSA Cryptography: {Ruan} -> {Encoding.UTF8.GetString(dataDecrypted)}");
         }
 
         private void Start()
         {
+            GenerateAuthKeys();
             Invoke(nameof(Main), 1.5f);
         }
 

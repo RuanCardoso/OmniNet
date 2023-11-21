@@ -18,7 +18,9 @@ using System.Threading;
 
 using MessagePack;
 using Newtonsoft.Json;
+using Omni.Core.Cryptography;
 using System;
+using System.Text;
 using UnityEngine;
 using static Omni.Core.Enums;
 
@@ -31,14 +33,16 @@ namespace Omni.Core
     /// </summary>
     public sealed class DataIOHandler
     {
-        internal bool isRawBytes;
+        private readonly bool isPoolObject;
+        private readonly byte[] buffer;
+        private Encoding encoding;
 
         private int position;
         private int bytesWritten;
         private bool isAcked;
-        private readonly byte[] buffer;
-        private readonly bool isPoolObject;
         private DateTime lastWriteTime;
+
+        internal bool isRawBytes;
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is acknowledged.
@@ -80,6 +84,10 @@ namespace Omni.Core
         /// </summary>
         public byte[] Buffer => buffer;
 
+        /// <summary>
+        /// A pool of DataIOHandler objects used to reduce memory allocation.<br/>
+        /// Memory allocation is very expensive and can cause performance issues, GC spikes and memory fragmentation.<br/>
+        /// </summary>
         internal static DataIOHandlerPool bsPool;
         internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
 
@@ -88,9 +96,10 @@ namespace Omni.Core
         /// </summary>
         /// <param name="size">The size of the buffer.</param>
         /// <param name="isPoolObject">Whether this object is a pooled object.</param>
-        public DataIOHandler(int size, bool isPoolObject = false)
+        public DataIOHandler(int size, bool isPoolObject = false, Encoding encoding = null)
         {
-            buffer = new byte[size];
+            buffer = new byte[size]; // Never change the size of the buffer or buffer reference.
+            this.encoding = encoding ?? Encoding.ASCII; // if encoding is null, use ASCII encoding.
             this.isPoolObject = isPoolObject;
         }
 
@@ -127,15 +136,14 @@ namespace Omni.Core
         /// <param name="cachingOption">The caching option of the data.</param>
         internal void WritePayload(DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption)
         {
-            // 1 byte = 8 bits
-            // Bit shifting is used to pack the payload into a single byte.
-            // eg: 0000 0000
-            //     ^^^^ ^^^^
-            //     |||| |||+---> DataDeliveryMode
-            //     |||| ||+----> DataTarget
-            //     |||| |+-----> DataProcessingOption
-            //     |||| +------> DataCachingOption
-            byte payload = (byte)((byte)deliveryMode | (byte)target << 1 | (byte)processingOption << 3 | (byte)cachingOption << 4);
+            //  0000 0000
+            //         || -> Delivery Mode
+            //      ||   -> Target
+            //    |      -> Processing Option
+            // ||       -> Caching Option
+            // Represents the payload in a single byte, using bit shifting.
+            // Packed because it is more efficient to bandwith and performance.
+            byte payload = (byte)((byte)deliveryMode | (byte)target << 2 | (byte)processingOption << 4 | (byte)cachingOption << 5);
             Write(payload);
         }
 
@@ -416,7 +424,6 @@ namespace Omni.Core
         /// <param name="value">The string to write.</param>
         public void Write(string value)
         {
-            var encoding = OmniNetwork.Instance.Encoding;
             int length = encoding.GetByteCount(value);
             byte[] encoded = encoding.GetBytes(value);
             // write the length of string.
@@ -530,6 +537,18 @@ namespace Omni.Core
         }
 
         /// <summary>
+        /// Writes the given initialization vector (IV) to the output stream.
+        /// </summary>
+        /// <param name="IV">The initialization vector to write.</param>
+        internal void WriteIV(byte[] IV)
+        {
+            for (int i = 0; i < IV.Length; i++)
+            {
+                Write(IV[i]);
+            }
+        }
+
+        /// <summary>
         /// Reads a byte from the buffer.
         /// </summary>
         /// <returns>The byte read from the buffer.</returns>
@@ -544,11 +563,11 @@ namespace Omni.Core
         /// <param name="cachingOption">The caching option of the payload.</param>
         internal void ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption)
         {
-            byte bPackedPayload = ReadByte();
-            deliveryMode = (DataDeliveryMode)(bPackedPayload & 0x1);
-            target = (DataTarget)((bPackedPayload >> 1) & 0x3);
-            processingOption = (DataProcessingOption)((bPackedPayload >> 3) & 0x1);
-            cachingOption = (DataCachingOption)((bPackedPayload >> 4) & 0x3);
+            byte payload = ReadByte();
+            deliveryMode = (DataDeliveryMode)(payload & 0b11);
+            target = (DataTarget)((payload >> 2) & 0b11);
+            processingOption = (DataProcessingOption)((payload >> 4) & 0b1);
+            cachingOption = (DataCachingOption)((payload >> 5) & 0b11);
         }
 
         internal MessageType ReadPacket()
@@ -902,7 +921,6 @@ namespace Omni.Core
         /// <returns>The read string.</returns>
         public string ReadString()
         {
-            var encoding = OmniNetwork.Instance.Encoding;
             // Read the length of string.
             int length = Read7BitEncodedInt();
             // Initialize new Matrix with the specified length.
@@ -1061,6 +1079,48 @@ namespace Omni.Core
         }
         #endregion
 
+        /// <summary>
+        /// Reads the initialization vector (IV) from the input stream.
+        /// </summary>
+        /// <returns>The IV as a byte array.</returns>
+        internal byte[] ReadIV()
+        {
+            byte[] IV = new byte[16];
+            for (int i = 0; i < IV.Length; i++)
+            {
+                IV[i] = ReadByte();
+            }
+            return IV;
+        }
+
+        /// <summary>
+        /// Encrypts the buffer using the specified key and returns the initialization vector (IV).
+        /// </summary>
+        /// <param name="key">The encryption key.</param>
+        /// <returns>The initialization vector (IV).</returns>
+        internal byte[] EncryptBuffer(byte[] key, int offset)
+        {
+            byte[] tmpBuffer = AESEncryption.Encrypt(buffer, offset, bytesWritten - offset, key, out byte[] IV);
+            position = bytesWritten = 0;
+            Write(tmpBuffer);
+            position = 0;
+            return IV;
+        }
+
+        /// <summary>
+        /// Decrypts the buffer using the specified key and initialization vector (IV).
+        /// </summary>
+        /// <param name="key">The key used for decryption.</param>
+        /// <param name="IV">The initialization vector (IV) used for decryption.</param>
+        /// <param name="offset">The offset in the buffer where the decryption should start.</param>
+        internal void DecryptBuffer(byte[] key, byte[] IV, int offset)
+        {
+            byte[] tmpBuffer = AESEncryption.Decrypt(buffer, offset, bytesWritten - offset, key, IV);
+            position = bytesWritten = 0;
+            Write(tmpBuffer);
+            position = 0;
+        }
+
         private bool ThrowIfNotEnoughSpace(int size)
         {
             if (position + size > buffer.Length)
@@ -1095,32 +1155,40 @@ namespace Omni.Core
         /// <summary>
         /// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
         /// </summary>
-        public static DataIOHandler Get()
+        public static DataIOHandler Get(Encoding encoding = null)
         {
             ThrowIfNotInitialized();
             DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+            else
+            {
+                _get_.SetEncoding(encoding);
+            }
             return _get_;
         }
 
         /// <summary>
         /// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
         /// </summary>
-        internal static DataIOHandler Get(MessageType msgType)
+        internal static DataIOHandler Get(MessageType msgType, Encoding encoding = null)
         {
             ThrowIfNotInitialized();
             DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
                 OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
-            else _get_.WritePacket(msgType);
+            else
+            {
+                _get_.SetEncoding(encoding);
+                _get_.WritePacket(msgType);
+            }
             return _get_;
         }
 
 #pragma warning disable IDE0060
-        internal static DataIOHandler Get(MessageType msgType, bool _)
+        internal static DataIOHandler Get(MessageType msgType, bool _, Encoding encoding = null)
 #pragma warning restore IDE0060
         {
             ThrowIfNotInitialized();
@@ -1130,10 +1198,21 @@ namespace Omni.Core
                 OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
             else
             {
+                _get_.SetEncoding(encoding);
                 _get_.WritePacket(msgType);
                 _get_.Write((byte)0x1);
             }
             return _get_;
+        }
+
+        /// <summary>
+        /// Sets the encoding used for data input/output.
+        /// If the encoding is null, ASCII encoding will be used.
+        /// </summary>
+        /// <param name="encoding">The encoding to be set.</param>
+        private void SetEncoding(Encoding encoding)
+        {
+            this.encoding = encoding ?? Encoding.ASCII;
         }
 
         internal bool isRelease = false;

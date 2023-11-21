@@ -1,6 +1,4 @@
-﻿using UnityEngine;
-
-namespace Omni
+﻿namespace Omni
 {
     public interface IGroupAttribute
     {

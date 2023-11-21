@@ -24,10 +24,19 @@ namespace Omni.Core
     {
         protected const byte GLOBAL_SPAWN_ID = 255;
         protected virtual byte Id => 0;
+
+        /// <summary>
+        /// Returns the <see cref="DataIOHandler"/> instance from the pool.
+        /// </summary>
         protected DataIOHandler Get => DataIOHandler.Get();
 
         // Start is called before the first frame update
         protected virtual void Awake() => GetRemoteAttributes();
+        /// <summary>
+        /// Get all methods with the <see cref="RemoteAttribute"/> attribute and add them to the <see cref="Dictionaries.RPCMethods"/> dictionary.<br/>
+        /// For best performance the method marked is converted to a delegate and added to the dictionary to prevent the high cost of reflection.
+        /// Call via delegates are as fast as calling a method directly.
+        /// </summary>
         private void GetRemoteAttributes()
         {
             if (Id == 0)
@@ -118,7 +127,7 @@ namespace Omni.Core
             OmniNetwork.Remote(id, Id, fromId, OmniHelper.GetPlayerId(fromServer), fromServer, IOHandler, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
+        protected void SpawnRemote(Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             DataIOHandler IOHandler = DataIOHandler.Get();
             IOHandler.Write(position);
@@ -127,7 +136,7 @@ namespace Omni.Core
             Remote(GLOBAL_SPAWN_ID, IOHandler, fromServer, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
+        protected void SpawnRemote(ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             DataIOHandler IOHandler = DataIOHandler.Get();
             IOHandler.Write(position);
@@ -136,7 +145,7 @@ namespace Omni.Core
             Remote(GLOBAL_SPAWN_ID, IOHandler, toId, fromServer, deliveryMode, target, processingOption, cachingOption);
         }
 
-        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget. Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
+        protected void SpawnRemote(ushort fromId, ushort toId, Vector3 position, Quaternion rotation, Action<DataIOHandler> _IOHandler_ = null, bool fromServer = false, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             DataIOHandler IOHandler = DataIOHandler.Get();
             IOHandler.Write(position);
@@ -155,7 +164,7 @@ namespace Omni.Core
             {
                 if (omniIdentity.objectType == ObjectType.Dynamic)
                 {
-                    // Falta dar suporte a objetos dinâmicos.... Encontrar uma maneira de atribuir um Id....
+                    // Falta dar suporte a objetos dinï¿½micos.... Encontrar uma maneira de atribuir um Id....
                     throw new NotImplementedException("Error: Creating dynamic objects is not supported in this context. Please use a different object type.");
                 }
                 else

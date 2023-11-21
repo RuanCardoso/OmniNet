@@ -1,7 +1,5 @@
 ﻿using System.Linq;
 
-using Humanizer;
-
 namespace Humanizer
 {
     /// <summary>
