@@ -116,8 +116,6 @@ namespace Omni.Core
 
         private IEnumerator Ping()
         {
-            yield return new WaitForSeconds(1f);
-            // Send the ping to server to keep alive and calc de RTT.
             while (IsConnected)
             {
                 DataIOHandler IOHandler = DataIOHandler.Get();
@@ -129,7 +127,38 @@ namespace Omni.Core
             }
         }
 
+        ulong msgSent, msgRec;
+        WaitForSeconds measuringInterval = new(10);
+        private IEnumerator MeasurePacketLoss()
+        {
+            int qtde = 10;
+            while (IsConnected)
+            {
+                for (int i = 0; i < qtde; i++)
+                {
+                    msgSent++;
+                    DataIOHandler IOHandler = DataIOHandler.Get(MessageType.PacketLoss, true);
+                    Send(IOHandler, DataDeliveryMode.Unsecured, DataTarget.Self);
+                    IOHandler.Release();
+                }
+
+                yield return measuringInterval;
+                NetworkMonitor.PacketsLost = (msgSent - msgRec) * 10;
+                msgSent = msgRec = 0;
+            }
+        }
+
+        /// <summary>
+        /// Sends data using RAW mode; this mode does not write the payload.<br/>
+        /// Data is sent directly through the socket, without going through additional steps before transmission.<br/>
+        /// Used to send data that has already been assembled, ex: Retransmission messages.
+        /// </summary>
         internal int Send(DataIOHandler IOHandler) => Send(IOHandler, remoteEndPoint, 0);
+        /// <summary>
+        /// Sends data using the payload mode.<br/>
+        /// Data is sent through the socket, but before that, it goes through additional steps before transmission.<br/>
+        /// Used to send data that has not yet been assembled, ex: Data messages.
+        /// </summary>
         internal int Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             if (remoteEndPoint == null)
@@ -152,6 +181,7 @@ namespace Omni.Core
                             Id = IOHandler.ReadUShort();
                             IsConnected = true;
                             Instance.StartCoroutine(Ping());
+                            Instance.StartCoroutine(MeasurePacketLoss());
 
                             // Reposiciona o IOHandler para a posi��o 0
                             // Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
@@ -174,6 +204,11 @@ namespace Omni.Core
                         // Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
                         IOHandler.Position = 0;
                         OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
+                    }
+                    break;
+                case MessageType.PacketLoss:
+                    {
+                        msgRec++;
                     }
                     break;
                 default:

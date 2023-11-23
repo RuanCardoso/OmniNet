@@ -12,8 +12,15 @@ namespace Omni.Tests
                 if (Input.GetKeyDown(KeyCode.R))
                 {
                     var IOHandler = Get;
-                    IOHandler.Write("Unity Newbies (:");
+                    IOHandler.Write("Mensagem de teste! Testando o envio de mensagens remotas! Ebaaa!");
                     Remote(1, IOHandler, Enums.DataDeliveryMode.SecuredWithAes, Enums.DataTarget.BroadcastExcludingSelf, Enums.DataProcessingOption.ProcessOnServer, Enums.DataCachingOption.Overwrite);
+                }
+
+                if (Input.GetKeyDown(KeyCode.T))
+                {
+                    var IOHandler = Get;
+                    IOHandler.Write("Mensagem de teste! Testando o envio de mensagens remotas! Ebaaa!");
+                    Remote(1, IOHandler, Enums.DataDeliveryMode.Secured, Enums.DataTarget.BroadcastExcludingSelf, Enums.DataProcessingOption.ProcessOnServer, Enums.DataCachingOption.Overwrite);
                 }
             }
         }

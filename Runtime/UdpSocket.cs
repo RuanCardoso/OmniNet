@@ -126,6 +126,12 @@ namespace Omni.Core
 
         private int SendUnreliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
+            if (_IOHandler_.isRawBytes)
+            {
+                OmniLogger.PrintError("RAW bytes cannot be sent unreliably!");
+                return 0;
+            }
+
             DataIOHandler IOHandler = DataIOHandler.Get();
             IOHandler.WritePayload(DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
             IOHandler.Write(_IOHandler_);
@@ -139,6 +145,12 @@ namespace Omni.Core
             if (IsServer)
             {
                 OmniLogger.PrintError("Error: The server cannot send data directly. Please use the GetClient method to obtain a client instance for sending data.");
+                return 0;
+            }
+
+            if (_IOHandler_.isRawBytes)
+            {
+                OmniLogger.PrintError("RAW bytes cannot be sent reliably!");
                 return 0;
             }
 
@@ -185,8 +197,15 @@ namespace Omni.Core
                                 wIOHandler.Write(IOHandler);
                                 break;
                             }
+                        case DataDeliveryMode.Unsecured:
+                            {
+                                IOHandler.Position = 0;
+                            }
+                            break;
                     }
                 }
+
+                NetworkMonitor.PacketsSent++;
 
                 if (AesEnabled)
                 {
@@ -202,6 +221,9 @@ namespace Omni.Core
                     // Send the data to the remoteEndPoint.
                     int bytesWritten = AesHandler.BytesWritten;
                     int length = globalSocket.SendTo(AesHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
+
+                    NetworkMonitor.BytesSent += (ulong)length;
+
                     AesHandler.Release();
                     IOHandler.Release();
                     if (length != bytesWritten)
@@ -212,7 +234,10 @@ namespace Omni.Core
                 {
                     int bytesWritten = IOHandler.BytesWritten;
                     int length = globalSocket.SendTo(IOHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
-                    IOHandler.Release();
+
+                    NetworkMonitor.BytesSent += (ulong)length;
+                    if (!IOHandler.isRawBytes)
+                        IOHandler.Release();
                     if (length != bytesWritten)
                         OmniLogger.PrintError($"{Name} - Send Error - Failed to send {bytesWritten} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.");
                     return length;
@@ -263,6 +288,8 @@ namespace Omni.Core
                             }
 #endif                            
                             int totalBytesReceived = OmniHelper.ReceiveFrom(globalSocket, buffer, endPoint, out SocketError errorCode);
+                            NetworkMonitor.BytesReceived += (ulong)totalBytesReceived;
+                            NetworkMonitor.PacketsReceived++;
                             if (totalBytesReceived > 0)
                             {
                                 var remoteEndPoint = (UdpEndPoint)endPoint;
@@ -316,6 +343,18 @@ namespace Omni.Core
                                                 int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, IOHandler, out RecvWindow.MessageRoute msgRoute);
                                                 if (acknowledgment > -1)
                                                 {
+                                                    #region Monitor
+                                                    switch (msgRoute)
+                                                    {
+                                                        case RecvWindow.MessageRoute.Duplicate:
+                                                            NetworkMonitor.PacketsDuplicated++;
+                                                            break;
+                                                        case RecvWindow.MessageRoute.OutOfOrder:
+                                                            NetworkMonitor.PacketsOutOfOrder++;
+                                                            break;
+                                                    }
+                                                    #endregion
+
                                                     if (msgRoute == RecvWindow.MessageRoute.Unk)
                                                     {
                                                         IOHandler.Release();

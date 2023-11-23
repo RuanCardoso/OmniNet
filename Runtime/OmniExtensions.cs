@@ -43,12 +43,12 @@ namespace Omni.Core
         }
 
         /// <summary>
-        /// Converts a long value to a specified size unit.
+        /// Converts a ulong value to a specified size unit.
         /// </summary>
-        /// <param name="value">The long value to convert.</param>
+        /// <param name="value">The ulong value to convert.</param>
         /// <param name="unit">The size unit to convert to.</param>
         /// <returns>A string representation of the converted value with the specified size unit.</returns>
-        internal static string ToSizeUnit(this long value, SizeUnits unit) => (value / (double)Math.Pow(1024, (long)unit)).ToString("0.00");
+        internal static string ToSizeUnit(this ulong value, SizeUnits unit) => (value / (double)Math.Pow(1024, (ulong)unit)).ToString("0.00");
 
         /// <summary>
         /// Checks if the specified index is within the bounds of the array.

@@ -44,6 +44,7 @@ namespace Omni.Core
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-100)]
+    [RequireComponent(typeof(NetworkMonitor))]
     [RequireComponent(typeof(OmniDispatcher))]
     [RequireComponent(typeof(PlatformSettings))]
     public class OmniNetwork : MonoBehaviour
@@ -86,8 +87,8 @@ namespace Omni.Core
         #region Fields
         [Header("Timers")]
         [InfoBox("Ping Time impacts clock sync between client and server.", EInfoBoxType.Warning)]
-        [SerializeField][Range(0.01f, 60f)][Label("Ping")] private float pingTime = 1f; // seconds
-        [SerializeField][Range(0.1f, 5f)][Label("Reconnection")] private float reconnectionTime = 1f; // seconds
+        [SerializeField][Range(0.1f, 2f)][Label("Ping Frequency")] private float pingTime = 1f; // seconds
+        [SerializeField][Range(0.1f, 5f)][Label("Recon Frequency")] private float reconnectionTime = 1f; // seconds
         [SerializeField][Range(1f, 300f)][Label("Ping Sweep")] private float pingSweepTime = 1f; // seconds
         [SerializeField][Range(1f, 300f)][Label("Max Ping Request")] private double maxPingRequestTime = 60d; // seconds
 
@@ -207,7 +208,7 @@ namespace Omni.Core
 
         private void Start()
         {
-            GenerateAuthKeys();
+            //GenerateAuthKeys();
             Invoke(nameof(Main), 1.5f);
         }
 

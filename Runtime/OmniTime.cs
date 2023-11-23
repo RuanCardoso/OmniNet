@@ -26,12 +26,9 @@ namespace Omni.Core
         private static ExponentialMovingAverage _rttExAvg = new(WINDOW_SIZE);
         private static ExponentialMovingAverage _offsetExAvg = new(WINDOW_SIZE);
 
-        private static double receivedMessages = 1d;
-        private static double messagesSent = 1d;
         private static double offsetMin = double.MinValue;
         private static double offsetMax = double.MaxValue;
 
-        public static double PacketLoss => Math.Abs(Math.Round(100d - (receivedMessages / messagesSent * 100d), MidpointRounding.ToEven));
         public static double Latency => Math.Round(RoundTripTime * 0.5d * 1000d);
         public static double Ping => Math.Round(RoundTripTime * 1000d);
         public static double RoundTripTime => _rttExAvg.Avg;
@@ -43,7 +40,7 @@ namespace Omni.Core
 
         internal static void SetTime(double clientTime, double serverTime)
         {
-            double now = LocalTime - ((double)InternalTime.deltaTime);
+            double now = Math.Max(0, LocalTime - ((double)InternalTime.deltaTime));
             double rtt = now - clientTime;
             double halfRtt = rtt * 0.5d;
             double offset = now - halfRtt - serverTime;
@@ -64,8 +61,5 @@ namespace Omni.Core
                 _offsetExAvg.Add(offset);
             }
         }
-
-        internal static void AddSent() => messagesSent++;
-        internal static void AddReceived() => receivedMessages++;
     }
 }

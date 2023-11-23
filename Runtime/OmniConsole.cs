@@ -63,7 +63,7 @@ namespace Omni.Core
                                     case "Memory":
                                     case "memory":
                                         {
-                                            long totalBytesOfMemoryUsed = GC.GetTotalMemory(false);
+                                            ulong totalBytesOfMemoryUsed = (ulong)GC.GetTotalMemory(false);
                                             OmniLogger.Print($"Allocated managed memory: {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.MB)} MB | {totalBytesOfMemoryUsed.ToSizeUnit(SizeUnits.GB)} GB");
                                         }
                                         break;

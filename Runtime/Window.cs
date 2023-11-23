@@ -155,7 +155,8 @@ namespace Omni.Core
                                     {
                                         wIOHandler.Position = 0;
                                         wIOHandler.SetLastWriteTime();
-                                        //socket.Send(wIOHandler, remoteEndPoint);
+                                        NetworkMonitor.PacketsRetransmitted++;
+                                        socket.Send(wIOHandler, remoteEndPoint);
                                     }
                                 }
                             }

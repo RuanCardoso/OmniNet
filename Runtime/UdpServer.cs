@@ -119,6 +119,12 @@ namespace Omni.Core
                         }
                     }
                     break;
+                case MessageType.PacketLoss:
+                    {
+                        UdpClient client = GetClient(remoteEndPoint);
+                        client?.Send(IOHandler);
+                    }
+                    break;
                 default:
                     OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
                     break;

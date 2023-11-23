@@ -237,7 +237,7 @@ namespace Omni.Core
         {
             if (position != 0 || bytesWritten != 0)
             {
-                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
+                OmniLogger.PrintError($"The IOHandler is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
             }
             else
             {
@@ -1161,7 +1161,7 @@ namespace Omni.Core
             DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+                OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
             else
             {
                 _get_.SetEncoding(encoding);
@@ -1178,7 +1178,7 @@ namespace Omni.Core
             DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+                OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
             else
             {
                 _get_.SetEncoding(encoding);
@@ -1188,14 +1188,14 @@ namespace Omni.Core
         }
 
 #pragma warning disable IDE0060
-        internal static DataIOHandler Get(MessageType msgType, bool _, Encoding encoding = null)
+        internal static DataIOHandler Get(MessageType msgType, bool empty, Encoding encoding = null)
 #pragma warning restore IDE0060
         {
             ThrowIfNotInitialized();
             DataIOHandler _get_ = bsPool.Get();
             _get_.isRelease = false;
             if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-                OmniLogger.PrintError($"The ByteStream is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a ByteStream that is being used by another thread? or are you using a ByteStream that has already been released?");
+                OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
             else
             {
                 _get_.SetEncoding(encoding);
@@ -1222,7 +1222,7 @@ namespace Omni.Core
             {
                 if (isRelease)
                 {
-                    OmniLogger.PrintError("Error: The ByteStream has already been released and cannot be released again.");
+                    OmniLogger.PrintError("Error: The IOHandler has already been released and cannot be released again.");
                 }
                 else
                 {

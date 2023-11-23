@@ -43,6 +43,7 @@ namespace Omni.Core
             LocalMessageScene = 22,
             Remote = 23,
             SendMessage = 24,
+            PacketLoss = 25,
             Connect = 254,
             Disconnect = 255,
         }
