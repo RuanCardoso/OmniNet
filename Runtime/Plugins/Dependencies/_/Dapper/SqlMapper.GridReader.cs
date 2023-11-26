@@ -8,6 +8,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
+#pragma warning disable
+
 namespace Dapper
 {
     public static partial class SqlMapper

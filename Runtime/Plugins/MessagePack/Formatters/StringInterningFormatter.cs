@@ -4,6 +4,8 @@
 using System;
 using Microsoft.NET.StringTools;
 
+#pragma warning disable
+
 namespace MessagePack.Formatters
 {
     /// <summary>

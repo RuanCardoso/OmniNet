@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Serialization;
 
+#pragma warning disable
+
 namespace MessagePack.Formatters
 {
     // Note:This implementation is 'not' fastest, should more improve.

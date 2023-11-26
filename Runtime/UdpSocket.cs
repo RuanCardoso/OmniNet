@@ -13,11 +13,7 @@
     ===========================================================*/
 
 using System;
-#if !OMNI_MULTI_THREADED
 using System.Collections;
-#else
-using ThreadPriority = System.Threading.ThreadPriority;
-#endif
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -41,7 +37,7 @@ namespace Omni.Core
         protected abstract string Name { get; }
         protected abstract bool IsServer { get; }
 
-        internal Socket globalSocket;
+        internal Socket socket;
         internal readonly CancellationTokenSource cancellationTokenSource = new();
 
         private Coroutine WINDOW_COROUTINE;
@@ -54,7 +50,7 @@ namespace Omni.Core
 
         internal void Bind(UdpEndPoint localEndPoint)
         {
-            globalSocket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+            socket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
             {
                 ReceiveBufferSize = ClientSettings.recvBufferSize,
                 SendBufferSize = ClientSettings.sendBufferSize,
@@ -69,7 +65,7 @@ namespace Omni.Core
                     if (Application.platform == RuntimePlatform.WindowsServer || Application.platform == RuntimePlatform.WindowsEditor)
                     {
                         // Disable ICMP error messages
-                        globalSocket.IOControl(-1744830452, new byte[] { 0, 0, 0, 0 }, null);
+                        socket.IOControl(-1744830452, new byte[] { 0, 0, 0, 0 }, null);
                     }
 
                     switch (Application.platform) // [ONLY SERVER]
@@ -78,7 +74,11 @@ namespace Omni.Core
                         case RuntimePlatform.LinuxServer:
                         case RuntimePlatform.WindowsEditor:
                         case RuntimePlatform.WindowsServer:
-                            Native.setsockopt(globalSocket.Handle, SocketOptionLevel.Udp, SocketOptionName.NoChecksum, 0, sizeof(int));
+                            {
+                                int udpChecksumOp = Instance.UdpChecksum ? 1 : 0;
+                                Native.setsockopt(socket.Handle, SocketOptionLevel.Udp, SocketOptionName.DontFragment, 1, sizeof(int));
+                                Native.setsockopt(socket.Handle, SocketOptionLevel.Udp, SocketOptionName.NoChecksum, udpChecksumOp, sizeof(int));
+                            }
                             break;
                         default:
                             OmniLogger.PrintError("This plataform not support -> \"SocketOptionName.NoChecksum\"");
@@ -87,13 +87,8 @@ namespace Omni.Core
                 }
 #endif
                 Initialize();
-                globalSocket.ExclusiveAddressUse = true;
-                globalSocket.Bind(localEndPoint);
-#if OMNI_MULTI_THREADED
-                ReadData(); // Globally, used for all clients, not dispose or cancel this!
-#else
-                Instance.StartCoroutine(ReadData()); // Globally, used for all clients, do not dispose or cancel this!
-#endif
+                socket.ExclusiveAddressUse = true;
+                socket.Bind(localEndPoint);
             }
             catch (SocketException ex)
             {
@@ -109,11 +104,7 @@ namespace Omni.Core
             }
         }
 
-#if OMNI_MULTI_THREADED
-        protected void WINDOW(UdpEndPoint remoteEndPoint) => SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token);
-#else
         protected void WINDOW(UdpEndPoint remoteEndPoint) => WINDOW_COROUTINE = Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
-#endif
         protected int IOSend(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataDeliveryMode dataDeliveryMode, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
         {
             return dataDeliveryMode switch
@@ -136,7 +127,6 @@ namespace Omni.Core
             IOHandler.WritePayload(DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
             IOHandler.Write(_IOHandler_);
             int length = Send(IOHandler, remoteEndPoint);
-            //IOHandler.Release();
             return length;
         }
 
@@ -205,11 +195,8 @@ namespace Omni.Core
                     }
                 }
 
-                NetworkMonitor.PacketsSent++;
-
                 if (AesEnabled)
                 {
-                    // Crypt the data with AES create header.
                     IOHandler.Position = 0;
                     IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
                     byte[] IV = IOHandler.EncryptBuffer(AuthStorage.AesKey, 1); // Skip the payload, because it is already written in the AesHandler. 1 Byte saved.
@@ -217,274 +204,201 @@ namespace Omni.Core
                     AesHandler.WritePayload(deliveryMode, target, processingOption, cachingOption);
                     AesHandler.WriteIV(IV);
                     AesHandler.Write(IOHandler);
-
-                    // Send the data to the remoteEndPoint.
-                    int bytesWritten = AesHandler.BytesWritten;
-                    int length = globalSocket.SendTo(AesHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
-
-                    NetworkMonitor.BytesSent += (ulong)length;
-
-                    AesHandler.Release();
+                    int length = socksend(AesHandler, offset, remoteEndPoint);
                     IOHandler.Release();
-                    if (length != bytesWritten)
-                        OmniLogger.PrintError($"{Name} - Send Error - Failed to send {bytesWritten} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.");
                     return length;
                 }
-                else
-                {
-                    int bytesWritten = IOHandler.BytesWritten;
-                    int length = globalSocket.SendTo(IOHandler.Buffer, offset, bytesWritten - offset, SocketFlags.None, remoteEndPoint);
 
-                    NetworkMonitor.BytesSent += (ulong)length;
-                    if (!IOHandler.isRawBytes)
-                        IOHandler.Release();
-                    if (length != bytesWritten)
-                        OmniLogger.PrintError($"{Name} - Send Error - Failed to send {bytesWritten} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.");
-                    return length;
-                }
+                return socksend(IOHandler, offset, remoteEndPoint);
             }
             catch (ObjectDisposedException) { return 0; }
         }
 
-#if OMNI_MULTI_THREADED
-        private void ReadData()
-#else
-        private IEnumerator ReadData()
-#endif
+        private int socksend(DataIOHandler data, int offset, UdpEndPoint remoteEndPoint)
         {
-#if OMNI_MULTI_THREADED
-            new Thread(() =>
-#endif
-            {
-                byte[] buffer = new byte[1500]; // MTU SIZE
-                EndPoint endPoint = new UdpEndPoint(0, 0);
+            int total = data.BytesWritten;
+            int length = socket.SendTo(data.Buffer, offset, total - offset, SocketFlags.None, remoteEndPoint);
+
+            NetworkMonitor.PacketsSent++;
+            NetworkMonitor.BytesSent += (ulong)length;
+
+            if (!data.isRawBytes) data.Release();
+            if (length != total)
+                OmniLogger.PrintError($"{Name} - Send Error - Failed to send {total} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.");
+            return length;
+        }
+
+        readonly byte[] buffer = new byte[1500]; // MTU SIZE
+        readonly EndPoint endPoint = new UdpEndPoint(0, 0);
+        internal void Receive()
+        {
 #if UNITY_SERVER && !UNITY_EDITOR
-                int multiplier = ServerSettings.recvMultiplier;
+            int multiplier = ServerSettings.recvMultiplier;
 #else
-                int multiplier = ClientSettings.recvMultiplier;
+            int multiplier = ClientSettings.recvMultiplier;
 #endif
-                while (!cancellationTokenSource.IsCancellationRequested)
+            if (!cancellationTokenSource.IsCancellationRequested)
+            {
+                if (socket.Available <= 0) // prevents blocking of the main thread.
                 {
-#if !OMNI_MULTI_THREADED
-                    if (globalSocket.Available <= 0) // prevents blocking of the main thread.
+                    return; // If there is no data we will just skip the execution.
+                }
+
+                for (int i = 0; i < multiplier; i++)
+                {
+                    if (socket.Available <= 0) // prevents blocking of the main thread.
                     {
-                        yield return null;
-                        continue; // If there is no data we will just skip the execution.
+                        break; // Let's prevent our loop from spending unnecessary processing(CPU).
                     }
-#endif
-#if OMNI_MULTI_THREADED
-                    try
-#endif
+
+                    int totalBytesReceived = OmniHelper.ReceiveFrom(socket, buffer, endPoint, out SocketError errorCode);
+                    NetworkMonitor.PacketsReceived++;
+                    NetworkMonitor.BytesReceived += (ulong)totalBytesReceived;
+                    if (totalBytesReceived > 0)
                     {
-#if !OMNI_MULTI_THREADED
-                        for (int i = 0; i < multiplier; i++)
-#endif
+                        var remoteEndPoint = (UdpEndPoint)endPoint;
+                        DataIOHandler IOHandler = DataIOHandler.Get();
+                        IOHandler.Write(buffer, 0, totalBytesReceived);
+                        IOHandler.Position = 0;
+                        IOHandler.isRawBytes = true;
+                        IOHandler.ReadPayload(out DataDeliveryMode dataDeliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
+                        if ((byte)target > 3 || (byte)dataDeliveryMode > 2 || (byte)processingOption > 1 || (byte)cachingOption > 2)
                         {
-#if !OMNI_MULTI_THREADED
-                            if (globalSocket.Available <= 0) // prevents blocking of the main thread.
-                            {
-                                yield return null;
-                                break; // Let's prevent our loop from spending unnecessary processing(CPU).
-                            }
-#endif                            
-                            int totalBytesReceived = OmniHelper.ReceiveFrom(globalSocket, buffer, endPoint, out SocketError errorCode);
-                            NetworkMonitor.BytesReceived += (ulong)totalBytesReceived;
-                            NetworkMonitor.PacketsReceived++;
-                            if (totalBytesReceived > 0)
-                            {
-                                var remoteEndPoint = (UdpEndPoint)endPoint;
-                                // Slice the received bytes and read the payload.
-                                DataIOHandler IOHandler = DataIOHandler.Get();
-                                IOHandler.Write(buffer, 0, totalBytesReceived);
-                                IOHandler.Position = 0;
-                                IOHandler.isRawBytes = true;
-                                IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
-
-                                if ((byte)target > 3 || (byte)deliveryMode > 2 || (byte)processingOption > 1 || (byte)cachingOption > 2)
-                                {
-                                    OmniLogger.PrintError($"Corrupted payload received from {remoteEndPoint} -> {deliveryMode}:{target}:{processingOption}:{cachingOption}");
-                                    //*************************************************************************************************
-                                    IOHandler.Release();
-#if !OMNI_MULTI_THREADED
-                                    yield return null;
-#endif
-                                    continue; // skip
-                                }
-                                else
-                                {
-                                    if (deliveryMode == DataDeliveryMode.SecuredWithAes)
-                                    {
-                                        IOHandler.DecryptBuffer(AuthStorage.AesKey, IOHandler.ReadIV(), IOHandler.Position);
-                                    }
-
-                                    switch (deliveryMode)
-                                    {
-                                        case DataDeliveryMode.Unsecured:
-                                            {
-                                                MessageType msgType = IOHandler.ReadPacket();
-                                                switch (msgType)
-                                                {
-                                                    case MessageType.Acknowledgement:
-                                                        int acknowledgment = IOHandler.ReadInt();
-                                                        UdpClient _client_ = GetClient(remoteEndPoint);
-                                                        _client_.SENT_WINDOW.Acknowledgement(acknowledgment);
-                                                        break;
-                                                    default:
-                                                        OnMessage(IOHandler, deliveryMode, target, processingOption, cachingOption, msgType, remoteEndPoint);
-                                                        break;
-                                                }
-                                            }
-                                            break;
-                                        case DataDeliveryMode.Secured:
-                                        case DataDeliveryMode.SecuredWithAes:
-                                            {
-                                                int sequence = IOHandler.ReadInt();
-                                                UdpClient _client_ = GetClient(remoteEndPoint);
-                                                int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, IOHandler, out RecvWindow.MessageRoute msgRoute);
-                                                if (acknowledgment > -1)
-                                                {
-                                                    #region Monitor
-                                                    switch (msgRoute)
-                                                    {
-                                                        case RecvWindow.MessageRoute.Duplicate:
-                                                            NetworkMonitor.PacketsDuplicated++;
-                                                            break;
-                                                        case RecvWindow.MessageRoute.OutOfOrder:
-                                                            NetworkMonitor.PacketsOutOfOrder++;
-                                                            break;
-                                                    }
-                                                    #endregion
-
-                                                    if (msgRoute == RecvWindow.MessageRoute.Unk)
-                                                    {
-                                                        IOHandler.Release();
-#if !OMNI_MULTI_THREADED
-                                                        yield return null;
-#endif
-                                                        continue; // skip
-                                                    }
-
-                                                    #region Send Acknowledgement
-                                                    DataIOHandler wIOHandler = DataIOHandler.Get();
-                                                    wIOHandler.WritePacket(MessageType.Acknowledgement);
-                                                    wIOHandler.Write(acknowledgment);
-                                                    SendUnreliable(wIOHandler, remoteEndPoint, DataTarget.Self); // ACK IS SENT BY UNRELIABLE CHANNEL!
-                                                    wIOHandler.Release();
-                                                    #endregion
-
-                                                    if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
-                                                    {
-                                                        IOHandler.Release();
-#if !OMNI_MULTI_THREADED
-                                                        yield return null;
-#endif
-                                                        continue; // skip
-                                                    }
-
-                                                    MessageType msgType = IOHandler.ReadPacket();
-                                                    switch (msgType)
-                                                    {
-                                                        default:
-                                                            {
-                                                                RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
-                                                                while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0) // Head-of-line blocking
-                                                                {
-                                                                    OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], deliveryMode, target, processingOption, cachingOption, msgType, remoteEndPoint);
-                                                                    if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)
-                                                                        RECV_WINDOW.ExpectedSequence++;
-                                                                    // remove the references to make it eligible for the garbage collector.
-                                                                    RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket] = null;
-                                                                    RECV_WINDOW.LastProcessedPacket++;
-                                                                }
-
-                                                                if (RECV_WINDOW.LastProcessedPacket > (RECV_WINDOW.window.Length - 1))
-                                                                    OmniLogger.PrintError($"Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized. {RECV_WINDOW.LastProcessedPacket} : {RECV_WINDOW.window.Length}");
-                                                            }
-                                                            break;
-                                                    }
-                                                    break;
-                                                }
-                                                else
-                                                {
-                                                    IOHandler.Release();
-#if !OMNI_MULTI_THREADED
-                                                    yield return null;
-#endif
-                                                    continue; // skip
-                                                }
-                                            }
-                                        default:
-                                            OmniLogger.PrintError($"Unknown deliveryMode {deliveryMode} received from {remoteEndPoint}");
-                                            break;
-                                    }
-                                }
-                                IOHandler.Release();
-                            }
-                            else
-                            {
-                                if (errorCode == SocketError.ConnectionReset)
-                                {
-                                    if (IsServer)
-                                        OmniLogger.PrintError("WSAECONNRESET -> The last send operation failed because the host is unreachable.");
-                                    else Disconnect(null, "There was an unexpected disconnection!");
-                                }
-#if !OMNI_MULTI_THREADED
-                                yield return null;
-#endif
-                                continue;
-                            }
+                            OmniLogger.PrintError($"Corrupted payload received from {remoteEndPoint} -> {dataDeliveryMode}:{target}:{processingOption}:{cachingOption}");
+                            //*************************************************************************************************
+                            IOHandler.Release();
+                            continue; // skip
                         }
-                    }
-#if OMNI_MULTI_THREADED
-                    catch (ThreadAbortException) { continue; }
-                    catch (ObjectDisposedException) { continue; }
-                    catch (SocketException ex)
-                    {
-                        if (ex.ErrorCode == 10004) break;
                         else
                         {
-                            OmniLogger.LogStacktrace(ex);
-                            continue;
+                            switch (dataDeliveryMode)
+                            {
+                                case DataDeliveryMode.Unsecured:
+                                    {
+                                        var msgType = IOHandler.ReadPacket();
+                                        switch (msgType)
+                                        {
+                                            case MessageType.Acknowledgement:
+                                                int acknowledgment = IOHandler.ReadInt();
+                                                UdpClient _client_ = GetClient(remoteEndPoint);
+                                                _client_.SENT_WINDOW.Acknowledgement(acknowledgment);
+                                                break;
+                                            default:
+                                                OnMessage(IOHandler, dataDeliveryMode, target, processingOption, cachingOption, msgType, remoteEndPoint);
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case DataDeliveryMode.Secured:
+                                case DataDeliveryMode.SecuredWithAes:
+                                    {
+                                        if (dataDeliveryMode == DataDeliveryMode.SecuredWithAes)
+                                        {
+                                            IOHandler.DecryptBuffer(AuthStorage.AesKey, IOHandler.ReadIV(), IOHandler.Position);
+                                        }
+
+                                        int sequence = IOHandler.ReadInt();
+                                        UdpClient _client_ = GetClient(remoteEndPoint);
+                                        int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, IOHandler, out RecvWindow.MessageRoute msgRoute);
+                                        if (acknowledgment > -1)
+                                        {
+                                            #region Monitor
+                                            switch (msgRoute)
+                                            {
+                                                case RecvWindow.MessageRoute.Duplicate:
+                                                    NetworkMonitor.PacketsDuplicated++;
+                                                    break;
+                                                case RecvWindow.MessageRoute.OutOfOrder:
+                                                    NetworkMonitor.PacketsOutOfOrder++;
+                                                    break;
+                                            }
+                                            #endregion
+
+                                            if (msgRoute == RecvWindow.MessageRoute.Unk)
+                                            {
+                                                IOHandler.Release();
+                                                continue; // skip
+                                            }
+
+                                            #region Send Acknowledgement
+                                            DataIOHandler wIOHandler = DataIOHandler.Get();
+                                            wIOHandler.WritePacket(MessageType.Acknowledgement);
+                                            wIOHandler.Write(acknowledgment);
+                                            SendUnreliable(wIOHandler, remoteEndPoint, DataTarget.Self); // ACK IS SENT BY UNRELIABLE CHANNEL!
+                                            wIOHandler.Release();
+                                            #endregion
+
+                                            if (msgRoute == RecvWindow.MessageRoute.Duplicate || msgRoute == RecvWindow.MessageRoute.OutOfOrder)
+                                            {
+                                                IOHandler.Release();
+                                                continue; // skip
+                                            }
+
+                                            var msgType = IOHandler.ReadPacket();
+                                            switch (msgType)
+                                            {
+                                                default:
+                                                    {
+                                                        RecvWindow RECV_WINDOW = _client_.RECV_WINDOW;
+                                                        while ((RECV_WINDOW.window.Length > RECV_WINDOW.LastProcessedPacket) && RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket].BytesWritten > 0) // Head-of-line blocking
+                                                        {
+                                                            OnMessage(RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket], dataDeliveryMode, target, processingOption, cachingOption, msgType, remoteEndPoint);
+                                                            if (RECV_WINDOW.ExpectedSequence <= RECV_WINDOW.LastProcessedPacket)
+                                                                RECV_WINDOW.ExpectedSequence++;
+                                                            // remove the references to make it eligible for the garbage collector.
+                                                            RECV_WINDOW.window[RECV_WINDOW.LastProcessedPacket] = null;
+                                                            RECV_WINDOW.LastProcessedPacket++;
+                                                        }
+
+                                                        if (RECV_WINDOW.LastProcessedPacket > (RECV_WINDOW.window.Length - 1))
+                                                            OmniLogger.PrintError($"Recv(Reliable): Insufficient window size! no more data can be received, packet sequencing will be restarted or the window will be resized. {RECV_WINDOW.LastProcessedPacket} : {RECV_WINDOW.window.Length}");
+                                                    }
+                                                    break;
+                                            }
+                                            break;
+                                        }
+                                        else
+                                        {
+                                            IOHandler.Release();
+                                            continue; // skip
+                                        }
+                                    }
+                                default:
+                                    OmniLogger.PrintError($"Unknown deliveryMode {dataDeliveryMode} received from {remoteEndPoint}");
+                                    break;
+                            }
                         }
+                        IOHandler.Release();
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        OmniLogger.LogStacktrace(ex);
+                        if (errorCode == SocketError.ConnectionReset)
+                        {
+                            if (IsServer)
+                                OmniLogger.PrintError("WSAECONNRESET -> The last send operation failed because the host is unreachable.");
+                            else Disconnect(null, "There was an unexpected disconnection!");
+                        }
                         continue;
                     }
-#endif
-#if !OMNI_MULTI_THREADED
-                    yield return null;
-#endif
                 }
             }
-#if OMNI_MULTI_THREADED
-            )
-            {
-                Name = Name,
-                IsBackground = true,
-                Priority = ThreadPriority.Highest
-            }.Start();
-#endif
         }
 
         internal virtual void Close(bool dispose = false)
         {
             try
             {
-#if !OMNI_MULTI_THREADED
                 Instance.StopCoroutine(WINDOW_COROUTINE);
-#endif
                 cancellationTokenSource.Cancel();
                 if (!dispose)
-                    globalSocket.Close();
+                    socket.Close();
             }
             catch { }
             finally
             {
                 cancellationTokenSource.Dispose();
-                if (globalSocket != null && !dispose)
-                    globalSocket.Dispose();
+                if (socket != null && !dispose)
+                    socket.Dispose();
             }
         }
     }

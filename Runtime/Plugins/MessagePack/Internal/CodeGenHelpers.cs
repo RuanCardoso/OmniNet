@@ -5,6 +5,8 @@ using System;
 using System.Buffers;
 using System.ComponentModel;
 
+#pragma warning disable
+
 namespace MessagePack.Internal
 {
     /// <summary>

@@ -1,5 +1,7 @@
 ﻿using System.Data;
 
+#pragma warning disable
+
 namespace Dapper
 {
     /// <summary>

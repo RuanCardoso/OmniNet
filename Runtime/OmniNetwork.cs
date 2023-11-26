@@ -14,12 +14,8 @@
 
 using Newtonsoft.Json.Utilities;
 using System;
-#if OMNI_MULTI_THREADED
-using System.Collections.Concurrent;
-#else
 using System.IO;
 using System.Linq;
-#endif
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -50,6 +46,7 @@ namespace Omni.Core
     public class OmniNetwork : MonoBehaviour
     {
         [Header("Others")]
+        [SerializeField] internal bool UdpChecksum = true;
         [SerializeField] private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
         [SerializeField][MaxValue(10)] private uint fpsUpdateRate = 4;
 
@@ -86,16 +83,16 @@ namespace Omni.Core
 
         #region Fields
         [Header("Timers")]
-        [InfoBox("Ping Time impacts clock sync between client and server.", EInfoBoxType.Warning)]
+        [InfoBox("The ping time significantly influences clock synchronization between the client and server.", EInfoBoxType.Warning)]
         [SerializeField][Range(0.1f, 2f)][Label("Ping Frequency")] private float pingTime = 1f; // seconds
         [SerializeField][Range(0.1f, 5f)][Label("Recon Frequency")] private float reconnectionTime = 1f; // seconds
         [SerializeField][Range(1f, 300f)][Label("Ping Sweep")] private float pingSweepTime = 1f; // seconds
         [SerializeField][Range(1f, 300f)][Label("Max Ping Request")] private double maxPingRequestTime = 60d; // seconds
 
-        [Header("Pre-Processor's")]
-        [SerializeField] private bool agressiveRelay = false;
-        [SerializeField][ReadOnly] private bool multiThreaded = false;
-        [SerializeField][ReadOnly] private string[] defines;
+        //[Header("Pre-Processor's")]
+        [HideInInspector][SerializeField] private bool agressiveRelay = false;
+        [HideInInspector][SerializeField][ReadOnly] private bool multiThreaded = false;
+        [HideInInspector][SerializeField][ReadOnly] private string[] defines;
         #endregion
 
         private OmniDispatcher dispatcher;
@@ -209,10 +206,21 @@ namespace Omni.Core
         private void Start()
         {
             //GenerateAuthKeys();
-            Invoke(nameof(Main), 1.5f);
+#if !UNITY_EDITOR
+            Invoke(nameof(Main), 2f);
+#else
+            Main();
+#endif
         }
 
         private void Update()
+        {
+            udpServer.Receive();
+            UpdateFrameAndCpuMetrics();
+            udpClient.Receive();
+        }
+
+        private void UpdateFrameAndCpuMetrics()
         {
             // Atualizar o contador de tempo e quadros
             deltaTime += Time.unscaledDeltaTime;
@@ -312,8 +320,8 @@ namespace Omni.Core
         }
 
 #if UNITY_EDITOR
-        [ContextMenu("Omni/Set Preprocessor", false)]
-        [Button("Set Pre-Processor's", EButtonEnableMode.Editor)]
+        //[ContextMenu("Omni/Set Preprocessor", false)]
+        //[Button("Set Pre-Processor's", EButtonEnableMode.Editor)]
         private void SetDefines()
         {
             OmniDef multiThreadedDefine = new OmniDef
@@ -331,8 +339,8 @@ namespace Omni.Core
             OmniHelper.SetDefines(multiThreadedDefine, aggressiveRelayDefine);
         }
 
-        private void Reset() => OnValidate();
-        private void OnValidate() => defines = GetOmniDefines();
+        //private void Reset() => OnValidate();
+        //private void OnValidate() => defines = GetOmniDefines();
 
         private string[] GetOmniDefines()
         {

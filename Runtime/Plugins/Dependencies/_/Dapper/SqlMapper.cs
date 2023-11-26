@@ -22,6 +22,8 @@ using System.Threading;
 using System.Xml;
 using System.Xml.Linq;
 
+#pragma warning disable
+
 namespace Dapper
 {
     /// <summary>

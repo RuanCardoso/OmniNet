@@ -1,5 +1,7 @@
 ﻿namespace Dapper
 {
+    #pragma warning disable
+    
     public static partial class SqlMapper
     {
         /// <summary>

@@ -15,6 +15,8 @@
 using System.Collections.Generic;
 using static Omni.Core.PlatformSettings;
 
+#pragma warning disable
+
 namespace Omni.Core
 {
     /// <summary>
@@ -22,9 +24,6 @@ namespace Omni.Core
     /// </summary>
     internal class DataIOHandlerPool
     {
-#if OMNI_MULTI_THREADED
-        private readonly object _lock = new();
-#endif
         private readonly Stack<DataIOHandler> pool = new();
 
         public DataIOHandlerPool(int length = 128)
@@ -37,33 +36,21 @@ namespace Omni.Core
 
         public DataIOHandler Get()
         {
-#if OMNI_MULTI_THREADED
-            lock (_lock)
-#endif
+            if (pool.Count == 0)
             {
-#pragma warning disable IDE0046
-                if (pool.Count == 0)
-                {
-                    OmniLogger.Print("Pool: No DataIOHandler's are currently available. A temporary DataIOHandler will be created to handle this data.");
-                    return new DataIOHandler(ServerSettings.maxPacketSize, true);
-                }
-                else
-                {
-                    return pool.Pop();
-                }
-#pragma warning restore IDE0046
+                OmniLogger.Print("Pool: No DataIOHandler's are currently available. A temporary DataIOHandler will be created to handle this data.");
+                return new DataIOHandler(ServerSettings.maxPacketSize, true);
+            }
+            else
+            {
+                return pool.Pop();
             }
         }
 
         public void Release(DataIOHandler IOHandler)
         {
             IOHandler.Write();
-#if OMNI_MULTI_THREADED
-            lock (_lock)
-#endif
-            {
-                pool.Push(IOHandler);
-            }
+            pool.Push(IOHandler);
         }
 
         public int Count => pool.Count;

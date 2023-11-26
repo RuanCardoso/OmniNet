@@ -12,12 +12,8 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if !OMNI_MULTI_THREADED
 using System.Collections;
 using UnityEngine;
-#else
-using System.Threading.Tasks;
-#endif
 using System.Threading;
 using System;
 using static Omni.Core.PlatformSettings;
@@ -60,13 +56,7 @@ namespace Omni.Core
 
     public class SentWindow : Window
     {
-#pragma warning disable IDE0051
-        private const int WINDOW_SIZE_COMPENSATION = 2;
-#pragma warning restore IDE0051
         private int sequence = -1;
-#if OMNI_MULTI_THREADED
-        private readonly object window_resize_lock = new();
-#endif
         internal void Acknowledgement(int acknowledgment)
         {
             if (window.IsInBounds(acknowledgment))
@@ -80,108 +70,54 @@ namespace Omni.Core
                 OmniLogger.PrintError($"Ack: Discarded, it's out of window limits -> {sequence}:{window.Length}");
             }
         }
-#if OMNI_MULTI_THREADED
-        internal int GetSequence() => Interlocked.Increment(ref sequence);
-#else
+
         internal int GetSequence() => ++sequence;
-#endif
         internal DataIOHandler GetWindow(int sequence)
         {
-#if OMNI_MULTI_THREADED
-            lock (window_resize_lock)
-#endif
-            {
-                Resize(sequence);
-                return window[sequence];
-            }
+            Resize(sequence);
+            return window[sequence];
         }
 
-#if OMNI_MULTI_THREADED
-        internal void Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
-#else
         internal IEnumerator Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
-#endif
         {
-#if OMNI_MULTI_THREADED
-            ThreadPool.QueueUserWorkItem(async (o) =>
-#endif
+            int nextSequence = 0;
+            double timeout = ServerSettings.ackTimeout;
+            int sweep = ServerSettings.ackSweep;
+            var yieldSec = new WaitForSeconds(sweep / 1000f); // avoid gc alloc;
+            while (!token.IsCancellationRequested)
             {
-                int nextSequence = 0;
-                double timeout = ServerSettings.ackTimeout;
-                int sweep = ServerSettings.ackSweep;
-#if !OMNI_MULTI_THREADED
-                var yieldSec = new WaitForSeconds(sweep / 1000f); // avoid gc alloc;
-#endif
-                while (!token.IsCancellationRequested)
+                try
                 {
-#if OMNI_AGRESSIVE_RELAY
-#if OMNI_MULTI_THREADED
-                    int sequence = Interlocked.CompareExchange(ref this.sequence, 0, 0) + WINDOW_SIZE_COMPENSATION;
-#else
-                    int sequence = this.sequence + WINDOW_SIZE_COMPENSATION;
-#endif
-                    for (int i = nextSequence; i < sequence && window.InBounds(i); i++)
-#endif
+                    DataIOHandler wIOHandler = this.window[nextSequence];
+                    if (wIOHandler.BytesWritten > 0)
                     {
-                        try
+                        if (wIOHandler.IsAcked == true)
                         {
-#if OMNI_AGRESSIVE_RELAY
-                            ByteStream window = this.window[i];
-#else
-                            DataIOHandler wIOHandler = this.window[nextSequence];
-#endif
-                            if (wIOHandler.BytesWritten > 0)
+                            nextSequence++;
+                            // remove the references to make it eligible for the garbage collector.
+                            this.window[nextSequence - 1] = null;
+                        }
+                        else
+                        {
+                            double totalSeconds = DateTime.UtcNow.Subtract(wIOHandler.LastWriteTime).TotalSeconds;
+                            if (totalSeconds > timeout)
                             {
-                                if (wIOHandler.IsAcked == true)
-                                {
-#if !OMNI_AGRESSIVE_RELAY
-                                    nextSequence++;
-                                    // remove the references to make it eligible for the garbage collector.
-                                    this.window[nextSequence - 1] = null;
-#else
-                                    int confirmedSequence = i;
-                                    if (confirmedSequence == nextSequence)
-                                    {
-                                        nextSequence++;
-                                        // remove the references to make it eligible for the garbage collector.
-                                        this.window[i] = null;
-                                    }
-#endif
-                                }
-                                else
-                                {
-                                    double totalSeconds = DateTime.UtcNow.Subtract(wIOHandler.LastWriteTime).TotalSeconds;
-                                    if (totalSeconds > timeout)
-                                    {
-                                        wIOHandler.Position = 0;
-                                        wIOHandler.SetLastWriteTime();
-                                        NetworkMonitor.PacketsRetransmitted++;
-                                        socket.Send(wIOHandler, remoteEndPoint);
-                                    }
-                                }
+                                wIOHandler.Position = 0;
+                                wIOHandler.SetLastWriteTime();
+                                NetworkMonitor.PacketsRetransmitted++;
+                                socket.Send(wIOHandler, remoteEndPoint);
                             }
                         }
-                        catch (Exception ex)
-                        {
-#if OMNI_AGRESSIVE_RELAY
-                            OmniLogger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{i}");
-#else
-                            OmniLogger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
-#endif
-                            continue;
-                        }
                     }
-
-#if OMNI_MULTI_THREADED
-                    await Task.Delay(sweep); // gc alloc
-#else
-                    yield return yieldSec; // gc alloc
-#endif
                 }
+                catch (Exception ex)
+                {
+                    OmniLogger.PrintError($"Failed to re-transmit the sequence message! -> {ex.Message}:{nextSequence}");
+                    continue;
+                }
+
+                yield return yieldSec; // gc alloc
             }
-#if OMNI_MULTI_THREADED
-            );
-#endif
         }
     }
 

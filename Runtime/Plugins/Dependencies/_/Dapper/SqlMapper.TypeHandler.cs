@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Data;
 
+#pragma warning disable
+
 namespace Dapper
 {
     public static partial class SqlMapper

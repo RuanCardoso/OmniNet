@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using MessagePack.Formatters;
 using UnityEngine;
 
+#pragma warning disable
+
 namespace MessagePack.Unity.Extension
 {
     /// <summary>

@@ -52,7 +52,7 @@ namespace Omni.Core
         {
             Initialize();
             IsConnected = true;
-            globalSocket = socket;
+            base.socket = socket;
             lastTimeReceivedPing = OmniTime.LocalTime;
             Id = remoteEndPoint.GetPort();
             Player = new(Id, remoteEndPoint);
@@ -207,9 +207,7 @@ namespace Omni.Core
                     }
                     break;
                 case MessageType.PacketLoss:
-                    {
-                        msgRec++;
-                    }
+                    msgRec++;
                     break;
                 default:
                     OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);

@@ -12,14 +12,10 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if OMNI_MULTI_THREADED
-using System.Collections.Concurrent;
-#else
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using static Omni.Core.Enums;
-#endif
 
 namespace Omni.Core
 {
@@ -27,12 +23,7 @@ namespace Omni.Core
     {
         protected override string Name => "Omni_Server";
         protected override bool IsServer => true;
-
-#if OMNI_MULTI_THREADED
-        private readonly ConcurrentDictionary<ushort, UdpClient> clients = new();
-#else
         private readonly Dictionary<ushort, UdpClient> clients = new();
-#endif
         internal UdpClient Client { get; private set; }
         internal void Initialize(ushort playerId)
         {
@@ -61,7 +52,7 @@ namespace Omni.Core
                             return;
                         }
 
-                        UdpClient _client_ = new(remoteEndPoint, globalSocket);
+                        UdpClient _client_ = new(remoteEndPoint, socket);
                         if (clients.TryAdd(uniqueId, _client_))
                         {
                             #region Response
@@ -237,11 +228,7 @@ namespace Omni.Core
 
         private bool RemoveClient(ushort uniqueId, out UdpClient disconnected)
         {
-#if !OMNI_MULTI_THREADED
             return clients.Remove(uniqueId, out disconnected);
-#else
-            return clients.TryRemove(uniqueId, out disconnected);
-#endif
         }
 
         internal override void Close(bool fromServer = false)

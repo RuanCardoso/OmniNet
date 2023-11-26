@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using MessagePack.Formatters;
 using UnityEngine;
 
+#pragma warning disable
 #pragma warning disable SA1402 // multiple types in a file
 #pragma warning disable SA1649 // file name matches type name
 

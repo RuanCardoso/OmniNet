@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Reflection;
 
+#pragma warning disable
+
 namespace Dapper
 {
     /// <summary>

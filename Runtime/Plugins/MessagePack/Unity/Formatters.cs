@@ -3,6 +3,7 @@
 
 using System;
 
+#pragma warning disable
 #pragma warning disable SA1312 // variable naming
 #pragma warning disable SA1402 // one type per file
 #pragma warning disable SA1649 // file name matches type name

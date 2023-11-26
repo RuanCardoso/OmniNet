@@ -10,6 +10,8 @@ using System.Runtime.ExceptionServices;
 using MessagePack.Formatters;
 using MessagePack.Internal;
 
+#pragma warning disable
+
 namespace MessagePack
 {
     /// <summary>

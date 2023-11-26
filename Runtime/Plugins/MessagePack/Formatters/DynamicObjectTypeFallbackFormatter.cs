@@ -5,6 +5,8 @@ using System;
 using System.Linq.Expressions;
 using System.Reflection;
 
+#pragma warning disable
+
 namespace MessagePack.Formatters
 {
     /// <summary>

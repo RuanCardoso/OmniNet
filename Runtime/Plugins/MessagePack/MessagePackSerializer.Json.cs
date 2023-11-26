@@ -8,6 +8,8 @@ using System.IO;
 using System.Threading;
 using MessagePack.Formatters;
 
+#pragma warning disable
+
 namespace MessagePack
 {
     // JSON API

@@ -10,6 +10,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
+#pragma warning disable
+
 namespace MessagePack
 {
     public partial class MessagePackSerializer

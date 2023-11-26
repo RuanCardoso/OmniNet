@@ -4,6 +4,8 @@
 using System;
 using System.Linq.Expressions;
 
+#pragma warning disable
+
 namespace MessagePack.Formatters
 {
     /// <summary>

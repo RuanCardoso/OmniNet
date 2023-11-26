@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading.Tasks;
 
+#pragma warning disable
+
 namespace Dapper
 {
     public static partial class SqlMapper

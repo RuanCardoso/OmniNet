@@ -14,6 +14,8 @@
 
 using UnityEngine;
 
+#pragma warning disable
+
 namespace Omni.Core
 {
     [DisallowMultipleComponent]

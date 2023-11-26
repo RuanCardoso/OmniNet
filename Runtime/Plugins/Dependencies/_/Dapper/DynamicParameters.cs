@@ -6,6 +6,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 
+#pragma warning disable
+
 namespace Dapper
 {
     /// <summary>

@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 
+#pragma warning disable
+
 namespace Dapper
 {
     /// <summary>

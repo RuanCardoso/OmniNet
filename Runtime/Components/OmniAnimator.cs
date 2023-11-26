@@ -17,6 +17,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using static Omni.Core.Enums;
 
+#pragma warning disable
+
 namespace Omni.Core
 {
     [DisallowMultipleComponent]

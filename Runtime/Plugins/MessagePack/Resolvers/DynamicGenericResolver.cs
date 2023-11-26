@@ -11,6 +11,7 @@ using System.Reflection;
 using MessagePack.Formatters;
 using MessagePack.Internal;
 
+#pragma warning disable
 #pragma warning disable SA1402 // File may only contain a single type
 #pragma warning disable SA1403 // File may only contain a single namespace
 

@@ -3,6 +3,8 @@
 
 using System;
 
+#pragma warning disable
+
 namespace MessagePack.LZ4
 {
     internal partial class LZ4Codec

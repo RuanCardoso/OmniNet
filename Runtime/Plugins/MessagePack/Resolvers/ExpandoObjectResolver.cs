@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Dynamic;
 using MessagePack.Formatters;
 
+#pragma warning disable
+
 namespace MessagePack.Resolvers
 {
     /// <summary>

@@ -6,6 +6,8 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
+#pragma warning disable
+
 namespace MessagePack.Internal
 {
     internal static class ReflectionExtensions

@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
+#pragma warning disable
+
 namespace Dapper
 {
     public static partial class SqlMapper

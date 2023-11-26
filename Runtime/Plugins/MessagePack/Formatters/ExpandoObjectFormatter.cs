@@ -4,6 +4,8 @@
 using System.Collections.Generic;
 using System.Dynamic;
 
+#pragma warning disable
+
 namespace MessagePack.Formatters
 {
     public class ExpandoObjectFormatter : IMessagePackFormatter<ExpandoObject?>

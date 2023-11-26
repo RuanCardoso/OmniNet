@@ -3,6 +3,8 @@
 
 using System;
 
+#pragma warning disable
+
 namespace MessagePack
 {
 #if MESSAGEPACK_INTERNAL

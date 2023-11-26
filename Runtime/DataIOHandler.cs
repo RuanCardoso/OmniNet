@@ -16,6 +16,7 @@
 using System.Threading;
 #endif
 
+using Humanizer.Bytes;
 using MessagePack;
 using Newtonsoft.Json;
 using Omni.Core.Cryptography;
@@ -426,10 +427,28 @@ namespace Omni.Core
         {
             int length = encoding.GetByteCount(value);
             byte[] encoded = encoding.GetBytes(value);
-            // write the length of string.
             Write7BitEncodedInt(length);
-            // write the string.
             Write(encoded, 0, length);
+        }
+
+        /// <summary>
+        /// Writes a string to the data stream without incurring memory allocations.
+        /// </summary>
+        /// <remarks>
+        /// This method efficiently utilizes the stack memory using STACKALLOC and is designed to handle small strings.
+        /// To minimize memory overhead, it is recommended to avoid using this method for excessively large strings.
+        /// </remarks>
+        /// <param name="value">The string to be written to the data stream.</param>
+        /// <exception cref="StackOverflowException">Thrown when the string is too large to be written to the STACK.</exception>
+        public void WriteWithoutAllocation(string value)
+        {
+            int length = encoding.GetByteCount(value);
+            Span<byte> encoded = stackalloc byte[length];
+            int encodedBytes = encoding.GetBytes(value, encoded);
+            if (encodedBytes != length)
+                throw new Exception("Error: The string could not be written to the data stream.");
+            Write7BitEncodedInt(length);
+            Write(encoded);
         }
 
         /// <summary>
@@ -921,13 +940,25 @@ namespace Omni.Core
         /// <returns>The read string.</returns>
         public string ReadString()
         {
-            // Read the length of string.
             int length = Read7BitEncodedInt();
-            // Initialize new Matrix with the specified length.
             byte[] encoded = new byte[length];
             Read(encoded, 0, length);
-            // Create new string with the readed bytes.
-            return new string(encoding.GetString(encoded));
+            return encoding.GetString(encoded);
+        }
+
+        /// <summary>
+        /// Reads a string to the data stream without incurring memory allocations.
+        /// </summary>
+        /// <remarks>
+        /// This method efficiently utilizes the stack memory using STACKALLOC and is designed to handle small strings.
+        /// To minimize memory overhead, it is recommended to avoid using this method for excessively large strings.
+        /// </remarks>
+        public string ReadStringWithoutAllocation()
+        {
+            int length = Read7BitEncodedInt();
+            Span<byte> encoded = stackalloc byte[length];
+            Read(encoded);
+            return encoding.GetString(encoded);
         }
 
         /// <summary>
@@ -942,6 +973,19 @@ namespace Omni.Core
             for (int i = 0; i < available; i++)
             {
                 value[offset + i] = ReadByte();
+            }
+        }
+
+
+        /// <summary>
+        /// Reads a specified number of bytes from the input stream and writes them into an Span.
+        /// </summary>
+        /// <param name="value">The span to write the bytes into.</param>
+        public void Read(Span<byte> value)
+        {
+            for (int i = 0; i < value.Length; i++)
+            {
+                value[i] = ReadByte();
             }
         }
 

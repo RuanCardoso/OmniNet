@@ -12,11 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-#if OMNI_MULTI_THREADED
-using System.Collections.Concurrent;
-#else
 using System.Collections.Generic;
-#endif
 using System.Net;
 
 namespace Omni.Core
@@ -28,11 +24,8 @@ namespace Omni.Core
         public IPEndPoint IPEndPoint { get; }
         public int DatabaseId { get; private set; }
         public OmniIdentity Identity { get; private set; }
-#if OMNI_MULTI_THREADED
-        public readonly ConcurrentDictionary<ushort, object> properties = new();
-#else
         public readonly Dictionary<ushort, object> properties = new();
-#endif
+
         internal OmniPlayer(int id, UdpEndPoint endPoint)
         {
             Id = id;

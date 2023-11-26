@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 
+#pragma warning disable
+
 namespace Dapper
 {
     public static partial class SqlMapper

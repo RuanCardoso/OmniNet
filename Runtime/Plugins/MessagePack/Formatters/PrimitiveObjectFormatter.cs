@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 
+#pragma warning disable
+
 namespace MessagePack.Formatters
 {
     public class PrimitiveObjectFormatter : IMessagePackFormatter<object?>

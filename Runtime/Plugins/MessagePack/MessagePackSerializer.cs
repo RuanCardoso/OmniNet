@@ -10,6 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using MessagePack.LZ4;
 
+#pragma warning disable
+
 namespace MessagePack
 {
     /// <summary>

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
 
+#pragma warning disable
+
 namespace Dapper
 {
     internal static class Extensions

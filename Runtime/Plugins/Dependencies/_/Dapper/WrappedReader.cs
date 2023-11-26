@@ -8,6 +8,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
+#pragma warning disable
+
 namespace Dapper
 {
     internal sealed class DisposedReader : DbDataReader

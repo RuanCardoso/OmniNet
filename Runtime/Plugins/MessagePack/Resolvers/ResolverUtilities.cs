@@ -5,6 +5,8 @@ using System;
 using System.Reflection;
 using MessagePack.Formatters;
 
+#pragma warning disable
+
 namespace MessagePack.Internal
 {
     internal static class ResolverUtilities

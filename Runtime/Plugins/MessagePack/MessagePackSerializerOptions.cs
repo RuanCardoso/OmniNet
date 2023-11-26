@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Nerdbank.Streams;
 
+#pragma warning disable
+
 namespace MessagePack
 {
 #if !DYNAMICCODEDUMPER

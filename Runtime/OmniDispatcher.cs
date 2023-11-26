@@ -23,14 +23,10 @@ namespace Omni.Core
     public class OmniDispatcher : DBMSBehaviour
     {
         [Header("Client & Editor")]
-#if !OMNI_MULTI_THREADED
         [HideInInspector]
-#endif
         [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int CLIENT_APF = 1; // Client
         [Header("Server")]
-#if !OMNI_MULTI_THREADED
         [HideInInspector]
-#endif
         [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int SERVER_APF = 1; // Server
 
         private readonly object syncRoot = new();

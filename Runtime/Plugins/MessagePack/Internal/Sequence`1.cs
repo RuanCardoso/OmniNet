@@ -15,6 +15,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
+#pragma warning disable
 #pragma warning disable SA1402 // File may only contain a single type
 
 namespace Nerdbank.Streams

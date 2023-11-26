@@ -4,6 +4,8 @@
 using System;
 using MessagePack.Formatters;
 
+#pragma warning disable
+
 namespace MessagePack.Resolvers
 {
     public sealed class NativeDecimalResolver : IFormatterResolver

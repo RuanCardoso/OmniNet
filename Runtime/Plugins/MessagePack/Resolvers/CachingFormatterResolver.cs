@@ -4,6 +4,8 @@
 using MessagePack.Formatters;
 using MessagePack.Internal;
 
+#pragma warning disable
+
 namespace MessagePack.Resolvers
 {
     /// <summary>

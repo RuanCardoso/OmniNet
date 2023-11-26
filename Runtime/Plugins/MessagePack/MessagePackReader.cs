@@ -10,6 +10,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using MessagePack.Internal;
 
+#pragma warning disable
+
 namespace MessagePack
 {
     /// <summary>

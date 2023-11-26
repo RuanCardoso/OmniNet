@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
+#pragma warning disable
 #pragma warning disable SA1649 // File name should match first type name
 
 namespace MessagePack.Internal
