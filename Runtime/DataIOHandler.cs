@@ -555,15 +555,22 @@ namespace Omni.Core
             Write(IOHandler.buffer, offset, size);
         }
 
+
         /// <summary>
-        /// Writes the given initialization vector (IV) to the output stream.
+        /// Writes a 128-bit array of bytes to the output stream.
         /// </summary>
-        /// <param name="IV">The initialization vector to write.</param>
-        internal void WriteIV(byte[] IV)
+        /// <param name="d128Bits">The 128-bit array of bytes to write.</param>
+        internal void Write128Bits(byte[] d128Bits)
         {
-            for (int i = 0; i < IV.Length; i++)
+            if (d128Bits.Length != 16)
             {
-                Write(IV[i]);
+                OmniLogger.PrintError("The 128-bit array of bytes must have 16 bytes.");
+                return;
+            }
+
+            for (int i = 0; i < d128Bits.Length; i++)
+            {
+                Write(d128Bits[i]);
             }
         }
 
@@ -1124,17 +1131,17 @@ namespace Omni.Core
         #endregion
 
         /// <summary>
-        /// Reads the initialization vector (IV) from the input stream.
+        /// Reads 128 bits of data from the input stream.
         /// </summary>
-        /// <returns>The IV as a byte array.</returns>
-        internal byte[] ReadIV()
+        /// <returns>An array of bytes representing the 128 bits of data.</returns>
+        internal byte[] Read128Bits()
         {
-            byte[] IV = new byte[16];
-            for (int i = 0; i < IV.Length; i++)
+            byte[] d128Bits = new byte[16];
+            for (int i = 0; i < d128Bits.Length; i++)
             {
-                IV[i] = ReadByte();
+                d128Bits[i] = ReadByte();
             }
-            return IV;
+            return d128Bits;
         }
 
         /// <summary>

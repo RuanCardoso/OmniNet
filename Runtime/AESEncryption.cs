@@ -11,7 +11,7 @@
     -
     License: Open Source (MIT)
     ===========================================================*/
-    
+
 using System.Security.Cryptography;
 
 #pragma warning disable IDE0063
@@ -55,6 +55,19 @@ namespace Omni.Core.Cryptography
 
                 ICryptoTransform decryptor = AES.CreateDecryptor();
                 return decryptor.TransformFinalBlock(data, offset, length);
+            }
+        }
+
+        internal static byte[] GenerateKey()
+        {
+            using (Aes AES = Aes.Create())
+            {
+                AES.KeySize = 128; // 128 bit key
+                AES.BlockSize = 128; // 128 bit block size
+                AES.Mode = CipherMode.CBC; // Cipher Block Chaining
+                AES.Padding = PaddingMode.PKCS7; // PKCS7 padding
+                AES.GenerateKey();
+                return AES.Key;
             }
         }
     }

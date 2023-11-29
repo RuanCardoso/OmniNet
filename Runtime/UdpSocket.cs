@@ -13,7 +13,6 @@
     ===========================================================*/
 
 using System;
-using System.Collections;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -21,6 +20,8 @@ using UnityEngine;
 using static Omni.Core.Enums;
 using static Omni.Core.OmniNetwork;
 using static Omni.Core.PlatformSettings;
+
+#pragma warning disable
 
 namespace Omni.Core
 {
@@ -102,6 +103,12 @@ namespace Omni.Core
             {
                 OmniLogger.LogStacktrace(ex);
             }
+        }
+
+        private byte[] GetAesKey(UdpEndPoint udpEndPoint, bool encrypt)
+        {
+            UdpClient client = GetClient(udpEndPoint);
+            return encrypt ? client.AesKeyToEncrypt : client.AesKeyToDecrypt;
         }
 
         protected void WINDOW(UdpEndPoint remoteEndPoint) => WINDOW_COROUTINE = Instance.StartCoroutine(SENT_WINDOW.Relay(this, remoteEndPoint, cancellationTokenSource.Token));
@@ -199,11 +206,20 @@ namespace Omni.Core
                 {
                     IOHandler.Position = 0;
                     IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
-                    byte[] IV = IOHandler.EncryptBuffer(AuthStorage.AesKey, 1); // Skip the payload, because it is already written in the AesHandler. 1 Byte saved.
+
+                    // Generate Aes Key and IV to encrypt the data.
+                    // Skip the payload to encrypt only the data without the payload, because if the payload is encrypted, the server will not be able to read it.
+                    byte[] Key = GetAesKey(remoteEndPoint, true);
+                    byte[] IV = IOHandler.EncryptBuffer(Key, 1); // << SKIP 1 Byte(Payload));
+
+                    // Write the encrypted data to the AesHandler.
+                    // Iv is written to the AesHandler to be sent.
                     DataIOHandler AesHandler = DataIOHandler.Get();
                     AesHandler.WritePayload(deliveryMode, target, processingOption, cachingOption);
-                    AesHandler.WriteIV(IV);
+                    AesHandler.Write128Bits(IV);
                     AesHandler.Write(IOHandler);
+
+                    // Send the encrypted data.
                     int length = socksend(AesHandler, offset, remoteEndPoint);
                     IOHandler.Release();
                     return length;
@@ -232,6 +248,11 @@ namespace Omni.Core
         readonly EndPoint endPoint = new UdpEndPoint(0, 0);
         internal void Receive()
         {
+            if (!IsConnected && IsServer)
+            {
+                return;
+            }
+
 #if UNITY_SERVER && !UNITY_EDITOR
             int multiplier = ServerSettings.recvMultiplier;
 #else
@@ -294,9 +315,13 @@ namespace Omni.Core
                                     {
                                         if (dataDeliveryMode == DataDeliveryMode.SecuredWithAes)
                                         {
-                                            IOHandler.DecryptBuffer(AuthStorage.AesKey, IOHandler.ReadIV(), IOHandler.Position);
+                                            byte[] IV = IOHandler.Read128Bits();
+                                            byte[] Key = GetAesKey(remoteEndPoint, false);
+                                            IOHandler.DecryptBuffer(Key, IV, IOHandler.Position);
+                                            OmniLogger.Print("Passou pelo DecryptBuffer: " + IsServer);
                                         }
 
+                                        // In AES mode, the sequence number is an integral part of the encrypted data, playing a crucial role in ensuring the integrity and order of transmitted information.
                                         int sequence = IOHandler.ReadInt();
                                         UdpClient _client_ = GetClient(remoteEndPoint);
                                         int acknowledgment = _client_.RECV_WINDOW.Acknowledgment(sequence, IOHandler, out RecvWindow.MessageRoute msgRoute);

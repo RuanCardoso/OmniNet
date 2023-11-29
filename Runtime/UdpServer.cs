@@ -15,6 +15,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Omni.Core.Cryptography;
 using static Omni.Core.Enums;
 
 namespace Omni.Core
@@ -31,7 +33,7 @@ namespace Omni.Core
             clients.TryAdd(playerId, Client);
         }
 
-        protected override void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint)
+        async protected override void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint)
         {
             switch (messageType)
             {
@@ -55,9 +57,27 @@ namespace Omni.Core
                         UdpClient _client_ = new(remoteEndPoint, socket);
                         if (clients.TryAdd(uniqueId, _client_))
                         {
+                            var aesKey = IOHandler.Read128Bits();
+                            await Task.Run(() =>
+                            {
+                                // 1. **Data Confidentiality:**
+                                //    - The use of unique AES keys ensures that information transmitted between the client and the server remains confidential, as it is uniquely encrypted for each connection.
+
+                                // 2. **Unique Keys:**
+                                //    - Each client is assigned a unique AES key upon connection, preventing attackers from using a compromised key on one client to access data from others. This limits the impact of potential security breaches.
+
+                                // 3. **Avoids Key Reuse:**
+                                //    - Generating new keys for each connection eliminates key reuse, enhancing security by avoiding potential vulnerabilities associated with the practice of using the same key repeatedly.
+                                _client_.AesKeyToEncrypt = AESEncryption.GenerateKey();
+                                _client_.AesKeyToDecrypt = aesKey;
+                                OmniLogger.Print($"AES KEY REC: {System.BitConverter.ToString(_client_.AesKeyToDecrypt)}");
+                                OmniLogger.Print($"AES KEY SERVER: {System.BitConverter.ToString(_client_.AesKeyToEncrypt)}");
+                            });
+
                             #region Response
                             DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
                             _IOHandler_.Write(uniqueId);
+                            _IOHandler_.Write128Bits(_client_.AesKeyToEncrypt);
                             _client_.Send(_IOHandler_, deliveryMode, target);
                             _IOHandler_.Release();
                             #endregion
@@ -166,19 +186,19 @@ namespace Omni.Core
                                 IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
                             }
 
-                            foreach (var (_, otherClient) in clients)
+                            foreach (var (_, client) in clients)
                             {
-                                if (otherClient.itSelf)
+                                if (client.itSelf)
                                     continue;
                                 else
                                 {
                                     if (!IOHandler.isRawBytes)
                                     {
-                                        otherClient.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
+                                        client.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
                                     }
                                     else
                                     {
-                                        otherClient.Send(IOHandler);
+                                        client.Send(IOHandler);
                                     }
                                 }
                             }
@@ -191,9 +211,9 @@ namespace Omni.Core
                                 IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
                             }
 
-                            foreach (var (id, otherClient) in clients)
+                            foreach (var (id, client) in clients)
                             {
-                                if (otherClient.itSelf)
+                                if (client.itSelf)
                                     continue;
                                 else
                                 {
@@ -201,11 +221,11 @@ namespace Omni.Core
                                     {
                                         if (!IOHandler.isRawBytes)
                                         {
-                                            otherClient.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
+                                            client.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
                                         }
                                         else
                                         {
-                                            otherClient.Send(IOHandler);
+                                            client.Send(IOHandler);
                                         }
                                     }
                                     else continue;

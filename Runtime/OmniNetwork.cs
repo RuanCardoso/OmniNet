@@ -35,6 +35,7 @@ using MessagePack.Unity.Extension;
 using MessagePack.Unity;
 using Omni.Core.Cryptography;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 
 namespace Omni.Core
 {
@@ -70,6 +71,7 @@ namespace Omni.Core
         internal static int Port { get; private set; }
         internal static ushort NetworkId { get; } = ushort.MaxValue;
         internal static bool IsBind => udpServer.IsConnected;
+        internal static bool RSAKeysExchange { get; private set; } = false;
 
 #if !UNITY_SERVER || UNITY_EDITOR
         public static int Id => udpClient.Id;
@@ -176,36 +178,38 @@ namespace Omni.Core
                 PhysicsScene2D = Scene.GetPhysicsScene2D();
             }
 #endif
+            GenerateAuthKeys();
         }
 
         private void GenerateAuthKeys()
         {
-            // Generate AES Key
-            using (Aes aes = Aes.Create())
+            Task.Run(() =>
             {
-                aes.GenerateKey();
-                AuthStorage.AesKey = aes.Key;
-            }
-#if UNITY_SERVER || UNITY_EDITOR
-            RSACryptography.GetRSAKeys(out var sPrivateKey, out var sPublicKey);
-            AuthStorage.RSA.Server.PrivateKey = sPrivateKey;
-            AuthStorage.RSA.Server.PublicKey = sPublicKey;
-#endif
-#if !UNITY_SERVER || UNITY_EDITOR
-            RSACryptography.GetRSAKeys(out var cPrivateKey, out var cPublicKey);
-            AuthStorage.RSA.Client.PrivateKey = cPrivateKey;
-            AuthStorage.RSA.Client.PublicKey = cPublicKey;
-#endif
+                // 1. **Data Confidentiality:**
+                //    - The use of unique AES keys ensures that information transmitted between the client and the server remains confidential, as it is uniquely encrypted for each connection.
 
-            string Ruan = "Ruan Cardoso";
-            byte[] dataCrypted = RSACryptography.Encrypt(Encoding.UTF8.GetBytes(Ruan), AuthStorage.RSA.Server.PublicKey);
-            byte[] dataDecrypted = RSACryptography.Decrypt(dataCrypted, AuthStorage.RSA.Server.PrivateKey);
-            OmniLogger.Print($"RSA Cryptography: {Ruan} -> {Encoding.UTF8.GetString(dataDecrypted)}");
+                // 2. **Unique Keys:**
+                //    - Each client is assigned a unique AES key upon connection, preventing attackers from using a compromised key on one client to access data from others. This limits the impact of potential security breaches.
+
+                // 3. **Avoids Key Reuse:**
+                //    - Generating new keys for each connection eliminates key reuse, enhancing security by avoiding potential vulnerabilities associated with the practice of using the same key repeatedly.
+                udpClient.AesKeyToEncrypt = AESEncryption.GenerateKey();
+                // #if UNITY_SERVER || UNITY_EDITOR
+                //                 RSACryptography.GetRSAKeys(out var sPrivateKey, out var sPublicKey);
+                //                 AuthStorage.RSA.Server.PrivateKey = sPrivateKey;
+                //                 AuthStorage.RSA.Server.PublicKey = sPublicKey;
+                // #endif
+                // #if !UNITY_SERVER || UNITY_EDITOR
+                //                 RSACryptography.GetRSAKeys(out var cPrivateKey, out var cPublicKey);
+                //                 AuthStorage.RSA.Client.PrivateKey = cPrivateKey;
+                //                 AuthStorage.RSA.Client.PublicKey = cPublicKey;
+                // #endif 
+                RSAKeysExchange = true;
+            });
         }
 
         private void Start()
         {
-            //GenerateAuthKeys();
 #if !UNITY_EDITOR
             Invoke(nameof(Main), 2f);
 #else
@@ -526,11 +530,8 @@ namespace Omni.Core
                         #region Send
                         ushort fromPort = (ushort)remoteEndPoint.GetPort();
                         if (isServer && fromPort != Port)
-                        {
                             Remote(remoteId, instanceId, sourceId, destinationId, isServer, IOHandler, deliveryMode, target, DataProcessingOption.DoNotProcessOnServer, cachingOption);
-                        }
                         #endregion
-
                     }
                     break;
                 case MessageType.RemoteStatic:
