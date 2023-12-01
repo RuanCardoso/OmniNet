@@ -23,6 +23,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using static Omni.Core.Enums;
 
+#pragma warning disable
+
 namespace Omni.Core
 {
     [DisallowMultipleComponent]

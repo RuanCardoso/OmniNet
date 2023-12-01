@@ -19,90 +19,91 @@ using UnityEngine;
 
 namespace Omni.Core
 {
-    [AddComponentMenu("")]
-    public class OmniDispatcher : DBMSBehaviour
-    {
-        [Header("Client & Editor")]
-        [HideInInspector]
-        [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int CLIENT_APF = 1; // Client
-        [Header("Server")]
-        [HideInInspector]
-        [SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int SERVER_APF = 1; // Server
+	[AddComponentMenu("")]
+	/// Thread-safe class!
+	public class OmniDispatcher : DBMSBehaviour
+	{
+		[Header("Client & Editor")]
+		[HideInInspector]
+		[SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int CLIENT_APF = 1; // Client
+		[Header("Server")]
+		[HideInInspector]
+		[SerializeField][Range(1, byte.MaxValue)][Label("Actions Per Frame")] protected int SERVER_APF = 1; // Server
 
-        private readonly object syncRoot = new();
-        private readonly Queue<Action> actions = new();
+		private readonly object syncRoot = new();
+		private readonly Queue<Action> actions = new();
 
-        /// <summary>
-        /// Enable processing of actions on the main thread.<br/>
-        /// Call this method in the Update method of a MonoBehaviour.<br/>
-        /// </summary>
-        protected void Process()
-        {
-            lock (syncRoot)
-            {
+		/// <summary>
+		/// Enable processing of actions on the main thread.<br/>
+		/// Call this method in the Update method of a MonoBehaviour.<br/>
+		/// </summary>
+		protected void Process()
+		{
+			lock (syncRoot)
+			{
 #if UNITY_EDITOR
-                int apf = CLIENT_APF; // client
+				int apf = CLIENT_APF; // client
 #elif !UNITY_SERVER
                 int apf = CLIENT_APF; // client
 #else
                 int apf = SERVER_APF; // server
 #endif
-                for (int i = 0; i < apf && actions.Count > 0; i++)
-                {
-                    actions.Dequeue()();
-                }
-            }
-        }
+				for (int i = 0; i < apf && actions.Count > 0; i++)
+				{
+					actions.Dequeue()();
+				}
+			}
+		}
 
-        /// <summary>
-        /// Dispatches an action to be executed on the main thread.
-        /// </summary>
-        /// <param name="action">The action to be executed.</param>
-        protected void Dispatch(Action action)
-        {
-            lock (syncRoot)
-            {
-                actions.Enqueue(action);
-            }
-        }
+		/// <summary>
+		/// Dispatches an action to be executed on the main thread.
+		/// </summary>
+		/// <param name="action">The action to be executed.</param>
+		protected void Dispatch(Action action)
+		{
+			lock (syncRoot)
+			{
+				actions.Enqueue(action);
+			}
+		}
 
-        /// <summary>
-        /// Dispatches an action to be executed on the main thread.<br/>
-        /// </summary>
-        /// <returns></returns>
-        protected Task DispatchAsync(Action action)
-        {
-            TaskCompletionSource<bool> tcs = new();
-            lock (syncRoot)
-            {
-                actions.Enqueue(() =>
-                {
-                    action?.Invoke();
-                    tcs.SetResult(true);
-                });
-            }
-            return tcs.Task;
-        }
+		/// <summary>
+		/// Dispatches an action to be executed on the main thread.<br/>
+		/// </summary>
+		/// <returns></returns>
+		protected Task DispatchAsync(Action action)
+		{
+			TaskCompletionSource<bool> tcs = new();
+			lock (syncRoot)
+			{
+				actions.Enqueue(() =>
+				{
+					action?.Invoke();
+					tcs.SetResult(true);
+				});
+			}
+			return tcs.Task;
+		}
 
-        /// <summary>
-        /// Dispatches an action to be executed on the main thread with a return value.<br/>
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="action"></param>
-        /// <param name="value">value when be returned</param>
-        /// <returns></returns>
-        protected Task<T> DispatchAsync<T>(Action action, T value)
-        {
-            TaskCompletionSource<T> tcs = new();
-            lock (syncRoot)
-            {
-                actions.Enqueue(() =>
-                {
-                    action?.Invoke();
-                    tcs.SetResult(value);
-                });
-            }
-            return tcs.Task;
-        }
-    }
+		/// <summary>
+		/// Dispatches an action to be executed on the main thread with a return value.<br/>
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="action"></param>
+		/// <param name="value">value when be returned</param>
+		/// <returns></returns>
+		protected Task<T> DispatchAsync<T>(Action action, T value)
+		{
+			TaskCompletionSource<T> tcs = new();
+			lock (syncRoot)
+			{
+				actions.Enqueue(() =>
+				{
+					action?.Invoke();
+					tcs.SetResult(value);
+				});
+			}
+			return tcs.Task;
+		}
+	}
 }

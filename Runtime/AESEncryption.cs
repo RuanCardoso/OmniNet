@@ -74,7 +74,7 @@ namespace Omni.Core.Cryptography
 
     internal class RSACryptography
     {
-        private static readonly int keySize = 2048;
+        private static readonly int keySize = 1024;
         internal static void GetRSAKeys(out string privateKey, out string publicKey)
         {
             using (RSACryptoServiceProvider RSA = new RSACryptoServiceProvider(keySize))

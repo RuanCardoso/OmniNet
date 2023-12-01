@@ -2,6 +2,8 @@ using System.Collections;
 using UnityEngine;
 using static Omni.Core.Enums;
 
+#pragma warning disable
+
 namespace Omni.Core
 {
     public class NetworkMonitor : MonoBehaviour

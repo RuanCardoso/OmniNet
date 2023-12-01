@@ -21,287 +21,295 @@ using static Omni.Core.Enums;
 
 namespace Omni.Core
 {
-    internal sealed class UdpServer : UdpSocket
-    {
-        protected override string Name => "Omni_Server";
-        protected override bool IsServer => true;
-        private readonly Dictionary<ushort, UdpClient> clients = new();
-        internal UdpClient Client { get; private set; }
-        internal void Initialize(ushort playerId)
-        {
-            Client = new UdpClient(true);
-            clients.TryAdd(playerId, Client);
-        }
+	internal sealed class UdpServer : UdpSocket
+	{
+		internal string RSAPublicKey { get; set; }
+		internal string RSAPrivateKey { get; set; }
 
-        async protected override void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint)
-        {
-            switch (messageType)
-            {
-                case MessageType.Disconnect:
-                    {
-                        Disconnect(remoteEndPoint, "Info: The endpoint {0} has been successfully disconnected.");
+		protected override string Name => "Omni_Server";
+		protected override bool IsServer => true;
 
-                        // Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
-                        OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
-                    }
-                    break;
-                case MessageType.Connect:
-                    {
-                        ushort uniqueId = (ushort)remoteEndPoint.GetPort();
-                        if (uniqueId == OmniNetwork.Port)
-                        {
-                            OmniLogger.LogWarning($"Warning: Client connection denied. The port is in exclusive use -> {OmniNetwork.Port}");
-                            return;
-                        }
+		private readonly Dictionary<ushort, UdpClient> clients = new();
+		internal UdpClient Client { get; private set; }
+		internal void Initialize(ushort playerId)
+		{
+			Client = new UdpClient(true);
+			clients.TryAdd(playerId, Client);
+		}
 
-                        UdpClient _client_ = new(remoteEndPoint, socket);
-                        if (clients.TryAdd(uniqueId, _client_))
-                        {
-                            var aesKey = IOHandler.Read128Bits();
-                            await Task.Run(() =>
-                            {
-                                // 1. **Data Confidentiality:**
-                                //    - The use of unique AES keys ensures that information transmitted between the client and the server remains confidential, as it is uniquely encrypted for each connection.
+		async protected override void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint)
+		{
+			switch (messageType)
+			{
+				case MessageType.RSAExchange:
+					{
+						string RSAPublicKey = IOHandler.ReadString();
+						OmniLogger.Print(RSAPublicKey);
+					}
+					break;
+				case MessageType.Disconnect:
+					{
+						Disconnect(remoteEndPoint, "Info: The endpoint {0} has been successfully disconnected.");
 
-                                // 2. **Unique Keys:**
-                                //    - Each client is assigned a unique AES key upon connection, preventing attackers from using a compromised key on one client to access data from others. This limits the impact of potential security breaches.
+						// Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
+						OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
+					}
+					break;
+				case MessageType.Connect:
+					{
+						ushort uniqueId = (ushort)remoteEndPoint.GetPort();
+						if (uniqueId == OmniNetwork.Port)
+						{
+							OmniLogger.LogWarning($"Warning: Client connection denied. The port is in exclusive use -> {OmniNetwork.Port}");
+							return;
+						}
 
-                                // 3. **Avoids Key Reuse:**
-                                //    - Generating new keys for each connection eliminates key reuse, enhancing security by avoiding potential vulnerabilities associated with the practice of using the same key repeatedly.
-                                _client_.AesKeyToEncrypt = AESEncryption.GenerateKey();
-                                _client_.AesKeyToDecrypt = aesKey;
-                                OmniLogger.Print($"AES KEY REC: {System.BitConverter.ToString(_client_.AesKeyToDecrypt)}");
-                                OmniLogger.Print($"AES KEY SERVER: {System.BitConverter.ToString(_client_.AesKeyToEncrypt)}");
-                            });
+						UdpClient _client_ = new(remoteEndPoint, socket);
+						if (clients.TryAdd(uniqueId, _client_))
+						{
+							var aesKey = IOHandler.Read128Bits();
+							await Task.Run(() =>
+							{
+								// 1. **Data Confidentiality:**
+								//    - The use of unique AES keys ensures that information transmitted between the client and the server remains confidential, as it is uniquely encrypted for each connection.
 
-                            #region Response
-                            DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
-                            _IOHandler_.Write(uniqueId);
-                            _IOHandler_.Write128Bits(_client_.AesKeyToEncrypt);
-                            _client_.Send(_IOHandler_, deliveryMode, target);
-                            _IOHandler_.Release();
-                            #endregion
+								// 2. **Unique Keys:**
+								//    - Each client is assigned a unique AES key upon connection, preventing attackers from using a compromised key on one client to access data from others. This limits the impact of potential security breaches.
 
-                            // Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
-                            OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
-                        }
-                        else
-                        {
-                            OmniLogger.Print("Unreliable -> Previous connection attempt failed, re-establishing connection.");
-                            #region Response
-                            DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
-                            _IOHandler_.Write(uniqueId);
-                            UdpClient connectedClient = GetClient(remoteEndPoint);
-                            if (connectedClient != null)
-                            {
-                                connectedClient.Send(_IOHandler_, deliveryMode, target);
-                            }
-                            else
-                            {
-                                OmniLogger.PrintError("Connect -> Client is null!");
-                            }
-                            _IOHandler_.Release();
-                            #endregion
-                            _client_.Close(true);
-                        }
-                    }
-                    break;
-                case MessageType.Ping:
-                    {
-                        UdpClient client = GetClient(remoteEndPoint);
-                        if (client != null)
-                        {
-                            client.lastTimeReceivedPing = OmniTime.LocalTime;
-                            double timeOfClient = IOHandler.ReadDouble();
-                            DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
-                            _IOHandler_.Write(timeOfClient);
-                            _IOHandler_.Write(OmniTime.LocalTime);
-                            client.Send(_IOHandler_, deliveryMode, target);
-                            _IOHandler_.Release();
+								// 3. **Avoids Key Reuse:**
+								//    - Generating new keys for each connection eliminates key reuse, enhancing security by avoiding potential vulnerabilities associated with the practice of using the same key repeatedly.
+								_client_.AESPublicKey = AESEncryption.GenerateKey();
+								_client_.AESPrivateKey = aesKey;
+							});
 
-                            // Reposiciona o IOHandler para a posi��o 0
-                            // Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
-                            IOHandler.Position = 0;
-                            OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
-                        }
-                        else
-                        {
-                            OmniLogger.PrintError("Error: Attempted to ping a disconnected client!");
-                        }
-                    }
-                    break;
-                case MessageType.PacketLoss:
-                    {
-                        UdpClient client = GetClient(remoteEndPoint);
-                        client?.Send(IOHandler);
-                    }
-                    break;
-                default:
-                    OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
-                    break;
-            }
-        }
+							#region Response
+							DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
+							_IOHandler_.Write(uniqueId);
+							_IOHandler_.Write128Bits(_client_.AESPublicKey);
+							_client_.Send(_IOHandler_, deliveryMode, target);
+							_IOHandler_.Release();
+							#endregion
 
-        internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => GetClient((ushort)remoteEndPoint.GetPort());
-        internal UdpClient GetClient(ushort playerId) => clients.TryGetValue(playerId, out UdpClient udpClient) ? udpClient : null;
+							// Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
+							OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
+						}
+						else
+						{
+							OmniLogger.Print("Unreliable -> Previous connection attempt failed, re-establishing connection.");
+							#region Response
+							DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
+							_IOHandler_.Write(uniqueId);
+							UdpClient connectedClient = GetClient(remoteEndPoint);
+							if (connectedClient != null)
+							{
+								connectedClient.Send(_IOHandler_, deliveryMode, target);
+							}
+							else
+							{
+								OmniLogger.PrintError("Connect -> Client is null!");
+							}
+							_IOHandler_.Release();
+							#endregion
+							_client_.Close(true);
+						}
+					}
+					break;
+				case MessageType.Ping:
+					{
+						UdpClient client = GetClient(remoteEndPoint);
+						if (client != null)
+						{
+							client.lastTimeReceivedPing = OmniTime.LocalTime;
+							double timeOfClient = IOHandler.ReadDouble();
+							DataIOHandler _IOHandler_ = DataIOHandler.Get(messageType);
+							_IOHandler_.Write(timeOfClient);
+							_IOHandler_.Write(OmniTime.LocalTime);
+							client.Send(_IOHandler_, deliveryMode, target);
+							_IOHandler_.Release();
 
-        internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort playerId) => Send(IOHandler, deliveryMode, target, processingOption, cachingOption, GetClient(playerId));
-        internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpEndPoint remoteEndPoint) => Send(IOHandler, deliveryMode, target, processingOption, cachingOption, GetClient(remoteEndPoint));
-        internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpClient sender)
-        {
-            // When we send the data to itself, we will always use the Unreliable deliveryMode.
-            // LocalHost(Loopback), there are no risks of drops or clutter.
-            if (sender != null)
-            {
-                switch (target)
-                {
-                    case DataTarget.Self:
-                        {
-                            if (processingOption == DataProcessingOption.ProcessOnServer) // Defines whether to execute the instruction on the server when the server itself is the sender.
-                            {
-                                IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
-                            }
+							// Reposiciona o IOHandler para a posi��o 0
+							// Chama o evento OnMessage do OmniNetwork com os par�metros fornecidos
+							IOHandler.Position = 0;
+							OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
+						}
+						else
+						{
+							OmniLogger.PrintError("Error: Attempted to ping a disconnected client!");
+						}
+					}
+					break;
+				case MessageType.PacketLoss:
+					{
+						UdpClient client = GetClient(remoteEndPoint);
+						client?.Send(IOHandler);
+					}
+					break;
+				default:
+					OmniNetwork.OnMessage(IOHandler, messageType, deliveryMode, target, processingOption, cachingOption, remoteEndPoint, IsServer);
+					break;
+			}
+		}
 
-                            if (!sender.itSelf)
-                            {
-                                if (!IOHandler.isRawBytes)
-                                {
-                                    sender.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
-                                }
-                                else
-                                {
-                                    sender.Send(IOHandler);
-                                }
-                            }
-                            else if (processingOption != DataProcessingOption.ProcessOnServer)
-                            {
-                                OmniLogger.PrintError("Are you trying to execute this instruction on yourself? Please use DataProcessingOption.ProcessOnServer or verify if 'IsMine' is being used correctly.");
-                            }
-                        }
-                        break;
-                    case DataTarget.Broadcast:
-                        {
-                            if (processingOption == DataProcessingOption.ProcessOnServer)
-                            {
-                                IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
-                            }
+		internal override UdpClient GetClient(UdpEndPoint remoteEndPoint) => GetClient((ushort)remoteEndPoint.GetPort());
+		internal UdpClient GetClient(ushort playerId) => clients.TryGetValue(playerId, out UdpClient udpClient) ? udpClient : null;
 
-                            foreach (var (_, client) in clients)
-                            {
-                                if (client.itSelf)
-                                    continue;
-                                else
-                                {
-                                    if (!IOHandler.isRawBytes)
-                                    {
-                                        client.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
-                                    }
-                                    else
-                                    {
-                                        client.Send(IOHandler);
-                                    }
-                                }
-                            }
-                        }
-                        break;
-                    case DataTarget.BroadcastExcludingSelf:
-                        {
-                            if (processingOption == DataProcessingOption.ProcessOnServer)
-                            {
-                                IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
-                            }
+		internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, ushort playerId) => Send(IOHandler, deliveryMode, target, processingOption, cachingOption, GetClient(playerId));
+		internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpEndPoint remoteEndPoint) => Send(IOHandler, deliveryMode, target, processingOption, cachingOption, GetClient(remoteEndPoint));
+		internal void Send(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpClient sender)
+		{
+			// When we send the data to itself, we will always use the Unreliable deliveryMode.
+			// LocalHost(Loopback), there are no risks of drops or clutter.
+			if (sender != null)
+			{
+				switch (target)
+				{
+					case DataTarget.Self:
+						{
+							if (processingOption == DataProcessingOption.ProcessOnServer) // Defines whether to execute the instruction on the server when the server itself is the sender.
+							{
+								IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
+							}
 
-                            foreach (var (id, client) in clients)
-                            {
-                                if (client.itSelf)
-                                    continue;
-                                else
-                                {
-                                    if (id != sender.Id)
-                                    {
-                                        if (!IOHandler.isRawBytes)
-                                        {
-                                            client.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
-                                        }
-                                        else
-                                        {
-                                            client.Send(IOHandler);
-                                        }
-                                    }
-                                    else continue;
-                                }
-                            }
-                        }
-                        break;
-                    case DataTarget.Server:
-                        break;
-                    default:
-                        OmniLogger.PrintError($"Invalid target -> {target}");
-                        break;
-                }
-            }
-            else
-            {
-                OmniLogger.PrintError("Error: Client not found. Ensure that the client is not mistakenly sending data through the server socket.");
-            }
-        }
+							if (!sender.itSelf)
+							{
+								if (!IOHandler.isRawBytes)
+								{
+									sender.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
+								}
+								else
+								{
+									sender.Send(IOHandler);
+								}
+							}
+							else if (processingOption != DataProcessingOption.ProcessOnServer)
+							{
+								OmniLogger.PrintError("Are you trying to execute this instruction on yourself? Please use DataProcessingOption.ProcessOnServer or verify if 'IsMine' is being used correctly.");
+							}
+						}
+						break;
+					case DataTarget.Broadcast:
+						{
+							if (processingOption == DataProcessingOption.ProcessOnServer)
+							{
+								IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
+							}
 
-        private bool RemoveClient(ushort uniqueId, out UdpClient disconnected)
-        {
-            return clients.Remove(uniqueId, out disconnected);
-        }
+							foreach (var (_, client) in clients)
+							{
+								if (client.itSelf)
+									continue;
+								else
+								{
+									if (!IOHandler.isRawBytes)
+									{
+										client.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
+									}
+									else
+									{
+										client.Send(IOHandler);
+									}
+								}
+							}
+						}
+						break;
+					case DataTarget.BroadcastExcludingSelf:
+						{
+							if (processingOption == DataProcessingOption.ProcessOnServer)
+							{
+								IOSend(IOHandler, Client.remoteEndPoint, DataDeliveryMode.Unsecured, target, processingOption, cachingOption);
+							}
 
-        internal override void Close(bool fromServer = false)
-        {
-            base.Close();
-            foreach (var udpClient in clients.Values)
-            {
-                udpClient.Close();
-            }
-        }
+							foreach (var (id, client) in clients)
+							{
+								if (client.itSelf)
+									continue;
+								else
+								{
+									if (id != sender.Id)
+									{
+										if (!IOHandler.isRawBytes)
+										{
+											client.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
+										}
+										else
+										{
+											client.Send(IOHandler);
+										}
+									}
+									else continue;
+								}
+							}
+						}
+						break;
+					case DataTarget.Server:
+						break;
+					default:
+						OmniLogger.PrintError($"Invalid target -> {target}");
+						break;
+				}
+			}
+			else
+			{
+				OmniLogger.PrintError("Error: Client not found. Ensure that the client is not mistakenly sending data through the server socket.");
+			}
+		}
 
-        protected override void Disconnect(UdpEndPoint endPoint, string msg = "")
-        {
-            ushort uniqueId = (ushort)endPoint.GetPort();
-            if (RemoveClient(uniqueId, out UdpClient disconnected))
-            {
-                OmniLogger.Print(string.Format(msg, endPoint));
-                Dictionaries.ClearDataCache(uniqueId);
-                disconnected.Close(true);
-            }
-            else
-            {
-                OmniLogger.PrintError("Error: Failed to disconnect the client.");
-            }
-        }
+		private bool RemoveClient(ushort uniqueId, out UdpClient disconnected)
+		{
+			return clients.Remove(uniqueId, out disconnected);
+		}
 
-        internal IEnumerator CheckTheLastReceivedPing(double maxPingRequestTime)
-        {
-            while (true)
-            {
-                UdpClient[] clients = this.clients.Values.ToArray();
-                for (int i = 0; i < clients.Length; i++)
-                {
-                    UdpClient client = clients[i];
-                    if (client.itSelf)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        if ((OmniTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
-                        {
-                            Disconnect(client.remoteEndPoint, "Info: The endpoint {0} has been disconnected due to lack of response from the client.");
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
-                }
+		internal override void Close(bool fromServer = false)
+		{
+			base.Close();
+			foreach (var udpClient in clients.Values)
+			{
+				udpClient.Close();
+			}
+		}
 
-                yield return OmniNetwork.WAIT_FOR_CHECK_REC_PING;
-            }
-        }
-    }
+		protected override void Disconnect(UdpEndPoint endPoint, string msg = "")
+		{
+			ushort uniqueId = (ushort)endPoint.GetPort();
+			if (RemoveClient(uniqueId, out UdpClient disconnected))
+			{
+				OmniLogger.Print(string.Format(msg, endPoint));
+				Dictionaries.ClearDataCache(uniqueId);
+				disconnected.Close(true);
+			}
+			else
+			{
+				OmniLogger.PrintError("Error: Failed to disconnect the client.");
+			}
+		}
+
+		internal IEnumerator CheckTheLastReceivedPing(double maxPingRequestTime)
+		{
+			while (true)
+			{
+				UdpClient[] clients = this.clients.Values.ToArray();
+				for (int i = 0; i < clients.Length; i++)
+				{
+					UdpClient client = clients[i];
+					if (client.itSelf)
+					{
+						continue;
+					}
+					else
+					{
+						if ((OmniTime.LocalTime - client.lastTimeReceivedPing) >= maxPingRequestTime)
+						{
+							Disconnect(client.remoteEndPoint, "Info: The endpoint {0} has been disconnected due to lack of response from the client.");
+						}
+						else
+						{
+							continue;
+						}
+					}
+				}
+
+				yield return OmniNetwork.WAIT_FOR_CHECK_REC_PING;
+			}
+		}
+	}
 }
