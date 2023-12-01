@@ -12,7 +12,7 @@ public class DatabaseTests : MonoBehaviour
 	{
 		DBMSManager = new((db) =>
 		{
-			db.Initialize("users", DBMSOp.MySQL, "server=localhost;database=sevenday;pwd=;uid=root;");
+			db.Initialize("users", DBMSOp.MySQL, "server=localhost;database=sevenday;pwd=ffggfrtrttr;uid=root;");
 		});
 
 		var db = DBMSManager.Get();
