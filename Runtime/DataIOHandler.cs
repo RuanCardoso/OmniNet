@@ -105,8 +105,8 @@ namespace Omni.Core
         }
 
         /// <summary>
-        /// Flush DataIOHandler to use it again.<br/>
-        /// Position and BytesWritten are reset to 0.<br/>
+        /// Resets the DataIOHandler for reuse.
+        /// Current position and the number of bytes written are reset to 0.
         /// </summary>
         public void Write()
         {
@@ -146,6 +146,17 @@ namespace Omni.Core
             // Packed because it is more efficient to bandwith and performance.
             byte payload = (byte)((byte)deliveryMode | (byte)target << 2 | (byte)processingOption << 4 | (byte)cachingOption << 5);
             Write(payload);
+        }
+
+        /// <summary>
+        /// Write Tcp(protocol) payload.<br/>
+        /// Part of Message Framing (https://blog.stephencleary.com/2009/04/message-framing.html)
+        /// </summary>
+        internal void WritePayload(byte[] buffer, int size)
+        {
+            Write();
+            Write(buffer, 0, size);
+            Position = 0;
         }
 
         /// <summary>
@@ -1205,6 +1216,7 @@ namespace Omni.Core
 
         /// <summary>
         /// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
+        /// This method is not thread-safe.
         /// </summary>
         public static DataIOHandler Get(Encoding encoding = null)
         {
@@ -1222,6 +1234,7 @@ namespace Omni.Core
 
         /// <summary>
         /// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
+        /// This method is not thread-safe.
         /// </summary>
         internal static DataIOHandler Get(MessageType msgType, Encoding encoding = null)
         {
@@ -1239,6 +1252,7 @@ namespace Omni.Core
         }
 
 #pragma warning disable IDE0060
+        /// This method is not thread-safe.
         internal static DataIOHandler Get(MessageType msgType, bool empty, Encoding encoding = null)
 #pragma warning restore IDE0060
         {

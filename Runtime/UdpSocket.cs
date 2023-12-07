@@ -107,6 +107,7 @@ namespace Omni.Core
 			}
 			catch (Exception ex)
 			{
+				IsConnected = false;
 				OmniLogger.LogStacktrace(ex);
 			}
 		}

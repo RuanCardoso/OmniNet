@@ -92,7 +92,7 @@ namespace Omni.Core
 		internal void Disconnect()
 		{
 			DataIOHandler IOHandler = DataIOHandler.Get(MessageType.Disconnect, true);
-			Send(IOHandler, DataDeliveryMode.Secured, DataTarget.Self);
+			//Send(IOHandler, DataDeliveryMode.Secured, DataTarget.Self);
 			IOHandler.Release();
 			OnDisconnected();
 		}

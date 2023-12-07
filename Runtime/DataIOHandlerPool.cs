@@ -21,6 +21,7 @@ namespace Omni.Core
 {
     /// <summary>
     /// Pool of reusable DataIOHandlers for efficient memory usage and CPU performance.
+    /// This class is not thread-safe.
     /// </summary>
     internal class DataIOHandlerPool
     {

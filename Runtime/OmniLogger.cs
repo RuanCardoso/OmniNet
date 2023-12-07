@@ -17,6 +17,11 @@ using UnityEngine;
 
 namespace Omni.Core
 {
+    /// <summary>
+    /// This class is used to print messages in the console.
+    /// Print methods are used to print messages in the console without stacktrace.
+    /// Log methods are used to print messages in the console with stacktrace.
+    /// </summary>
     public static class OmniLogger
     {
 #if !UNITY_SERVER || UNITY_EDITOR
@@ -30,15 +35,20 @@ namespace Omni.Core
         public static void Inline(object message) => Print(string.Format("\r{0}", message));
         public static void Clear() => Debug.ClearDeveloperConsole();
 #else
-        public static void Print(object message) => Console.WriteLine(message);
-        public static void PrintError(object message) => Console.WriteLine(message);
-        public static void PrintWarning(object message) => Console.WriteLine(message);
-        public static void Log(object message) => Console.WriteLine(message);
-        public static void LogError(object message) => Console.WriteLine(message);
-        public static void LogWarning(object message) => Console.WriteLine(message);
-        public static void LogStacktrace(Exception message) => Console.WriteLine(message);
-        public static void Inline(object message) => Console.Write("\r{0}", message);
+        public static void Print(object message) => Print(message, ConsoleColor.White);
+        public static void PrintError(object message) => Print(message, ConsoleColor.Red);
+        public static void PrintWarning(object message) => Print(message, ConsoleColor.Yellow);
+        public static void Log(object message) => Print(message, ConsoleColor.White);
+        public static void LogError(object message) => Print(message, ConsoleColor.Red);
+        public static void LogWarning(object message) => Print(message, ConsoleColor.Yellow);
+        public static void LogStacktrace(Exception message) => Print(message, ConsoleColor.Red);
+        public static void Inline(object message) => Print(string.Format("\r{0}", message), ConsoleColor.White);
         public static void Clear() => Console.Clear();
+
+        public static void Print(object message, ConsoleColor color)
+        {
+            Console.WriteLine(message);
+        }
 #endif
     }
 }

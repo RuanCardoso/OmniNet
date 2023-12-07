@@ -3,8 +3,13 @@ using UnityEngine;
 
 namespace Omni.Tests
 {
-    public class RemoteTests : OmniObject
+    public partial class RemoteTests : OmniObject
     {
+        protected override void Start()
+        {
+            base.Start();
+        }
+
         private void Update()
         {
             if (IsMine)
@@ -36,9 +41,21 @@ namespace Omni.Tests
         }
 
         [Remote(1)]
-        public void RemoteEg(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats)
-        {
-            OmniLogger.Print(IOHandler.ReadStringWithoutAllocation());
-        }
+        partial void RPC1(DataIOHandler IOHandler, ushort fromId, ushort toId, RemoteStats stats);
     }
+}
+
+// Definindo uma classe com um método parcial
+public partial class Exemplo
+{
+    // Parte 1 do método
+    public partial void ExibirMensagem(string mensagem);
+
+    // Parte 2 do método
+    public partial void ExibirMensagem(string mensagem)
+    {
+       
+    }
+
+    // Outros membros da classe...
 }

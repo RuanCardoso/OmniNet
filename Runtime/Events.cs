@@ -36,4 +36,10 @@ namespace Omni.Core
         internal static void FireSceneUnloaded(Scene scene, PlatformOp platformOp) => OnSceneUnloaded?.Invoke(scene, platformOp);
         internal static void FireMessageReceived(DataIOHandler IOHandler, ushort fromId, bool fromServer) => OnMessageReceived?.Invoke(IOHandler, fromId, fromServer);
     }
+
+    internal class InternalEventHandler
+    {
+        internal static event Action<DataIOHandler, UdpEndPoint, bool, DataTarget, DataProcessingOption, DataCachingOption> OnTcpDataReceived;
+        internal static void FireTcpDataReceived(DataIOHandler IOHandler, UdpEndPoint fromEndPoint, bool fromServer, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption) => OnTcpDataReceived?.Invoke(IOHandler, fromEndPoint, fromServer, target, processingOption, cachingOption);
+    }
 }
