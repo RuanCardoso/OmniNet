@@ -21,7 +21,7 @@ namespace Omni.Core
         public class DedicatedServerSettings
         {
             public ushort port = 5055;
-            [Range(32, ushort.MaxValue)] public ushort bSPoolSize = 128; // Byte Stream Pool Size, quantidade de items no Pool.
+            [Range(32, ushort.MaxValue)] public ushort IOPoolSize = 128; // Byte Stream Pool Size, quantidade de items no Pool.
             [Range(255, ushort.MaxValue)] public ushort windowSize = 255; // Define o tamanho da janela de recep��o do protocolo.
             [Range(1, 1500)] public ushort maxPacketSize = 128;
             [Range(1, 2040)] public int recvMultiplier = 1; // Quantas opera��es de recebimento/leitura de dados por quadro...

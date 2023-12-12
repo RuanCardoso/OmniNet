@@ -45,7 +45,7 @@ namespace Omni.Core
 			SendMessage = 24,
 			PacketLoss = 25,
 			RSAExchange = 26,
-			Connect = 254,
+			AESExchange = 254,
 			Disconnect = 255,
 		}
 

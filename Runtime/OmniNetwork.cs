@@ -56,8 +56,8 @@ namespace Omni.Core
 
 		private static readonly UdpServer udpServer = new();
 		private static readonly UdpClient udpClient = new();
-		private static readonly TcpSocket tcpServer = new();
-		private static readonly TcpSocket tcpClient = new();
+		internal static readonly TcpSocket tcpServer = new();
+		internal static readonly TcpSocket tcpClient = new();
 
 		internal static OmniNetwork Instance { get; private set; }
 
@@ -73,7 +73,6 @@ namespace Omni.Core
 		internal static int Port { get; private set; }
 		internal static ushort NetworkId { get; } = ushort.MaxValue;
 		internal static bool IsBind => udpServer.IsConnected;
-		internal static bool RSAKeysGenerated { get; private set; } = false;
 
 #if !UNITY_SERVER || UNITY_EDITOR
 		public static int Id => udpClient.Id;
@@ -138,7 +137,7 @@ namespace Omni.Core
 			}
 #endif
 			Instance = this;
-			DataIOHandler.bsPool = new DataIOHandlerPool(ServerSettings.bSPoolSize);
+			DataIOHandler.bsPool = new DataIOHandlerPool(ServerSettings.IOPoolSize);
 
 			_ = AddResolver(null);
 			dispatcher = GetComponent<OmniDispatcher>();
@@ -181,8 +180,9 @@ namespace Omni.Core
 			udpClient.Bind(endPoint);
 			var ip = IPAddress.Parse(ClientSettings.hosts[0].host);
 			var endPointToConnect = new UdpEndPoint(ip, remoteEndPoint.GetPort());
+			OmniLogger.Print("Bind port:" + endPoint);
 			tcpClient.Connect(endPointToConnect);
-			udpClient.Connect(endPointToConnect, tokenSource.Token);
+			udpClient.Initialize(endPointToConnect);
 #endif
 
 #if UNITY_EDITOR
@@ -195,44 +195,9 @@ namespace Omni.Core
 #endif
 		}
 
-		private void GenerateAuthKeys()
-		{
-			Task.Run(() =>
-			{
-				// 1. **Data Confidentiality:**
-				//    - The use of unique AES keys ensures that information transmitted between the client and the server remains confidential, as it is uniquely encrypted for each connection.
-
-				// 2. **Unique Keys:**
-				//    - Each client is assigned a unique AES key upon connection, preventing attackers from using a compromised key on one client to access data from others. This limits the impact of potential security breaches.
-
-				// 3. **Avoids Key Reuse:**
-				//    - Generating new keys for each connection eliminates key reuse, enhancing security by avoiding potential vulnerabilities associated with the practice of using the same key repeatedly.
-				//    - RSA keys are used to exchange AES keys between the client and the server, ensuring that the AES keys are securely transmitted.
-				udpClient.AESPublicKey = AESEncryption.GenerateKey();
-				// Generate RSA key pair for the client
-				// Assign the generated RSA keys to the client for secure communication
-#if UNITY_SERVER || UNITY_EDITOR
-				RSACryptography.GetRSAKeys(out string serverPrivateKey, out string serverPublicKey);
-				udpServer.RSAPrivateKey = serverPrivateKey;
-				udpServer.RSAPublicKey = serverPublicKey;
-#endif
-				// Generate RSA key pair for the server
-				// Assign the generated RSA keys to the server for secure communication
-#if !UNITY_SERVER || UNITY_EDITOR
-				RSACryptography.GetRSAKeys(out string clientPrivateKey, out string clientPublicKey);
-				udpClient.RSAPrivateKey = clientPrivateKey;
-				udpClient.RSAPublicKey = clientPublicKey;
-#endif
-				RSAKeysGenerated = true;
-				OmniLogger.Print("OmniNetwork: The RSA keys have been successfully generated!");
-			}, tokenSource.Token);
-		}
-
 		private void Start()
 		{
 			Main();
-			OmniLogger.Print("OmniNetwork: Initiating RSA keys generation. This may take a few seconds...");
-			GenerateAuthKeys();
 		}
 
 		private void Update()
@@ -502,7 +467,7 @@ namespace Omni.Core
 						}
 					}
 					break;
-				case MessageType.Connect:
+				case MessageType.AESExchange:
 					{
 						if (isServer)
 						{
