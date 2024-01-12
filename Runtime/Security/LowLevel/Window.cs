@@ -78,7 +78,7 @@ namespace Omni.Core
             return window[sequence];
         }
 
-        internal IEnumerator Relay(UdpSocket socket, UdpEndPoint remoteEndPoint, CancellationToken token)
+        internal IEnumerator Relay(OmniTransporter socket, UdpEndPoint remoteEndPoint, CancellationToken token)
         {
             int nextSequence = 0;
             double timeout = ServerSettings.ackTimeout;
@@ -102,7 +102,7 @@ namespace Omni.Core
                             double totalSeconds = DateTime.UtcNow.Subtract(wIOHandler.LastWriteTime).TotalSeconds;
                             if (totalSeconds > timeout)
                             {
-                                wIOHandler.Position = 0;
+                                wIOHandler.FixedPosition = 0;
                                 wIOHandler.SetLastWriteTime();
                                 NetworkMonitor.PacketsRetransmitted++;
                                 socket.Send(wIOHandler, remoteEndPoint);
@@ -157,10 +157,10 @@ namespace Omni.Core
                         DataIOHandler wIOHandler = this.window[sequence];
                         if (wIOHandler.BytesWritten <= 0)
                         {
-                            int POS = IOHandler.Position + sizeof(byte);
+                            int POS = IOHandler.FixedPosition + sizeof(byte);
                             wIOHandler.Write(IOHandler, POS, IOHandler.BytesWritten);
-                            wIOHandler.isRawBytes = IOHandler.isRawBytes;
-                            wIOHandler.Position = 0;
+                            wIOHandler.IsRawBytes = IOHandler.IsRawBytes;
+                            wIOHandler.FixedPosition = 0;
                         }
                         else { } // Duplicate!
                         break;

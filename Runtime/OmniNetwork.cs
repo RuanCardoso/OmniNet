@@ -32,8 +32,6 @@ using MessagePack;
 using MessagePack.Resolvers;
 using MessagePack.Unity.Extension;
 using MessagePack.Unity;
-using Omni.Core.Cryptography;
-using System.Threading.Tasks;
 
 #pragma warning disable
 
@@ -54,8 +52,8 @@ namespace Omni.Core
 		private static int frameCount = 0;
 		private static float deltaTime = 0f;
 
-		private static readonly UdpServer udpServer = new();
-		private static readonly UdpClient udpClient = new();
+		//private static readonly UdpServer udpServer = new();
+		//private static readonly UdpClient udpClient = new();
 		internal static readonly TcpSocket tcpServer = new();
 		internal static readonly TcpSocket tcpClient = new();
 
@@ -69,14 +67,14 @@ namespace Omni.Core
 		internal static PhysicsScene PhysicsScene { get; private set; }
 		internal static PhysicsScene2D PhysicsScene2D { get; private set; }
 #endif
-		public static OmniPlayer Player => udpClient.Player;
+		public static OmniPlayer Player => new(0, null); // udpClient.Player;
 		internal static int Port { get; private set; }
 		internal static ushort NetworkId { get; } = ushort.MaxValue;
-		internal static bool IsBind => udpServer.IsConnected;
+		internal static bool IsBind => true; // udpServer.IsConnected;
 
 #if !UNITY_SERVER || UNITY_EDITOR
-		public static int Id => udpClient.Id;
-		public static bool IsConnected => udpClient.IsConnected;
+		public static int Id => 0; // udpClient.Id;
+		public static bool IsConnected => false; // udpClient.IsConnected;
 #else
         public static int Id => NetworkId;
         public static bool IsConnected => udpServer.IsConnected;
@@ -166,23 +164,23 @@ namespace Omni.Core
 			var remoteEndPoint = new UdpEndPoint(IPAddress.Any, Port);
 #if UNITY_SERVER || UNITY_EDITOR
 			tcpServer.Bind(remoteEndPoint, tokenSource, true);
-			udpServer.Bind(remoteEndPoint);
+			// udpServer.Bind(remoteEndPoint);
 			if (IsBind)
 			{
-				udpServer.Initialize(NetworkId);
-				StartCoroutine(udpServer.CheckTheLastReceivedPing(maxPingRequestTime));
+				// udpServer.Initialize(NetworkId);
+				// StartCoroutine(udpServer.CheckTheLastReceivedPing(maxPingRequestTime));
 			}
 #endif
 
 #if !UNITY_SERVER || UNITY_EDITOR
 			var endPoint = new UdpEndPoint(IPAddress.Any, OmniHelper.GetFreePort());
 			tcpClient.Bind(endPoint, tokenSource, false);
-			udpClient.Bind(endPoint);
+			// udpClient.Bind(endPoint);
 			var ip = IPAddress.Parse(ClientSettings.hosts[0].host);
 			var endPointToConnect = new UdpEndPoint(ip, remoteEndPoint.GetPort());
 			OmniLogger.Print("Bind port:" + endPoint);
 			tcpClient.Connect(endPointToConnect);
-			udpClient.Initialize(endPointToConnect);
+			// udpClient.Initialize(endPointToConnect);
 #endif
 
 #if UNITY_EDITOR
@@ -203,11 +201,11 @@ namespace Omni.Core
 		private void Update()
 		{
 #if UNITY_SERVER || UNITY_EDITOR
-			udpServer.Receive();
+			// udpServer.Receive();
 #endif
 			UpdateFrameAndCpuMetrics();
 #if !UNITY_SERVER || UNITY_EDITOR
-			udpClient.Receive();
+			// udpClient.Receive();
 #endif
 #if !UNITY_SERVER || UNITY_EDITOR
 			if (Input.GetKeyDown(KeyCode.K))
@@ -431,15 +429,15 @@ namespace Omni.Core
 
 		private static void SendDataViaSocket(DataIOHandler IOHandler, ushort id, bool fromServer, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption)
 		{
-			ThrowErrorIfWrongSocket(fromServer);
-			if (fromServer && IsBind)
-			{
-				udpServer.Send(IOHandler, deliveryMode, target, processingOption, cachingOption, id);
-			}
-			else
-			{
-				udpClient.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
-			}
+			//ThrowErrorIfWrongSocket(fromServer);
+			//if (fromServer && IsBind)
+			//{
+			//	udpServer.Send(IOHandler, deliveryMode, target, processingOption, cachingOption, id);
+			//}
+			//else
+			//{
+			//	udpClient.Send(IOHandler, deliveryMode, target, processingOption, cachingOption);
+			//}
 		}
 
 		internal static void OnMessage(DataIOHandler _IOHandler_, MessageType messageType, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, UdpEndPoint remoteEndPoint, bool isServer)
@@ -497,8 +495,8 @@ namespace Omni.Core
 					{
 						var sourceId = _IOHandler_.ReadUShort();
 						var destinationId = _IOHandler_.ReadUShort();
-						var remoteId = _IOHandler_.ReadByte();
-						var instanceId = _IOHandler_.ReadByte();
+						var remoteId = _IOHandler_.InternalReadByte();
+						var instanceId = _IOHandler_.InternalReadByte();
 
 						DataIOHandler IOHandler = DataIOHandler.Get();
 						IOHandler.WriteRemainingBytes(_IOHandler_);
@@ -539,10 +537,10 @@ namespace Omni.Core
 					{
 						var fromId = _IOHandler_.ReadUShort();
 						var toId = _IOHandler_.ReadUShort();
-						var sceneId = _IOHandler_.ReadByte();
+						var sceneId = _IOHandler_.InternalReadByte();
 						var identityId = _IOHandler_.ReadUShort();
-						var remoteId = _IOHandler_.ReadByte();
-						var instanceId = _IOHandler_.ReadByte();
+						var remoteId = _IOHandler_.InternalReadByte();
+						var instanceId = _IOHandler_.InternalReadByte();
 
 						DataIOHandler IOHandler = DataIOHandler.Get();
 						IOHandler.WriteRemainingBytes(_IOHandler_);
@@ -592,8 +590,8 @@ namespace Omni.Core
 					{
 						var identityId = _IOHandler_.ReadUShort();
 						var playerId = _IOHandler_.ReadUShort();
-						var instanceId = _IOHandler_.ReadByte();
-						var sceneId = _IOHandler_.ReadByte();
+						var instanceId = _IOHandler_.InternalReadByte();
+						var sceneId = _IOHandler_.InternalReadByte();
 
 						DataIOHandler IOHandler = DataIOHandler.Get();
 						IOHandler.WriteRemainingBytes(_IOHandler_);
@@ -640,11 +638,11 @@ namespace Omni.Core
 				case MessageType.OnSyncBasePlayer:
 				case MessageType.OnSyncBaseDynamic:
 					{
-						var fieldId = _IOHandler_.ReadByte();
+						var fieldId = _IOHandler_.InternalReadByte();
 						var identityId = _IOHandler_.ReadUShort();
 						var playerId = _IOHandler_.ReadUShort();
-						var instanceId = _IOHandler_.ReadByte();
-						var sceneId = _IOHandler_.ReadByte();
+						var instanceId = _IOHandler_.InternalReadByte();
+						var sceneId = _IOHandler_.InternalReadByte();
 
 						DataIOHandler IOHandler = DataIOHandler.Get();
 						IOHandler.WriteRemainingBytes(_IOHandler_);
@@ -688,8 +686,8 @@ namespace Omni.Core
 					break;
 				case MessageType.GetCache:
 					{
-						var cacheType = (DataStorageType)_IOHandler_.ReadByte();
-						var id = _IOHandler_.ReadByte();
+						var cacheType = (DataStorageType)_IOHandler_.InternalReadByte();
+						var id = _IOHandler_.InternalReadByte();
 						var ownerCache = _IOHandler_.ReadBool();
 						var fromPort = (ushort)remoteEndPoint.GetPort();
 
@@ -748,7 +746,7 @@ namespace Omni.Core
 					break;
 				case MessageType.GlobalMessage:
 					{
-						var id = _IOHandler_.ReadByte();
+						var id = _IOHandler_.InternalReadByte();
 						var playerId = _IOHandler_.ReadUShort();
 
 						DataIOHandler IOHandler = DataIOHandler.Get();
@@ -788,11 +786,11 @@ namespace Omni.Core
 				case MessageType.LocalMessagePlayer:
 				case MessageType.LocalMessageDynamic:
 					{
-						var id = _IOHandler_.ReadByte();
+						var id = _IOHandler_.InternalReadByte();
 						var identityId = _IOHandler_.ReadUShort();
 						var playerId = _IOHandler_.ReadUShort();
-						var instanceId = _IOHandler_.ReadByte();
-						var sceneId = _IOHandler_.ReadByte();
+						var instanceId = _IOHandler_.InternalReadByte();
+						var sceneId = _IOHandler_.InternalReadByte();
 
 						DataIOHandler IOHandler = DataIOHandler.Get();
 						IOHandler.WriteRemainingBytes(_IOHandler_);
@@ -970,7 +968,7 @@ namespace Omni.Core
 
 		public static OmniPlayer GetPlayerFromServer(ushort playerId)
 		{
-			OmniPlayer player = udpServer.GetClient(playerId).Player;
+			OmniPlayer player = new(0, null); /*udpServer.GetClient(playerId).Player;*/
 			if (player == null)
 			{
 				OmniLogger.PrintError("GetPlayerFromServer: Player not found for player ID " + playerId);
@@ -978,24 +976,24 @@ namespace Omni.Core
 			return player;
 		}
 
-		private static OmniPlayer GetPlayerFromClient(ushort playerId)
-		{
-			OmniPlayer player = udpClient.GetClient(playerId).Player;
-			if (player == null)
-			{
-				OmniLogger.PrintError("GetPlayerFromClient: Player not found for player ID " + playerId);
-			}
-			return player;
-		}
+		//private static OmniPlayer GetPlayerFromClient(ushort playerId)
+		//{
+		//	OmniPlayer player = udpClient.GetClient(playerId).Player;
+		//	if (player == null)
+		//	{
+		//		OmniLogger.PrintError("GetPlayerFromClient: Player not found for player ID " + playerId);
+		//	}
+		//	return player;
+		//}
 
 		internal void OnApplicationQuit()
 		{
 			tokenSource.Cancel();
 			using (tokenSource)
 			{
-				udpClient.Disconnect();
-				udpClient.Close();
-				udpServer.Close();
+				//udpClient.Disconnect();
+				//udpClient.Close();
+				//udpServer.Close();
 				tcpClient.Close();
 				tcpServer.Close();
 			}

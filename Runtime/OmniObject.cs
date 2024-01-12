@@ -93,7 +93,7 @@ namespace Omni.Core
 			}
 			#endregion
 
-			Type typeOf = GetType();
+			Type typeOf = GetType().BaseType;
 			MethodInfo[] methods = typeOf.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 			for (int i = 0; i < methods.Length; i++)
 			{

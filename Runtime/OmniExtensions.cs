@@ -149,7 +149,7 @@ namespace Omni.Core
                     break;
                 case TypeCode.Byte:
                     {
-                        value.Intern_Set(converter.GetByte(IOHandler.ReadByte()));
+                        value.Intern_Set(converter.GetByte(IOHandler.InternalReadByte()));
                     }
                     break;
                 default:

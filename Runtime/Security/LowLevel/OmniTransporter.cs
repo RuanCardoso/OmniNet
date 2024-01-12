@@ -25,17 +25,12 @@ using static Omni.Core.PlatformSettings;
 
 namespace Omni.Core
 {
-	internal abstract class UdpSocket
+	internal abstract class OmniTransporter : SocketTransporter
 	{
 		private readonly RecvWindow RECV_WINDOW = new();
 		private readonly SentWindow SENT_WINDOW = new();
 
-		internal abstract UdpClient GetClient(UdpEndPoint remoteEndPoint);
-		protected abstract void Disconnect(UdpEndPoint endPoint, string msg = "");
-		protected abstract void OnMessage(DataIOHandler IOHandler, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, MessageType messageType, UdpEndPoint remoteEndPoint);
-
 		internal bool IsConnected { get; set; }
-		protected abstract string Name { get; }
 		protected abstract bool IsServer { get; }
 
 		internal Socket socket;
@@ -133,7 +128,7 @@ namespace Omni.Core
 
 		private int SendUnreliable(DataIOHandler _IOHandler_, UdpEndPoint remoteEndPoint, DataTarget target = DataTarget.Self, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None)
 		{
-			if (_IOHandler_.isRawBytes)
+			if (_IOHandler_.IsRawBytes)
 			{
 				OmniLogger.PrintError("RAW bytes cannot be sent unreliably!");
 				return 0;
@@ -154,7 +149,7 @@ namespace Omni.Core
 				return 0;
 			}
 
-			if (_IOHandler_.isRawBytes)
+			if (_IOHandler_.IsRawBytes)
 			{
 				OmniLogger.PrintError("RAW bytes cannot be sent reliably!");
 				return 0;
@@ -181,9 +176,9 @@ namespace Omni.Core
 			{
 				// Increments the sequence in the existing IOHandler.
 				// This is not called for new IOHandlers, because they are already incremented in the SendReliable method.
-				if (IOHandler.isRawBytes)
+				if (IOHandler.IsRawBytes)
 				{
-					IOHandler.Position = 0;
+					IOHandler.FixedPosition = 0;
 					IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out _, out _, out _);
 					switch (deliveryMode)
 					{
@@ -205,7 +200,7 @@ namespace Omni.Core
 							}
 						case DataDeliveryMode.Unsecured:
 							{
-								IOHandler.Position = 0;
+								IOHandler.FixedPosition = 0;
 							}
 							break;
 					}
@@ -213,7 +208,7 @@ namespace Omni.Core
 
 				if (AesEnabled)
 				{
-					IOHandler.Position = 0;
+					IOHandler.FixedPosition = 0;
 					IOHandler.ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
 
 					// Generate Aes Key and IV to encrypt the data.
@@ -244,17 +239,17 @@ namespace Omni.Core
 			byte[] lowLevelData = GlobalEventHandler.FireLowLevelDataSent(data.Buffer, 0, data.BytesWritten);
 			if (lowLevelData != null)
 			{
-				bool isRawBytes = data.isRawBytes;
+				bool isRawBytes = data.IsRawBytes;
 				data.Write();
 				data.Write(lowLevelData);
-				data.isRawBytes = isRawBytes;
+				data.IsRawBytes = isRawBytes;
 			}
 
 			// Initialize the total number of bytes written
 			int bytesWritten = data.BytesWritten;
 			if (bytesWritten == 0)
 			{
-				if (!data.isRawBytes)
+				if (!data.IsRawBytes)
 				{
 					data.Release();
 				}
@@ -273,7 +268,7 @@ namespace Omni.Core
 			NetworkMonitor.BytesSent += (ulong)length;
 
 			// If the data is not raw bytes, release it
-			if (!data.isRawBytes)
+			if (!data.IsRawBytes)
 			{
 				data.Release();
 			}
@@ -281,7 +276,7 @@ namespace Omni.Core
 			// If the length of the data sent is not equal to the total number of bytes written, log an error
 			if (length != bytesWritten)
 			{
-				string errorMessage = $"{Name} - Send Error - Failed to send {bytesWritten} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.";
+				string errorMessage = $"Send Error - Failed to send {bytesWritten} bytes to {remoteEndPoint}. Only {length} bytes were successfully sent.";
 				OmniLogger.PrintError(errorMessage);
 			}
 
@@ -325,16 +320,16 @@ namespace Omni.Core
 						var remoteEndPoint = (UdpEndPoint)endPoint;
 						DataIOHandler IOHandler = DataIOHandler.Get();
 						IOHandler.Write(buffer, 0, totalBytesReceived);
-						IOHandler.Position = 0;
-						IOHandler.isRawBytes = true;
+						IOHandler.FixedPosition = 0;
+						IOHandler.IsRawBytes = true;
 						//****************************************************************************************************
 						byte[] lowLevelData = GlobalEventHandler.FireLowLevelDataReceived(IOHandler.Buffer, 0, IOHandler.BytesWritten);
 						if (lowLevelData != null)
 						{
 							IOHandler.Write();
 							IOHandler.Write(lowLevelData);
-							IOHandler.Position = 0;
-							IOHandler.isRawBytes = true;
+							IOHandler.FixedPosition = 0;
+							IOHandler.IsRawBytes = true;
 						}
 						//****************************************************************************************************
 						IOHandler.ReadPayload(out DataDeliveryMode dataDeliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption);
@@ -372,7 +367,7 @@ namespace Omni.Core
 										{
 											byte[] IV = IOHandler.ReadNBits();
 											byte[] Key = GetAesKey(remoteEndPoint, false);
-											IOHandler.DecryptBuffer(Key, IV, IOHandler.Position);
+											IOHandler.DecryptBuffer(Key, IV, IOHandler.FixedPosition);
 										}
 
 										// In AES mode, the sequence number is an integral part of the encrypted data, playing a crucial role in ensuring the integrity and order of transmitted information.

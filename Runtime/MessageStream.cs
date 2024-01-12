@@ -26,8 +26,8 @@ namespace Omni.Core
         public override long Length => IOHandler.BytesWritten;
         public override long Position
         {
-            get => IOHandler.Position;
-            set => IOHandler.Position = (int)value;
+            get => IOHandler.FixedPosition;
+            set => IOHandler.FixedPosition = (int)value;
         }
 
         public DataIOHandler GetIOHandler() => IOHandler;
@@ -52,7 +52,7 @@ namespace Omni.Core
         public override int Read(byte[] buffer, int offset, int count)
         {
             IOHandler.Read(buffer, offset, count);
-            return IOHandler.Position;
+            return IOHandler.FixedPosition;
         }
 
         public override void Flush() => IOHandler.Write();

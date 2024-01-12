@@ -16,65 +16,55 @@ using MessagePack;
 using Newtonsoft.Json;
 using Omni.Core.Cryptography;
 using System;
+using System.IO;
 using System.Text;
 using UnityEngine;
 using static Omni.Core.Enums;
 
+/// <summary>
+/// Handles input/output operations for data, providing methods to write and read data from a buffer, and to serialize and deserialize data.<br/>
+/// Also provides methods to serialize and deserialize data using Json and custom serialization.<br/>
+/// Note: Prioritize bitwise serialization for better performance.<br/>
+/// </summary>
+
+#pragma warning disable
+
 namespace Omni.Core
 {
-	/// <summary>
-	/// Handles input/output operations for data, providing methods to write and read data from a buffer, and to serialize and deserialize data.<br/>
-	/// Also provides methods to serialize and deserialize data using Json and custom serialization.<br/>
-	/// Note: Prioritize bitwise serialization for better performance.<br/>
-	/// </summary>
-	public sealed class DataIOHandler
+	// Partial class: Implements streams!
+	public partial class DataIOHandler : Stream
 	{
+		public readonly static DataIOHandler Empty = new(64);
+
+		/// <summary>
+		/// A pool of DataIOHandler objects used to reduce memory allocation.<br/>
+		/// Memory allocation is very expensive and can cause performance issues, GC spikes and memory fragmentation.<br/>
+		/// </summary>
+		internal static DataIOHandlerPool bsPool;
+
 		private readonly bool isPoolObject;
 		private readonly byte[] buffer;
 		private Encoding encoding;
 
-		private int position;
-		private int bytesWritten;
-		private bool isAcked;
-		private DateTime lastWriteTime;
+		internal bool IsRawBytes { get; set; }
+		public override bool CanRead => true;
+		public override bool CanSeek => true;
+		public override bool CanWrite => true;
+		public override bool CanTimeout => false;
+		public override long Length => BytesWritten;
 
-		public static DataIOHandler Empty = new(64);
-		internal bool isRawBytes;
+		public override int ReadTimeout => 0;
+		public override int WriteTimeout => 0;
 
-		/// <summary>
-		/// Gets or sets a value indicating whether this instance is acknowledged.
-		/// Secure layer only.<br/>
-		/// </summary>
-		internal bool IsAcked
+		public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
 		{
-			get => isAcked;
-			set => isAcked = value;
+			return base.BeginRead(buffer, offset, count, callback, state);
 		}
 
-		/// <summary>
-		/// Used to re-send the packet if it is not acknowledged, or to send the packet again if it is not received.<br/>
-		/// Secure layer only.<br/>
-		/// </summary>
-		internal DateTime LastWriteTime => lastWriteTime;
-
-		/// <summary>
-		/// Gets or sets the current position in the data stream.
-		/// </summary>
-		public int Position
+		public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
 		{
-			get => position;
-			set => position = value;
+			return base.BeginWrite(buffer, offset, count, callback, state);
 		}
-
-		/// <summary>
-		/// The number of bytes written to the stream.
-		/// </summary>
-		public int BytesWritten => bytesWritten;
-
-		/// <summary>
-		/// Gets the number of bytes remaining to be read.
-		/// </summary>
-		public int BytesRemaining => bytesWritten - position;
 
 		/// <summary>
 		/// Gets the buffer used by the DataIOHandler.
@@ -82,11 +72,41 @@ namespace Omni.Core
 		public byte[] Buffer => buffer;
 
 		/// <summary>
-		/// A pool of DataIOHandler objects used to reduce memory allocation.<br/>
-		/// Memory allocation is very expensive and can cause performance issues, GC spikes and memory fragmentation.<br/>
+		/// Gets the number of bytes remaining to be read.
 		/// </summary>
-		internal static DataIOHandlerPool bsPool;
-		internal void SetLastWriteTime() => lastWriteTime = DateTime.UtcNow;
+		public int BytesRemaining => BytesWritten - FixedPosition;
+
+		/// <summary>
+		/// Gets or sets the position in the data stream. This property is used for compatibility 
+		/// and internally relies on the FixedPosition property.
+		/// </summary>
+		public override long Position
+		{
+			get => FixedPosition;
+			set => FixedPosition = (int)value;
+		}
+
+		/// <summary>
+		/// Gets or sets the position in the data stream.
+		/// </summary>
+		public int FixedPosition { get; set; }
+
+		/// <summary>
+		/// Gets the number of bytes written to the stream.
+		/// </summary>
+		public int BytesWritten { get; private set; }
+
+		/// <summary>
+		/// Gets or sets a value indicating whether this handler is acknowledged.
+		/// Secure layer only.<br/>
+		/// </summary>
+		internal bool IsAcked { get; set; }
+
+		/// <summary>
+		/// Used to re-send the packet if it is not acknowledged, or to send the packet again if it is not received.<br/>
+		/// Secure layer only.<br/>
+		/// </summary>
+		internal DateTime LastWriteTime { get; private set; }
 
 		/// <summary>
 		/// Handles input and output of data with a buffer of a specified size.
@@ -96,9 +116,219 @@ namespace Omni.Core
 		public DataIOHandler(int size, bool isPoolObject = false, Encoding encoding = null)
 		{
 			buffer = new byte[size]; // Never change the size of the buffer or buffer reference.
-			this.encoding = encoding ?? Encoding.ASCII; // if encoding is null, use ASCII encoding.
+			this.encoding = encoding ?? Encoding.ASCII;
 			this.isPoolObject = isPoolObject;
 		}
+
+		public byte InternalReadByte()
+		{
+			if (ThrowIfNotEnoughData(sizeof(byte)))
+			{
+				return buffer[FixedPosition++];
+			}
+			return 0;
+		}
+
+		public override int Read(byte[] buffer, int offset, int count)
+		{
+			int available = count - offset;
+			for (int i = 0; i < available; i++)
+			{
+				buffer[offset + i] = InternalReadByte();
+			}
+			return available;
+		}
+
+		/// <summary>
+		/// Reads a specified number of bytes from the input stream and writes them into an Span.
+		/// </summary>
+		/// <param name="value">The span to write the bytes into.</param>
+		public override int Read(Span<byte> value)
+		{
+			for (int i = 0; i < value.Length; i++)
+			{
+				value[i] = InternalReadByte();
+			}
+
+			return value.Length;
+		}
+
+		/// <summary>
+		/// Writes a span of bytes to the output stream.
+		/// </summary>
+		/// <param name="value">The span of bytes to write.</param>
+		public override void Write(ReadOnlySpan<byte> value)
+		{
+			for (int i = 0; i < value.Length; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
+		public override void Write(byte[] buffer, int offset, int count)
+		{
+			int available = count - offset;
+			for (int i = 0; i < available; i++)
+			{
+				Write(buffer[offset + i]);
+			}
+		}
+
+		public override long Seek(long offset, SeekOrigin origin)
+		{
+			switch (origin)
+			{
+				case SeekOrigin.Begin:
+					FixedPosition = (int)offset;
+					break;
+				case SeekOrigin.Current:
+					FixedPosition += (int)offset;
+					break;
+				case SeekOrigin.End:
+					FixedPosition = BytesWritten - (int)offset;
+					break;
+			}
+			return FixedPosition;
+		}
+
+		public override void SetLength(long value)
+		{
+			throw new NotImplementedException("The SetLength method is not implemented. The DataIOHandler is a fixed size buffer.");
+		}
+
+		public override void Flush()
+		{
+			Write();
+		}
+
+		private static void ThrowIfNotInitialized()
+		{
+			if (bsPool == null)
+			{
+				OmniLogger.PrintError("Error: Omni has not been initialized. Please ensure initialization before using it.");
+			}
+		}
+
+		/// <summary>
+		/// Encrypts the buffer using the specified key and returns the initialization vector (IV).
+		/// </summary>
+		/// <param name="key">The encryption key.</param>
+		/// <returns>The initialization vector (IV).</returns>
+		internal byte[] EncryptBuffer(byte[] key, int offset)
+		{
+			byte[] tmpBuffer = Aes.Encrypt(buffer, offset, BytesWritten - offset, key, out byte[] IV);
+			FixedPosition = BytesWritten = 0;
+			Write(tmpBuffer);
+			FixedPosition = 0;
+			return IV;
+		}
+
+		/// <summary>
+		/// Decrypts the buffer using the specified key and initialization vector (IV).
+		/// </summary>
+		/// <param name="key">The key used for decryption.</param>
+		/// <param name="IV">The initialization vector (IV) used for decryption.</param>
+		/// <param name="offset">The offset in the buffer where the decryption should start.</param>
+		internal void DecryptBuffer(byte[] key, byte[] IV, int offset)
+		{
+			byte[] tmpBuffer = Aes.Decrypt(buffer, offset, BytesWritten - offset, key, IV);
+			FixedPosition = BytesWritten = 0;
+			Write(tmpBuffer);
+			FixedPosition = 0;
+		}
+
+		/// <summary>
+		/// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
+		/// This method is not thread-safe.
+		/// </summary>
+		public static DataIOHandler Get(Encoding encoding = null)
+		{
+			ThrowIfNotInitialized();
+			DataIOHandler _get_ = bsPool.Get();
+			_get_.isRelease = false;
+			if (_get_.FixedPosition != 0 || _get_.BytesWritten != 0 || !_get_.isPoolObject)
+				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.FixedPosition} | BytesWritten: {_get_.BytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
+			else
+			{
+				_get_.SetEncoding(encoding);
+			}
+			return _get_;
+		}
+
+		/// <summary>
+		/// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
+		/// This method is not thread-safe.
+		/// </summary>
+		internal static DataIOHandler Get(MessageType msgType, Encoding encoding = null)
+		{
+			ThrowIfNotInitialized();
+			DataIOHandler _get_ = bsPool.Get();
+			_get_.isRelease = false;
+			if (_get_.FixedPosition != 0 || _get_.BytesWritten != 0 || !_get_.isPoolObject)
+				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.FixedPosition} | BytesWritten: {_get_.BytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
+			else
+			{
+				_get_.SetEncoding(encoding);
+				_get_.WritePacket(msgType);
+			}
+			return _get_;
+		}
+
+#pragma warning disable IDE0060
+		/// This method is not thread-safe.
+		internal static DataIOHandler Get(MessageType msgType, bool empty, Encoding encoding = null)
+#pragma warning restore IDE0060
+		{
+			ThrowIfNotInitialized();
+			DataIOHandler _get_ = bsPool.Get();
+			_get_.isRelease = false;
+			if (_get_.FixedPosition != 0 || _get_.BytesWritten != 0 || !_get_.isPoolObject)
+				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.FixedPosition} | BytesWritten: {_get_.BytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
+			else
+			{
+				_get_.SetEncoding(encoding);
+				_get_.WritePacket(msgType);
+				_get_.Write((byte)0x1);
+			}
+			return _get_;
+		}
+
+		/// <summary>
+		/// Sets the encoding used for data input/output.
+		/// If the encoding is null, ASCII encoding will be used.
+		/// </summary>
+		/// <param name="encoding">The encoding to be set.</param>
+		private void SetEncoding(Encoding encoding)
+		{
+			this.encoding = encoding ?? Encoding.ASCII;
+		}
+
+		bool isRelease = false;
+		internal void Release()
+		{
+			if (isPoolObject)
+			{
+				if (isRelease)
+				{
+					OmniLogger.PrintError("Error: The IOHandler has already been released and cannot be released again.");
+				}
+				else
+				{
+					isRelease = true;
+					bsPool.Release(this);
+				}
+			}
+			else
+			{
+				Write();
+			}
+		}
+	}
+
+	// Partial class: Implements writing methods!
+	public partial class DataIOHandler
+	{
+		internal void SetLastWriteTime() => LastWriteTime = DateTime.UtcNow;
 
 		/// <summary>
 		/// Resets the DataIOHandler for reuse.
@@ -106,9 +336,9 @@ namespace Omni.Core
 		/// </summary>
 		public void Write()
 		{
-			isRawBytes = false;
-			position = 0;
-			bytesWritten = 0;
+			IsRawBytes = false;
+			FixedPosition = 0;
+			BytesWritten = 0;
 		}
 
 		/// <summary>
@@ -119,8 +349,8 @@ namespace Omni.Core
 		{
 			if (ThrowIfNotEnoughSpace(sizeof(byte)))
 			{
-				buffer[position++] = value;
-				bytesWritten += sizeof(byte);
+				buffer[FixedPosition++] = value;
+				BytesWritten += sizeof(byte);
 			}
 		}
 
@@ -152,7 +382,7 @@ namespace Omni.Core
 		{
 			Write();
 			Write(buffer, 0, size);
-			Position = 0;
+			FixedPosition = 0;
 		}
 
 		/// <summary>
@@ -243,15 +473,16 @@ namespace Omni.Core
 
 		internal void WritePacket(MessageType value)
 		{
-			if (position != 0 || bytesWritten != 0)
+			if (FixedPosition != 0 || BytesWritten != 0)
 			{
-				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {position} | BytesWritten: {bytesWritten}");
+				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {FixedPosition} | BytesWritten: {BytesWritten}");
 			}
 			else
 			{
 				Write((byte)value);
 			}
 		}
+
 
 		/// <summary>
 		/// Writes a Vector3 to the data stream.
@@ -483,18 +714,6 @@ namespace Omni.Core
 		}
 
 		/// <summary>
-		/// Writes a span of bytes to the output stream.
-		/// </summary>
-		/// <param name="value">The span of bytes to write.</param>
-		public void Write(ReadOnlySpan<byte> value)
-		{
-			for (int i = 0; i < value.Length; i++)
-			{
-				Write(value[i]);
-			}
-		}
-
-		/// <summary>
 		/// Writes the specified bytes to the stream.
 		/// </summary>
 		/// <param name="value">The bytes to write.</param>
@@ -519,27 +738,12 @@ namespace Omni.Core
 		}
 
 		/// <summary>
-		/// Writes a portion of a byte array to the underlying stream.
-		/// </summary>
-		/// <param name="value">The byte array containing the data to write.</param>
-		/// <param name="offset">The zero-based byte offset in value at which to begin copying bytes to the stream.</param>
-		/// <param name="size">The number of bytes to be written to the stream.</param>
-		public void Write(byte[] value, int offset, int size)
-		{
-			int available = size - offset;
-			for (int i = 0; i < available; i++)
-			{
-				Write(value[offset + i]);
-			}
-		}
-
-		/// <summary>
 		/// Writes the data from the IOHandler buffer to the output stream.
 		/// </summary>
 		/// <param name="IOHandler">The IOHandler containing the data to be written.</param>
 		public void Write(DataIOHandler IOHandler)
 		{
-			Write(IOHandler.buffer, 0, IOHandler.bytesWritten);
+			Write(IOHandler.buffer, 0, IOHandler.BytesWritten);
 		}
 
 		/// <summary>
@@ -548,7 +752,7 @@ namespace Omni.Core
 		/// <param name="IOHandler">The IOHandler to copy the remaining bytes from.</param>
 		public void WriteRemainingBytes(DataIOHandler IOHandler)
 		{
-			Write(IOHandler, IOHandler.position, IOHandler.bytesWritten);
+			Write(IOHandler, IOHandler.FixedPosition, IOHandler.BytesWritten);
 		}
 
 		/// <summary>
@@ -575,12 +779,21 @@ namespace Omni.Core
 			}
 		}
 
-		/// <summary>
-		/// Reads a byte from the buffer.
-		/// </summary>
-		/// <returns>The byte read from the buffer.</returns>
-		public byte ReadByte() => ThrowIfNotEnoughData(sizeof(byte)) ? buffer[position++] : default;
+		private bool ThrowIfNotEnoughSpace(int size)
+		{
+			if (FixedPosition + size > buffer.Length)
+			{
+				OmniLogger.PrintError($"IOHandler: Insufficient space to write {size} bytes. Current position: {FixedPosition}, requested position: {FixedPosition + size}");
+				return false;
+			}
 
+			return true;
+		}
+	}
+
+	// Partial class: Implements reading methods!
+	public partial class DataIOHandler
+	{
 		/// <summary>
 		/// Reads the payload and extracts the delivery mode, target, processing option and caching option.
 		/// </summary>
@@ -590,7 +803,7 @@ namespace Omni.Core
 		/// <param name="cachingOption">The caching option of the payload.</param>
 		internal void ReadPayload(out DataDeliveryMode deliveryMode, out DataTarget target, out DataProcessingOption processingOption, out DataCachingOption cachingOption)
 		{
-			byte payload = ReadByte();
+			byte payload = InternalReadByte();
 			deliveryMode = (DataDeliveryMode)(payload & 0b11);
 			target = (DataTarget)((payload >> 2) & 0b11);
 			processingOption = (DataProcessingOption)((payload >> 4) & 0b1);
@@ -599,14 +812,14 @@ namespace Omni.Core
 
 		internal MessageType ReadPacket()
 		{
-			return (MessageType)ReadByte();
+			return (MessageType)InternalReadByte();
 		}
 
 		/// <summary>
 		/// Reads a boolean value from the input stream.
 		/// </summary>
 		/// <returns>The boolean value read from the input stream.</returns>
-		public bool ReadBool() => ReadByte() == 1;
+		public bool ReadBool() => InternalReadByte() == 1;
 		/// <summary>
 		/// Reads two boolean values from the stream.
 		/// </summary>
@@ -614,7 +827,7 @@ namespace Omni.Core
 		/// <param name="v2">The second boolean value read from the stream.</param>
 		public void ReadBool(out bool v1, out bool v2)
 		{
-			byte pByte = ReadByte();
+			byte pByte = InternalReadByte();
 			v1 = (pByte & 0b1) == 1;
 			v2 = ((pByte >> 1) & 0b1) == 1;
 		}
@@ -627,7 +840,7 @@ namespace Omni.Core
 		/// <param name="v3">The third boolean value read from the input stream.</param>
 		public void ReadBool(out bool v1, out bool v2, out bool v3)
 		{
-			byte pByte = ReadByte();
+			byte pByte = InternalReadByte();
 			v1 = (pByte & 0b1) == 1;
 			v2 = ((pByte >> 1) & 0b1) == 1;
 			v3 = ((pByte >> 2) & 0b1) == 1;
@@ -642,7 +855,7 @@ namespace Omni.Core
 		/// <param name="v4">The fourth boolean value read from the input stream.</param>
 		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4)
 		{
-			byte pByte = ReadByte();
+			byte pByte = InternalReadByte();
 			v1 = (pByte & 0b1) == 1;
 			v2 = ((pByte >> 1) & 0b1) == 1;
 			v3 = ((pByte >> 2) & 0b1) == 1;
@@ -659,7 +872,7 @@ namespace Omni.Core
 		/// <param name="v5">The fifth boolean value.</param>
 		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5)
 		{
-			byte pByte = ReadByte();
+			byte pByte = InternalReadByte();
 			v1 = (pByte & 0b1) == 1;
 			v2 = ((pByte >> 1) & 0b1) == 1;
 			v3 = ((pByte >> 2) & 0b1) == 1;
@@ -678,7 +891,7 @@ namespace Omni.Core
 		/// <param name="v6">The sixth boolean value.</param>
 		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5, out bool v6)
 		{
-			byte pByte = ReadByte();
+			byte pByte = InternalReadByte();
 			v1 = (pByte & 0b1) == 1;
 			v2 = ((pByte >> 1) & 0b1) == 1;
 			v3 = ((pByte >> 2) & 0b1) == 1;
@@ -699,7 +912,7 @@ namespace Omni.Core
 		/// <param name="v7">The seventh boolean value.</param>
 		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5, out bool v6, out bool v7)
 		{
-			byte pByte = ReadByte();
+			byte pByte = InternalReadByte();
 			v1 = (pByte & 0b1) == 1;
 			v2 = ((pByte >> 1) & 0b1) == 1;
 			v3 = ((pByte >> 2) & 0b1) == 1;
@@ -722,7 +935,7 @@ namespace Omni.Core
 		/// <param name="v8">The eighth boolean value.</param>
 		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5, out bool v6, out bool v7, out bool v8)
 		{
-			byte pByte = ReadByte();
+			byte pByte = InternalReadByte();
 			v1 = (pByte & 0b1) == 1;
 			v2 = ((pByte >> 1) & 0b1) == 1;
 			v3 = ((pByte >> 2) & 0b1) == 1;
@@ -752,7 +965,7 @@ namespace Omni.Core
 					throw new FormatException("Format_Bad7BitInt32");
 
 				// ReadByte handles end of stream cases for us.
-				b = ReadByte();
+				b = InternalReadByte();
 				count |= (b & 0x7F) << shift;
 				shift += 7;
 			} while ((b & 0x80) != 0);
@@ -814,10 +1027,10 @@ namespace Omni.Core
 		/// <returns>The Color value read from the data stream.</returns>
 		public Color ReadColor32()
 		{
-			byte r = ReadByte();
-			byte g = ReadByte();
-			byte b = ReadByte();
-			byte a = ReadByte();
+			byte r = InternalReadByte();
+			byte g = InternalReadByte();
+			byte b = InternalReadByte();
+			byte a = InternalReadByte();
 			return new Color32(r, g, b, a);
 		}
 
@@ -854,10 +1067,10 @@ namespace Omni.Core
 		/// <returns>The integer value read from the data stream.</returns>
 		public int ReadInt()
 		{
-			int value = ReadByte();
-			value |= ReadByte() << 8;
-			value |= ReadByte() << 16;
-			value |= ReadByte() << 24;
+			int value = InternalReadByte();
+			value |= InternalReadByte() << 8;
+			value |= InternalReadByte() << 16;
+			value |= InternalReadByte() << 24;
 			return value;
 		}
 
@@ -867,10 +1080,10 @@ namespace Omni.Core
 		/// <returns>The unsigned integer read from the data stream.</returns>
 		public uint ReadUInt()
 		{
-			uint value = ReadByte();
-			value |= (uint)(ReadByte() << 8);
-			value |= (uint)(ReadByte() << 16);
-			value |= (uint)(ReadByte() << 24);
+			uint value = InternalReadByte();
+			value |= (uint)(InternalReadByte() << 8);
+			value |= (uint)(InternalReadByte() << 16);
+			value |= (uint)(InternalReadByte() << 24);
 			return value;
 		}
 
@@ -880,8 +1093,8 @@ namespace Omni.Core
 		/// <returns>The short value read from the input stream.</returns>
 		public short ReadShort()
 		{
-			short value = ReadByte();
-			value |= (short)(ReadByte() << 8);
+			short value = InternalReadByte();
+			value |= (short)(InternalReadByte() << 8);
 			return value;
 		}
 
@@ -891,8 +1104,8 @@ namespace Omni.Core
 		/// <returns>The unsigned short value read from the data stream.</returns>
 		public ushort ReadUShort()
 		{
-			ushort value = ReadByte();
-			value |= (ushort)(ReadByte() << 8);
+			ushort value = InternalReadByte();
+			value |= (ushort)(InternalReadByte() << 8);
 			return value;
 		}
 
@@ -902,11 +1115,11 @@ namespace Omni.Core
 		/// <returns>The double-precision floating-point number.</returns>
 		public unsafe double ReadDouble()
 		{
-			uint lo = (uint)(ReadByte() | ReadByte() << 8 |
-			   ReadByte() << 16 | ReadByte() << 24);
+			uint lo = (uint)(InternalReadByte() | InternalReadByte() << 8 |
+			   InternalReadByte() << 16 | InternalReadByte() << 24);
 
-			uint hi = (uint)(ReadByte() | ReadByte() << 8 |
-			   ReadByte() << 16 | ReadByte() << 24);
+			uint hi = (uint)(InternalReadByte() | InternalReadByte() << 8 |
+			   InternalReadByte() << 16 | InternalReadByte() << 24);
 
 			ulong tmpBuffer = ((ulong)hi) << 32 | lo;
 			return *(double*)&tmpBuffer;
@@ -918,10 +1131,10 @@ namespace Omni.Core
 		/// <returns>The float value read from the input stream.</returns>
 		public unsafe float ReadFloat()
 		{
-			uint tmpBuffer = ReadByte();
-			tmpBuffer |= (uint)(ReadByte() << 8);
-			tmpBuffer |= (uint)(ReadByte() << 16);
-			tmpBuffer |= (uint)(ReadByte() << 24);
+			uint tmpBuffer = InternalReadByte();
+			tmpBuffer |= (uint)(InternalReadByte() << 8);
+			tmpBuffer |= (uint)(InternalReadByte() << 16);
+			tmpBuffer |= (uint)(InternalReadByte() << 24);
 			return *(float*)&tmpBuffer;
 		}
 
@@ -931,14 +1144,14 @@ namespace Omni.Core
 		/// <returns>The long value read from the input stream.</returns>
 		public long ReadLong()
 		{
-			long value = ReadByte();
-			value |= (long)(ReadByte() << 8);
-			value |= (long)(ReadByte() << 16);
-			value |= (long)(ReadByte() << 24);
-			value |= (long)(ReadByte() << 32);
-			value |= (long)(ReadByte() << 40);
-			value |= (long)(ReadByte() << 48);
-			value |= (long)(ReadByte() << 56);
+			long value = InternalReadByte();
+			value |= (long)(InternalReadByte() << 8);
+			value |= (long)(InternalReadByte() << 16);
+			value |= (long)(InternalReadByte() << 24);
+			value |= (long)(InternalReadByte() << 32);
+			value |= (long)(InternalReadByte() << 40);
+			value |= (long)(InternalReadByte() << 48);
+			value |= (long)(InternalReadByte() << 56);
 			return value;
 		}
 
@@ -969,34 +1182,6 @@ namespace Omni.Core
 			return encoding.GetString(encoded);
 		}
 
-		/// <summary>
-		/// Reads a specified number of bytes from the input stream and writes them into an array at a specified offset.
-		/// </summary>
-		/// <param name="value">The array to write the bytes into.</param>
-		/// <param name="offset">The offset in the array at which to begin writing.</param>
-		/// <param name="size">The number of bytes to read.</param>
-		public void Read(byte[] value, int offset, int size)
-		{
-			int available = size - offset;
-			for (int i = 0; i < available; i++)
-			{
-				value[offset + i] = ReadByte();
-			}
-		}
-
-
-		/// <summary>
-		/// Reads a specified number of bytes from the input stream and writes them into an Span.
-		/// </summary>
-		/// <param name="value">The span to write the bytes into.</param>
-		public void Read(Span<byte> value)
-		{
-			for (int i = 0; i < value.Length; i++)
-			{
-				value[i] = ReadByte();
-			}
-		}
-
 		#region Slice Memory
 		/// <summary>
 		/// Reads the buffer as a read-only memory.
@@ -1005,7 +1190,7 @@ namespace Omni.Core
 		public ReadOnlyMemory<byte> ReadAsReadOnlyMemory()
 		{
 			ReadOnlyMemory<byte> _ = buffer;
-			return _[position..bytesWritten];
+			return _[FixedPosition..BytesWritten];
 		}
 
 		/// <summary>
@@ -1028,7 +1213,7 @@ namespace Omni.Core
 		public ReadOnlyMemory<byte> ReadAsReadOnlyMemory(int size)
 		{
 			ReadOnlyMemory<byte> _ = buffer;
-			return _[position..size];
+			return _[FixedPosition..size];
 		}
 
 		/// <summary>
@@ -1038,7 +1223,7 @@ namespace Omni.Core
 		public ReadOnlySpan<byte> ReadAsReadOnlySpan()
 		{
 			ReadOnlySpan<byte> _ = buffer;
-			return _[position..bytesWritten];
+			return _[FixedPosition..BytesWritten];
 		}
 
 		/// <summary>
@@ -1061,7 +1246,7 @@ namespace Omni.Core
 		public ReadOnlySpan<byte> ReadAsReadOnlySpan(int size)
 		{
 			ReadOnlySpan<byte> _ = buffer;
-			return _[position..size];
+			return _[FixedPosition..size];
 		}
 
 		/// <summary>
@@ -1071,7 +1256,7 @@ namespace Omni.Core
 		public Memory<byte> ReadAsMemory()
 		{
 			Memory<byte> _ = buffer;
-			return _[position..bytesWritten];
+			return _[FixedPosition..BytesWritten];
 		}
 
 		/// <summary>
@@ -1094,7 +1279,7 @@ namespace Omni.Core
 		public Memory<byte> ReadAsMemory(int size)
 		{
 			Memory<byte> _ = buffer;
-			return _[position..size];
+			return _[FixedPosition..size];
 		}
 
 		/// <summary>
@@ -1104,7 +1289,7 @@ namespace Omni.Core
 		public Span<byte> ReadAsSpan()
 		{
 			Span<byte> _ = buffer;
-			return _[position..bytesWritten];
+			return _[FixedPosition..BytesWritten];
 		}
 
 		/// <summary>
@@ -1127,7 +1312,7 @@ namespace Omni.Core
 		public Span<byte> ReadAsSpan(int size)
 		{
 			Span<byte> _ = buffer;
-			return _[position..size];
+			return _[FixedPosition..size];
 		}
 		#endregion
 
@@ -1140,155 +1325,21 @@ namespace Omni.Core
 			byte[] nBits = new byte[Read7BitEncodedInt()];
 			for (int i = 0; i < nBits.Length; i++)
 			{
-				nBits[i] = ReadByte();
+				nBits[i] = InternalReadByte();
 			}
 			return nBits;
 		}
 
-		/// <summary>
-		/// Encrypts the buffer using the specified key and returns the initialization vector (IV).
-		/// </summary>
-		/// <param name="key">The encryption key.</param>
-		/// <returns>The initialization vector (IV).</returns>
-		internal byte[] EncryptBuffer(byte[] key, int offset)
-		{
-			byte[] tmpBuffer = Aes.Encrypt(buffer, offset, bytesWritten - offset, key, out byte[] IV);
-			position = bytesWritten = 0;
-			Write(tmpBuffer);
-			position = 0;
-			return IV;
-		}
-
-		/// <summary>
-		/// Decrypts the buffer using the specified key and initialization vector (IV).
-		/// </summary>
-		/// <param name="key">The key used for decryption.</param>
-		/// <param name="IV">The initialization vector (IV) used for decryption.</param>
-		/// <param name="offset">The offset in the buffer where the decryption should start.</param>
-		internal void DecryptBuffer(byte[] key, byte[] IV, int offset)
-		{
-			byte[] tmpBuffer = Aes.Decrypt(buffer, offset, bytesWritten - offset, key, IV);
-			position = bytesWritten = 0;
-			Write(tmpBuffer);
-			position = 0;
-		}
-
-		private bool ThrowIfNotEnoughSpace(int size)
-		{
-			if (position + size > buffer.Length)
-			{
-				OmniLogger.PrintError($"IOHandler: Insufficient space to write {size} bytes. Current position: {position}, requested position: {position + size}");
-				return false;
-			}
-
-			return true;
-		}
-
 		private bool ThrowIfNotEnoughData(int size)
 		{
-			if (position + size > bytesWritten)
+			if (FixedPosition + size > BytesWritten)
 			{
-				OmniLogger.PrintError($"IOHandler: Not enough data to read. Requested: {size} bytes, available: {bytesWritten - position} bytes, current position: {position}");
+				OmniLogger.PrintError($"IOHandler: Not enough data to read. Requested: {size} bytes, available: {BytesWritten - FixedPosition} bytes, current position: {FixedPosition}");
 				OmniLogger.PrintError("Possible Error: Double event not registered for the same IOHandler? Possible double data read.");
 				return false;
 			}
 
 			return true;
-		}
-
-		private static void ThrowIfNotInitialized()
-		{
-			if (bsPool == null)
-			{
-				OmniLogger.PrintError("Error: Omni has not been initialized. Please ensure initialization before using it.");
-			}
-		}
-
-		/// <summary>
-		/// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
-		/// This method is not thread-safe.
-		/// </summary>
-		public static DataIOHandler Get(Encoding encoding = null)
-		{
-			ThrowIfNotInitialized();
-			DataIOHandler _get_ = bsPool.Get();
-			_get_.isRelease = false;
-			if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
-			else
-			{
-				_get_.SetEncoding(encoding);
-			}
-			return _get_;
-		}
-
-		/// <summary>
-		/// Provides a way to obtain a <see cref="DataIOHandler"/> object from the pool.
-		/// This method is not thread-safe.
-		/// </summary>
-		internal static DataIOHandler Get(MessageType msgType, Encoding encoding = null)
-		{
-			ThrowIfNotInitialized();
-			DataIOHandler _get_ = bsPool.Get();
-			_get_.isRelease = false;
-			if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
-			else
-			{
-				_get_.SetEncoding(encoding);
-				_get_.WritePacket(msgType);
-			}
-			return _get_;
-		}
-
-#pragma warning disable IDE0060
-		/// This method is not thread-safe.
-		internal static DataIOHandler Get(MessageType msgType, bool empty, Encoding encoding = null)
-#pragma warning restore IDE0060
-		{
-			ThrowIfNotInitialized();
-			DataIOHandler _get_ = bsPool.Get();
-			_get_.isRelease = false;
-			if (_get_.position != 0 || _get_.bytesWritten != 0 || !_get_.isPoolObject)
-				OmniLogger.PrintError($"The IOHandler is not empty -> Position: {_get_.position} | BytesWritten: {_get_.bytesWritten}. Maybe you are modifying a IOHandler that is being used by another thread? or are you using a IOHandler that has already been released?");
-			else
-			{
-				_get_.SetEncoding(encoding);
-				_get_.WritePacket(msgType);
-				_get_.Write((byte)0x1);
-			}
-			return _get_;
-		}
-
-		/// <summary>
-		/// Sets the encoding used for data input/output.
-		/// If the encoding is null, ASCII encoding will be used.
-		/// </summary>
-		/// <param name="encoding">The encoding to be set.</param>
-		private void SetEncoding(Encoding encoding)
-		{
-			this.encoding = encoding ?? Encoding.ASCII;
-		}
-
-		bool isRelease = false;
-		internal void Release()
-		{
-			if (isPoolObject)
-			{
-				if (isRelease)
-				{
-					OmniLogger.PrintError("Error: The IOHandler has already been released and cannot be released again.");
-				}
-				else
-				{
-					isRelease = true;
-					bsPool.Release(this);
-				}
-			}
-			else
-			{
-				Write();
-			}
 		}
 	}
 }
