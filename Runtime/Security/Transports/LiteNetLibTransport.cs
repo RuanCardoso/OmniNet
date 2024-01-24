@@ -1,0 +1,287 @@
+/*===========================================================
+    Author: Ruan Cardoso
+    -
+    Country: Brazil(Brasil)
+    -
+    Contact: cardoso.ruan050322@gmail.com
+    -
+    Support: neutron050322@gmail.com
+    -
+    Unity Minor Version: 2021.3 LTS
+    -
+    License: Open Source (MIT)
+    ===========================================================*/
+
+#pragma warning disable
+
+using LiteNetLib;
+using LiteNetLib.Utils;
+using Omni.Core;
+using Omni.Internal.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Omni.Internal.Transport
+{
+	internal class LiteNetLibTransport : ITransport, ITransportClient<LiteTransportClient<NetPeer>>
+	{
+		private EventBasedNetListener listener = new EventBasedNetListener();
+		private NetManager netManager;
+
+		public CancellationTokenSource CancellationTokenSource { get; } = new();
+		public Dictionary<EndPoint, LiteTransportClient<NetPeer>> PeerList { get; } = new();
+
+		private TransportSettings TransportSettings { get; set; }
+		private bool IsServer { get; set; }
+		public LiteTransportClient<NetPeer> LocalTransportClient { get; set; }
+
+		public bool IsConnected { get; private set; }
+		public bool IsInitialized { get; private set; }
+
+		public ulong TotalMessagesSent => (ulong)netManager.Statistics.PacketsSent;
+		public ulong TotalMessagesReceived => (ulong)netManager.Statistics.PacketsReceived;
+		public ulong TotalBytesSent => (ulong)netManager.Statistics.BytesSent;
+		public ulong TotalBytesReceived => (ulong)netManager.Statistics.BytesReceived;
+		public ulong PacketLossPercent => 0;
+
+		public Dictionary<EndPoint, TcpTransportClient<Socket>> TcpPeerList => throw new NotImplementedException();
+		public Dictionary<EndPoint, LiteTransportClient<NetPeer>> LitePeerList => PeerList;
+
+		public TcpTransportClient<Socket> TcpClient => throw new NotImplementedException();
+		public LiteTransportClient<NetPeer> LiteClient => LocalTransportClient;
+
+		public Stopwatch Stopwatch { get; } = new();
+
+		public event Action<bool, NetworkPlayer> OnClientConnected;
+		public event Action<bool, NetworkPlayer> OnClientDisconnected;
+		public event Action<bool, byte[], int, NetworkPlayer> OnMessageReceived;
+
+		public void InitializeTransport(bool isServer, EndPoint endPoint, TransportSettings transportSettings)
+		{
+			IPEndPoint iPEndPoint = (IPEndPoint)endPoint;
+			netManager = new NetManager(listener);
+			// Set Settings
+			netManager.AutoRecycle = true;
+			netManager.UseNativeSockets = transportSettings.UseNativeSockets;
+			netManager.BroadcastReceiveEnabled = transportSettings.BroadcastReceiveEnabled;
+			netManager.DisconnectTimeout = transportSettings.DisconnectTimeout;
+			netManager.EnableStatistics = true;
+			netManager.IPv6Enabled = transportSettings.IPv6Enabled;
+			netManager.MaxConnectAttempts = 10;
+			netManager.MaxPacketsReceivePerUpdate = 0;
+			netManager.NatPunchEnabled = transportSettings.NatPunchEnabled;
+			netManager.PacketPoolSize = transportSettings.PacketPoolSize;
+			netManager.PingInterval = transportSettings.PingInterval;
+			netManager.ReconnectDelay = 500;
+			netManager.ReuseAddress = false;
+			netManager.UseSafeMtu = transportSettings.UseSafeMtu;
+			TransportSettings = transportSettings;
+			// End Settings
+			netManager.Start(iPEndPoint.Address, IPAddress.IPv6Any, iPEndPoint.Port, false);
+			// TTL
+			netManager.Ttl = transportSettings.Ttl;
+			// TTL
+			IsServer = isServer;
+			if (isServer)
+			{
+				Stopwatch.Start();
+				listener.ConnectionRequestEvent += request =>
+				{
+					if (netManager.ConnectedPeersCount < transportSettings.MaxConnections)
+					{
+						request.AcceptIfKey("OmniNet");
+					}
+					else
+					{
+						request.Reject();
+					}
+				};
+
+				listener.PeerConnectedEvent += peer =>
+				{
+					LiteTransportClient<NetPeer> transportClient = new LiteTransportClient<NetPeer>(peer, peer);
+					if (PeerList.TryAdd(peer, transportClient))
+					{
+						OnClientConnected?.Invoke(isServer, transportClient.NetworkPlayer);
+					}
+					else
+					{
+						OmniLogger.PrintError("The client is already connected!");
+					}
+				};
+			}
+
+			listener.NetworkReceiveEvent += (peer, dataReader, deliveryMethod, channel) =>
+			{
+				byte[] remainingBytes = dataReader.GetRemainingBytes();
+				if (isServer)
+				{
+					if (PeerList.TryGetValue(peer, out LiteTransportClient<NetPeer> transportClient))
+					{
+						OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, transportClient.NetworkPlayer);
+					}
+					else
+					{
+						OmniLogger.PrintError("Transport Receive Event: The client is not connected!");
+					}
+				}
+				else
+				{
+					OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, LocalTransportClient.NetworkPlayer);
+				}
+			};
+
+			listener.PeerDisconnectedEvent += (peer, info) =>
+			{
+				Disconnect(peer);
+			};
+
+			IsInitialized = true;
+		}
+
+		private async void WaitForOutgoing(EndPoint endPoint, NetPeer peer)
+		{
+			while (!IsConnected)
+			{
+				if (peer.ConnectionState == ConnectionState.Connected)
+				{
+					IsConnected = true;
+					Stopwatch.Start();
+					OnClientConnected?.Invoke(IsServer, LocalTransportClient.NetworkPlayer);
+				}
+
+				// wait to exit the outgoing state!
+				await Task.Delay(100);
+			}
+		}
+
+		public void Connect(EndPoint endPoint)
+		{
+			if (!IsServer)
+			{
+				NetPeer peer = netManager.Connect((IPEndPoint)endPoint, "OmniNet");
+				LocalTransportClient = new LiteTransportClient<NetPeer>(peer, endPoint);
+				WaitForOutgoing(endPoint, peer);
+			}
+		}
+
+		public async void ConnectAsync(EndPoint endPoint)
+		{
+			if (!IsServer)
+			{
+				await Task.Run(() =>
+				{
+					Connect(endPoint);
+				});
+			}
+		}
+
+		public void Disconnect(EndPoint endPoint)
+		{
+			if (IsServer)
+			{
+				if (PeerList.Remove(endPoint, out LiteTransportClient<NetPeer> transportClient))
+				{
+					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPlayer);
+					NetPeer peer = transportClient.Peer;
+					peer.Disconnect();
+				}
+			}
+			else
+			{
+				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPlayer);
+				NetPeer peer = LocalTransportClient.Peer;
+				peer.Disconnect();
+			}
+		}
+
+		public void Receive()
+		{
+			netManager.PollEvents();
+		}
+
+		public void Receive(Socket socket)
+		{
+			throw new NotImplementedException();
+		}
+
+		private bool ValidateSend(byte[] data, int length)
+		{
+			if (data != null && length <= 0)
+			{
+				OmniLogger.PrintError("The size parameter cannot be zero.");
+				return false;
+			}
+
+			if (length > TransportSettings.MaxMessageSize)
+			{
+				OmniLogger.PrintError("The size parameter cannot be greater than MaxMessageSize.");
+				return false;
+			}
+
+			if (data.Length < length)
+			{
+				OmniLogger.PrintError("You are trying to send more data than is available in the buffer.");
+				return false;
+			}
+
+			return true;
+		}
+
+		public void SendToClient(byte[] buffer, int size, EndPoint endPoint)
+		{
+			if (IsServer)
+			{
+				if (ValidateSend(buffer, size))
+				{
+					if (PeerList.TryGetValue(endPoint, out LiteTransportClient<NetPeer> transportClient))
+					{
+						NetPeer peer = transportClient.Peer;
+						peer.Send(buffer, 0, size, DeliveryMethod.Unreliable);
+					}
+					else
+					{
+						OmniLogger.PrintError("TCP Error: Failed to perform operation because the client is not connected to the server.");
+					}
+				}
+			}
+			else
+			{
+				OmniLogger.PrintError($"This transport is not valid for this operation! Use {nameof(SendToServer)}");
+			}
+		}
+
+		public void SendToServer(byte[] buffer, int size)
+		{
+			if (!IsServer)
+			{
+				if (ValidateSend(buffer, size))
+				{
+					NetPeer peer = LocalTransportClient.Peer;
+					if (peer.ConnectionState == ConnectionState.Connected)
+					{
+						peer.Send(buffer, 0, size, DeliveryMethod.Unreliable);
+					}
+					else
+					{
+						OmniLogger.PrintError($"This transport is not valid for this operation! because it is not connected.");
+					}
+				}
+			}
+			else
+			{
+				OmniLogger.PrintError($"This transport is not valid for this operation! Use {nameof(SendToClient)}");
+			}
+		}
+
+		public void Close()
+		{
+			netManager.Stop();
+		}
+	}
+}

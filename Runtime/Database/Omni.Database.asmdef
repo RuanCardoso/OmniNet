@@ -1,0 +1,17 @@
+{
+    "name": "Omni.Database",
+    "rootNamespace": "",
+    "references": [
+        "GUID:cc7f614e490fe80469ce93f7345a3de2",
+        "GUID:7aa63cdbf8dbc9d4a884da84a461b489"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

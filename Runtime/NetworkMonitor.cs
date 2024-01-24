@@ -1,127 +1,224 @@
-using System.Collections;
+/*===========================================================
+    Author: Ruan Cardoso
+    -
+    Country: Brazil(Brasil)
+    -
+    Contact: cardoso.ruan050322@gmail.com
+    -
+    Support: neutron050322@gmail.com
+    -
+    Unity Minor Version: 2021.3 LTS
+    -
+    License: Open Source (MIT)
+    ===========================================================*/
+
+using Omni.Core;
+using Omni.Internal.Interfaces;
+using System;
 using UnityEngine;
-using static Omni.Core.Enums;
 
 #pragma warning disable
 
-namespace Omni.Core
+namespace Omni.Internal
 {
-    public class NetworkMonitor : MonoBehaviour
-    {
-        [SerializeField] private SizeUnits sizeUnit = SizeUnits.Byte;
-        [SerializeField][Range(1, 50)] private int fontSize = 12;
+	public class NetworkMonitor : MonoBehaviour
+	{
+		private class NetworkInfor
+		{
+			private Func<double, double, string> Format { get; }
+			private Func<double, double> PropertyCurrentValue { get; }
+			private double PropertyTx { get; set; }
+			private double PropertyLastValue { get; set; }
+			private double PropertySinceLastCheck { get; set; }
+			private double PropertyDeltaTime { get; set; }
 
-        private ulong bytesSent;
-        private ulong bytesReceived;
-        private ulong packetsSent;
-        private ulong packetsReceived;
-        private ulong packetsDuplicated;
-        private ulong packetsOutOfOrder;
-        private ulong packetsRetransmitted;
+			internal NetworkInfor(Func<double, double> propertyCurrentValue, Func<double, double, string> format)
+			{
+				PropertyCurrentValue = propertyCurrentValue;
+				Format = format;
+			}
 
-        private GUIStyle titleStyle;
-        private GUIStyle labelStyle;
+			internal void Update()
+			{
+				PropertyDeltaTime += Time.deltaTime;
+				PropertySinceLastCheck = PropertyCurrentValue(PropertyLastValue) - PropertyLastValue;
 
-        internal static ulong BytesSent { get; set; }
-        internal static ulong BytesReceived { get; set; }
-        internal static ulong PacketsSent { get; set; }
-        internal static ulong PacketsReceived { get; set; }
-        internal static ulong PacketsDuplicated { get; set; }
-        internal static ulong PacketsOutOfOrder { get; set; }
-        internal static ulong PacketsRetransmitted { get; set; }
-        internal static ulong PacketsLost { get; set; }
+				if (PropertyDeltaTime >= 1)
+				{
+					PropertyLastValue = PropertyCurrentValue(PropertyLastValue);
+					PropertyTx = PropertySinceLastCheck / PropertyDeltaTime;
 
-        private void Start()
-        {
-            StartCoroutine(Flush());
-        }
+					// Reinicia as variáveis para a próxima verificação
+					PropertySinceLastCheck = 0;
+					PropertyDeltaTime = 0;
+				}
+			}
+
+			public override string ToString()
+			{
+				double propertyCurrentValue = PropertyCurrentValue(PropertyLastValue);
+				return string.Format(Format(propertyCurrentValue, PropertyTx), propertyCurrentValue, PropertyTx);
+			}
+		}
+
+		private static ITransport ServerTransport => OmniNetwork.Omni.ServerTransport;
+		private static ITransport ClientTransport => OmniNetwork.Omni.ClientTransport;
+
+		[SerializeField] private bool isEnabled = true;
+		[SerializeField][Range(1, 50)] private int fontSize = 18;
+		[SerializeField] private Vector2 minSizePercentage = new Vector2(0.28f, 0.25f);
+
+		private NetworkInfor[] clientProperties = new NetworkInfor[]
+		{
+			new NetworkInfor((lastValue) => ClientTransport.TotalMessagesSent, (value, tx) => "Total Messages Sent: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ClientTransport.TotalMessagesReceived, (value, tx) => "Total Messages Received: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ClientTransport.TotalBytesSent, (value, tx) => "Total Bytes Sent: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ClientTransport.TotalBytesReceived, (value, tx) => "Total Bytes Received: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ClientTransport.PacketLossPercent, (value, tx) => "Packet Loss: {0}%"),
+			//new NetworkInfor((lastValue) => 0, (value, tx) => $"Time: {OmniNet.NetworkCommunicator.DateTime.ToString("dd-MM-yyyy HH:mm:ss.fff")}"),
+			//new NetworkInfor((lastValue) => OmniNet.NetworkCommunicator.ClientTicks, (value, tx) => "Client Ticks: {0}"),
+			//new NetworkInfor((lastValue) => OmniNet.NetworkCommunicator.Ticks.GetAverage(), (value, tx) => "Ticks: {0}"),
+			//new NetworkInfor((lastValue) => (Communicator.obsoleteServerTime - Communicator.obsoleteRemoteTime), (value, tx) => "Remote Time Accuracy(Editor Only): {0:0.####} seconds" + $" [{(value * 1000):0} ms]"),
+			new NetworkInfor((lastValue) => 0, (value, tx) => "FPS {0}"),
+			new NetworkInfor((lastValue) => OmniNetwork.Time.Latency, (value, tx) => "Latency: {0}"),
+			//new NetworkInfor((lastValue) => OmniTime.Time, (value, tx) => "Time: {0}"),
+		};
+
+		private NetworkInfor[] serverProperties = new NetworkInfor[]
+		{
+			new NetworkInfor((lastValue) => ServerTransport.TotalMessagesSent, (value, tx) => "Total Messages Sent: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ServerTransport.TotalMessagesReceived, (value, tx) => "Total Messages Received: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ServerTransport.TotalBytesSent,(value, tx) => "Total Bytes Sent: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ServerTransport.TotalBytesReceived, (value, tx) => "Total Bytes Received: {0} [{1:0} per second]"),
+			new NetworkInfor((lastValue) => ServerTransport.PacketLossPercent, (value, tx) => "Packet Loss: {0}%"),
+			//new NetworkInfor((lastValue) => 0, (value, tx) => $"Time: {OmniNet.NetworkCommunicator.Time.Value.ToString("dd-MM-yyyy HH:mm:ss.fff")}"),
+			//new NetworkInfor((lastValue) => OmniNet.NetworkCommunicator.ServerTicks, (value, tx) => "Server Ticks: {0}"),
+		};
+
+		private void Update()
+		{
+			if (ClientTransport != null && ClientTransport.IsConnected)
+			{
+				foreach (var prop in clientProperties)
+				{
+					prop.Update();
+				}
+			}
+
+			if (ServerTransport != null && ServerTransport.IsInitialized)
+			{
+				foreach (var prop in serverProperties)
+				{
+					prop.Update();
+				}
+			}
+		}
 
 #if UNITY_EDITOR || !UNITY_SERVER
-        private void OnGUI()
-        {
-            titleStyle ??= new GUIStyle(GUI.skin.textField)
-            {
-                normal = { textColor = Color.white },
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = fontSize,
-            };
+		private float titleSpacing = 10f;
+		private GUIStyle titleStyle;
+		private GUIStyle labelStyle;
+		private GUIStyle buttonStyle;
+		private void OnGUI()
+		{
+			float screenWidth = Screen.width;
+			float screenHeight = Screen.height;
 
-            labelStyle ??= new GUIStyle()
-            {
-                normal = { textColor = Color.white },
-                fontSize = fontSize,
-            };
+			labelStyle ??= new GUIStyle()
+			{
+				normal = { textColor = Color.white },
+				fontSize = fontSize,
+			};
 
-            titleStyle.fontSize = fontSize;
-            labelStyle.fontSize = fontSize;
+			titleStyle ??= new GUIStyle(GUI.skin.box)
+			{
+				normal = { textColor = Color.white },
+				alignment = TextAnchor.UpperCenter,
+				fontSize = fontSize,
+			};
 
-            GUILayout.BeginHorizontal(GUI.skin.box);
-            GUILayout.BeginVertical(GUI.skin.box);
-#if UNITY_EDITOR
-            GUILayout.Label("Network Statistics (Server & Client)", titleStyle);
-#elif !UNITY_SERVER
-            GUILayout.Label("Network Statistics (Client)", titleStyle);
+			buttonStyle ??= new GUIStyle(GUI.skin.button)
+			{
+				normal = { textColor = Color.white },
+				alignment = TextAnchor.MiddleCenter,
+				fontSize = 20,
+			};
+
+			titleStyle.fontSize = 20;
+			labelStyle.fontSize = fontSize;
+
+			if (isEnabled)
+			{
+				float xSize = 0;
+				if (ServerTransport != null && ServerTransport.IsInitialized)
+				{
+					DrawNetworkInfor(serverProperties, "Server", 0, out xSize);
+				}
+				else
+				{
+					if (ClientTransport == null)
+					{
+						if (GUI.Button(new Rect((screenWidth / 2) - (150 / 2), (screenHeight / 2) - (50 / 2), 150, 50), "Start Server", buttonStyle))
+						{
+							OmniNetwork.Omni.InitializeTransport();
+						}
+					}
+				}
+
+				if (ClientTransport != null && ClientTransport.IsConnected)
+				{
+					DrawNetworkInfor(clientProperties, "Client", xSize + 10f, out xSize);
+				}
+				else
+				{
+					if (GUI.Button(new Rect((screenWidth / 2) - (200 / 2), ((screenHeight / 2) - (50 / 2)) + 60, 200, 50), "Start Client & Server", buttonStyle))
+					{
+						OmniNetwork.Omni.InitializeTransport();
+						OmniNetwork.Omni.InitializeConnection();
+					}
+				}
+			}
+		}
 #endif
-            GUILayout.Label($"Bytes Sent: {bytesSent.ToSizeUnit(sizeUnit)} {GetSizeUnit(sizeUnit)}", labelStyle);
-            GUILayout.Label($"Bytes Received: {bytesReceived.ToSizeUnit(sizeUnit)} {GetSizeUnit(sizeUnit)}", labelStyle);
-            GUILayout.Label($"Packets Sent: {packetsSent} p/s", labelStyle);
-            GUILayout.Label($"Packets Received: {packetsReceived} p/s", labelStyle);
-            GUILayout.Label($"Packets Duplicated: {packetsDuplicated} p/s", labelStyle);
-            GUILayout.Label($"Packets Out of Order: {packetsOutOfOrder} p/s", labelStyle);
-            GUILayout.Label($"Packets Retransmitted: {packetsRetransmitted} p/s", labelStyle);
+#if UNITY_EDITOR || !UNITY_SERVER
+		private void DrawNetworkInfor(NetworkInfor[] props, string name, float xOffset, out float xSize)
+		{
+			xSize = 0;
+			// Get screen dimensions
+			float screenWidth = Screen.width;
+			float screenHeight = Screen.height;
 
-            GUILayout.Label($"Packets Lost: {PacketsLost}%", labelStyle);
-            GUILayout.Label($"Ping: {OmniTime.Ping} ms", labelStyle);
-            GUILayout.Label($"Latency: {OmniTime.Latency} ms", labelStyle);
-            GUILayout.Label($"Server Time: {OmniTime.Time}", labelStyle);
-            GUILayout.Label($"Client Time: {OmniTime.LocalTime}", labelStyle);
-            GUILayout.Label($"FPS: {OmniNetwork.Framerate}", labelStyle);
+			// Calculate title size
+			Vector2 titleSize = GUI.skin.label.CalcSize(new GUIContent(name));
 
-#if UNITY_EDITOR
-            GUILayout.Space(10);
-            GUILayout.Label("Within the editor, the network statistics for both the server and client are consolidated.\r\nTo view the statistics for the server and client individually, it is recommended to build the project.", labelStyle);
+			// Calculate minimum size based on screen percentage
+			Vector2 minSize = new Vector2(screenWidth * minSizePercentage.x, screenHeight * minSizePercentage.y);
+
+			// Calculate box size based on title size, extra spacing, and labels
+			Vector2 boxSize = new Vector2(titleSize.x, titleSize.y + titleSpacing + (props.Length * fontSize)); // Assuming each label has a height of 20
+
+			// Ensure that the box size is not less than the minimum size
+			boxSize = Vector2.Max(boxSize, minSize);
+
+			// Calculate the position for the box on the right side of the screen
+			float boxPosX = screenWidth - boxSize.x - 10 - xOffset; // 10 is an additional spacing from the right edge
+			float boxPosY = 10; // Adjust the value as needed
+
+			xSize = boxSize.x;
+
+			// Draw the box based on the calculated size
+			GUI.Box(new Rect(boxPosX, boxPosY, boxSize.x, boxSize.y), name, titleStyle);
+
+			// Calculate the position for the first label inside the box
+			float labelPosY = boxPosY + titleSize.y + titleSpacing;
+
+			foreach (var prop in props)
+			{
+				// Draw labels inside the box
+				GUI.Label(new Rect(boxPosX + 20, labelPosY, boxSize.x - 40, fontSize), prop.ToString(), labelStyle); // Adjust the Rect as needed
+				labelPosY += fontSize + 5; // Assuming each label has a height of 20
+			}
+		}
 #endif
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
-        }
-#endif
-
-        WaitForSeconds _ = new(1);
-        private IEnumerator Flush()
-        {
-            while (Application.isPlaying)
-            {
-                bytesSent = BytesSent;
-                bytesReceived = BytesReceived;
-                packetsSent = PacketsSent;
-                packetsReceived = PacketsReceived;
-                packetsDuplicated = PacketsDuplicated;
-                packetsOutOfOrder = PacketsOutOfOrder;
-                packetsRetransmitted = PacketsRetransmitted;
-
-                BytesSent = 0;
-                BytesReceived = 0;
-                PacketsSent = 0;
-                PacketsReceived = 0;
-                PacketsDuplicated = 0;
-                PacketsOutOfOrder = 0;
-                PacketsRetransmitted = 0;
-
-                yield return _;
-            }
-        }
-
-        private string GetSizeUnit(SizeUnits sizeUnit)
-        {
-            return sizeUnit switch
-            {
-                SizeUnits.Byte => "b/s",
-                SizeUnits.KB => "kb/s",
-                SizeUnits.MB => "mb/s",
-                SizeUnits.GB => "gb/s",
-                SizeUnits.TB => "tb/s",
-                _ => "b/s",
-            };
-        }
-    }
+	}
 }

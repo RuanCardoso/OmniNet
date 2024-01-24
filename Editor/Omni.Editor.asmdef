@@ -2,7 +2,8 @@
     "name": "Omni.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:b26d8678a3c06bd4096185c1b3372b2d"
+        "GUID:7025dbf129b34bb4d9e644b938d5e7a5",
+        "GUID:cc7f614e490fe80469ce93f7345a3de2"
     ],
     "includePlatforms": [
         "Editor"
