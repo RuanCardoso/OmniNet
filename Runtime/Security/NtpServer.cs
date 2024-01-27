@@ -192,7 +192,7 @@ namespace Omni.Core
 
 		private void Awake()
 		{
-			queryPeer = new IPEndPoint(IPAddress.Loopback, serverPort);
+			queryPeer = new IPEndPoint(IPAddress.Parse(OmniNetwork.Omni.TransportSettings.Host), serverPort);
 			ntpProtocol.OnServerT += () => OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased ? ticks : Time.timeAsDouble;
 			ntpProtocol.OnClientT += () => OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased ? ticks : Time.timeAsDouble;
 			ntpProtocol.Awake(serverPort, clientPort, sampleWindow);

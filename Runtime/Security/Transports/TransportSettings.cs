@@ -29,6 +29,8 @@ namespace Omni.Internal.Transport
 		public bool DualMode { get; internal set; }
 		public byte Ttl { get; set; }
 		public int BackLog { get; set; }
+		public string Host { get; set; }
+		public uint MaxFps { get; set; }
 		public ushort ServerPort { get; set; }
 		public ushort ClientPort { get; set; }
 		public int ReceiveBufferSize { get; set; }

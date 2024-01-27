@@ -30,8 +30,6 @@ namespace Omni.Core
 		private GameLoopOption loopMode = GameLoopOption.RealTime;
 		[SerializeField]
 		private bool ConnectAsync = false;
-		[SerializeField]
-		private string ntpServer = "pool.ntp.org";
 
 		[SerializeField]
 		[InfoBox("In the event of network freezes, consider adjusting the IOPS or Rec/Send buffer size, or reduce the frequency of data transmissions.\r\n")]
@@ -105,10 +103,16 @@ namespace Omni.Core
 		#region Global
 		[SerializeField]
 		[OnValueChanged(nameof(GetAll))]
+		private string Host = "127.0.0.1";
+		[SerializeField]
+		[OnValueChanged(nameof(GetAll))]
 		private ushort ServerPort = 7777;
 		[SerializeField]
 		[OnValueChanged(nameof(GetAll))]
 		private ushort ClientPort = 7778;
+		[SerializeField]
+		[OnValueChanged(nameof(GetAll))]
+		private uint MaxFps = 60;
 		[SerializeField]
 		[Range(1, 1500)]
 		[OnValueChanged(nameof(GetAll))]
@@ -140,8 +144,10 @@ namespace Omni.Core
 
 		private void SetAll(TransportSettings transportSettings)
 		{
+			transportSettings.Host = Host;
 			transportSettings.ServerPort = ServerPort;
 			transportSettings.ClientPort = ClientPort;
+			transportSettings.MaxFps = MaxFps;
 			transportSettings.MaxMessageSize = MaxMessageSize;
 			transportSettings.MaxConnections = MaxConnections;
 			transportSettings.Ttl = Ttl;

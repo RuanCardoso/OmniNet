@@ -114,11 +114,11 @@ namespace Omni.Core
 			{
 				if (ConnectAsync)
 				{
-					ClientTransport.ConnectAsync(new IPEndPoint(IPAddress.Loopback, TransportSettings.ServerPort));
+					ClientTransport.ConnectAsync(new IPEndPoint(IPAddress.Parse(TransportSettings.Host), TransportSettings.ServerPort));
 				}
 				else
 				{
-					ClientTransport.Connect(new IPEndPoint(IPAddress.Loopback, TransportSettings.ServerPort));
+					ClientTransport.Connect(new IPEndPoint(IPAddress.Parse(TransportSettings.Host), TransportSettings.ServerPort));
 				}
 			}
 		}
