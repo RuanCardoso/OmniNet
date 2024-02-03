@@ -12,8 +12,12 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using MessagePack;
+using Newtonsoft.Json;
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Omni.Core
 {
@@ -22,10 +26,12 @@ namespace Omni.Core
 		public byte[] Buffer { get; }
 		public int Position { get; private set; }
 		public int BytesWritten { get; private set; }
+		public Encoding Encoding { get; private set; }
 
 		public DataReader(int size)
 		{
 			Buffer = new byte[size];
+			Encoding = Encoding.UTF8;
 		}
 
 		public void Write(byte[] buffer, int offset, int count)
@@ -55,6 +61,21 @@ namespace Omni.Core
 			}
 		}
 
+		public int Read(Span<byte> value)
+		{
+			for (int i = 0; i < value.Length; i++)
+			{
+				value[i] = ReadByte();
+			}
+			return value.Length;
+		}
+
+		public T ReadCustomMessage<T>() where T : unmanaged, IComparable, IConvertible, IFormattable
+		{
+			int tValue = Read7BitEncodedInt();
+			return Unsafe.As<int, T>(ref tValue);
+		}
+
 		public byte ReadByte()
 		{
 			if (ThrowIfNotEnoughData(sizeof(byte)))
@@ -67,7 +88,12 @@ namespace Omni.Core
 
 		public decimal ReadDecimal()
 		{
-			throw new System.NotImplementedException();
+			int[] bits = new int[4];
+			for (int i = 0; i < bits.Length; i++)
+			{
+				bits[i] = ReadInt();
+			}
+			return new decimal(bits);
 		}
 
 		public unsafe double ReadDouble()
@@ -146,26 +172,275 @@ namespace Omni.Core
 			return value;
 		}
 
+		/// <summary>
+		/// Reads a string from the data stream.
+		/// </summary>
+		/// <returns>The read string.</returns>
+		public string ReadString()
+		{
+			int length = Read7BitEncodedInt();
+			byte[] encoded = new byte[length];
+			Read(encoded, 0, length);
+			return Encoding.GetString(encoded);
+		}
+
+		/// <summary>
+		/// Reads a string to the data stream without incurring memory allocations.
+		/// </summary>
+		/// <remarks>
+		/// This method efficiently utilizes the stack memory using STACKALLOC and is designed to handle small strings.
+		/// To minimize memory overhead, it is recommended to avoid using this method for excessively large strings.
+		/// </remarks>
+		public string ReadStringWithoutAllocation()
+		{
+			int length = Read7BitEncodedInt();
+			Span<byte> encoded = stackalloc byte[length];
+			Read(encoded);
+			return Encoding.GetString(encoded);
+		}
+
+		/// <summary>
+		/// Deserializes the data using a custom implementation of ISyncCustom.
+		/// </summary>
+		/// <typeparam name="T">The type of the custom implementation of ISyncCustom.</typeparam>
+		/// <param name="ISyncCustom">The custom implementation of ISyncCustom.</param>
+		public void DeserializeWithCustom<T>(ISyncCustom ISyncCustom) where T : class => ISyncCustom.Deserialize(this);
+		/// <summary>
+		/// Deserializes a JSON string into an object of type T using Json.Net.
+		/// </summary>
+		/// <typeparam name="T">The type of the object to deserialize.</typeparam>
+		/// <param name="options">Optional settings to customize the deserialization process.</param>
+		/// <returns>The deserialized object.</returns>
+		public T DeserializeWithJsonNet<T>(JsonSerializerSettings options = null) => JsonConvert.DeserializeObject<T>(ReadString(), options);
+		/// <summary>
+		/// Deserializes a byte array using MessagePack and returns an object of type T.
+		/// </summary>
+		/// <typeparam name="T">The type of the object to deserialize.</typeparam>
+		/// <param name="options">The MessagePackSerializerOptions to use for deserialization.</param>
+		/// <returns>The deserialized object of type T.</returns>
+		public T DeserializeWithMsgPack<T>(MessagePackSerializerOptions options = null)
+		{
+			int length = Read7BitEncodedInt();
+			byte[] _data_ = new byte[length];
+			Read(_data_, 0, length);
+			return MessagePackSerializer.Deserialize<T>(_data_, options);
+		}
+
+		/// <summary>
+		/// Reads a boolean value from the input stream.
+		/// </summary>
+		/// <returns>The boolean value read from the input stream.</returns>
+		public bool ReadBool() => ReadByte() == 1;
+		/// <summary>
+		/// Reads two boolean values from the stream.
+		/// </summary>
+		/// <param name="v1">The first boolean value read from the stream.</param>
+		/// <param name="v2">The second boolean value read from the stream.</param>
+		public void ReadBool(out bool v1, out bool v2)
+		{
+			byte pByte = ReadByte();
+			v1 = (pByte & 0b1) == 1;
+			v2 = ((pByte >> 1) & 0b1) == 1;
+		}
+
+		/// <summary>
+		/// Reads three boolean values from the input stream.
+		/// </summary>
+		/// <param name="v1">The first boolean value read from the input stream.</param>
+		/// <param name="v2">The second boolean value read from the input stream.</param>
+		/// <param name="v3">The third boolean value read from the input stream.</param>
+		public void ReadBool(out bool v1, out bool v2, out bool v3)
+		{
+			byte pByte = ReadByte();
+			v1 = (pByte & 0b1) == 1;
+			v2 = ((pByte >> 1) & 0b1) == 1;
+			v3 = ((pByte >> 2) & 0b1) == 1;
+		}
+
+		/// <summary>
+		/// Reads four boolean values from the input stream.
+		/// </summary>
+		/// <param name="v1">The first boolean value read from the input stream.</param>
+		/// <param name="v2">The second boolean value read from the input stream.</param>
+		/// <param name="v3">The third boolean value read from the input stream.</param>
+		/// <param name="v4">The fourth boolean value read from the input stream.</param>
+		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4)
+		{
+			byte pByte = ReadByte();
+			v1 = (pByte & 0b1) == 1;
+			v2 = ((pByte >> 1) & 0b1) == 1;
+			v3 = ((pByte >> 2) & 0b1) == 1;
+			v4 = ((pByte >> 3) & 0b1) == 1;
+		}
+
+		/// <summary>
+		/// Reads five boolean values from the underlying stream.
+		/// </summary>
+		/// <param name="v1">The first boolean value.</param>
+		/// <param name="v2">The second boolean value.</param>
+		/// <param name="v3">The third boolean value.</param>
+		/// <param name="v4">The fourth boolean value.</param>
+		/// <param name="v5">The fifth boolean value.</param>
+		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5)
+		{
+			byte pByte = ReadByte();
+			v1 = (pByte & 0b1) == 1;
+			v2 = ((pByte >> 1) & 0b1) == 1;
+			v3 = ((pByte >> 2) & 0b1) == 1;
+			v4 = ((pByte >> 3) & 0b1) == 1;
+			v5 = ((pByte >> 4) & 0b1) == 1;
+		}
+
+		/// <summary>
+		/// Reads six boolean values from the input stream.
+		/// </summary>
+		/// <param name="v1">The first boolean value.</param>
+		/// <param name="v2">The second boolean value.</param>
+		/// <param name="v3">The third boolean value.</param>
+		/// <param name="v4">The fourth boolean value.</param>
+		/// <param name="v5">The fifth boolean value.</param>
+		/// <param name="v6">The sixth boolean value.</param>
+		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5, out bool v6)
+		{
+			byte pByte = ReadByte();
+			v1 = (pByte & 0b1) == 1;
+			v2 = ((pByte >> 1) & 0b1) == 1;
+			v3 = ((pByte >> 2) & 0b1) == 1;
+			v4 = ((pByte >> 3) & 0b1) == 1;
+			v5 = ((pByte >> 4) & 0b1) == 1;
+			v6 = ((pByte >> 5) & 0b1) == 1;
+		}
+
+		/// <summary>
+		/// Reads seven boolean values from the underlying stream.
+		/// </summary>
+		/// <param name="v1">The first boolean value.</param>
+		/// <param name="v2">The second boolean value.</param>
+		/// <param name="v3">The third boolean value.</param>
+		/// <param name="v4">The fourth boolean value.</param>
+		/// <param name="v5">The fifth boolean value.</param>
+		/// <param name="v6">The sixth boolean value.</param>
+		/// <param name="v7">The seventh boolean value.</param>
+		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5, out bool v6, out bool v7)
+		{
+			byte pByte = ReadByte();
+			v1 = (pByte & 0b1) == 1;
+			v2 = ((pByte >> 1) & 0b1) == 1;
+			v3 = ((pByte >> 2) & 0b1) == 1;
+			v4 = ((pByte >> 3) & 0b1) == 1;
+			v5 = ((pByte >> 4) & 0b1) == 1;
+			v6 = ((pByte >> 5) & 0b1) == 1;
+			v7 = ((pByte >> 6) & 0b1) == 1;
+		}
+
+		/// <summary>
+		/// Reads 8 boolean values from the stream.
+		/// </summary>
+		/// <param name="v1">The first boolean value.</param>
+		/// <param name="v2">The second boolean value.</param>
+		/// <param name="v3">The third boolean value.</param>
+		/// <param name="v4">The fourth boolean value.</param>
+		/// <param name="v5">The fifth boolean value.</param>
+		/// <param name="v6">The sixth boolean value.</param>
+		/// <param name="v7">The seventh boolean value.</param>
+		/// <param name="v8">The eighth boolean value.</param>
+		public void ReadBool(out bool v1, out bool v2, out bool v3, out bool v4, out bool v5, out bool v6, out bool v7, out bool v8)
+		{
+			byte pByte = ReadByte();
+			v1 = (pByte & 0b1) == 1;
+			v2 = ((pByte >> 1) & 0b1) == 1;
+			v3 = ((pByte >> 2) & 0b1) == 1;
+			v4 = ((pByte >> 3) & 0b1) == 1;
+			v5 = ((pByte >> 4) & 0b1) == 1;
+			v6 = ((pByte >> 5) & 0b1) == 1;
+			v7 = ((pByte >> 6) & 0b1) == 1;
+			v8 = ((pByte >> 7) & 0b1) == 1;
+		}
+
+		// https://github.com/dotnet/runtime/blob/main/src/libraries/System.Private.CoreLib/src/System/IO/BinaryReader.cs
 		public int Read7BitEncodedInt()
 		{
-			// Read out an Int32 7 bits at a time.  The high bit
-			// of the byte when on means to continue reading more bytes.
-			int count = 0;
-			int shift = 0;
-			byte b;
-			do
-			{
-				// Check for a corrupted stream.  Read a max of 5 bytes.
-				// In a future version, add a DataFormatException.
-				if (shift == 5 * 7)  // 5 bytes max per Int32, shift += 7
-					throw new FormatException("Format_Bad7BitInt32");
+			// Unlike writing, we can't delegate to the 64-bit read on
+			// 64-bit platforms. The reason for this is that we want to
+			// stop consuming bytes if we encounter an integer overflow.
 
+			uint result = 0;
+			byte byteReadJustNow;
+
+			// Read the integer 7 bits at a time. The high bit
+			// of the byte when on means to continue reading more bytes.
+			//
+			// There are two failure cases: we've read more than 5 bytes,
+			// or the fifth byte is about to cause integer overflow.
+			// This means that we can read the first 4 bytes without
+			// worrying about integer overflow.
+
+			const int MaxBytesWithoutOverflow = 4;
+			for (int shift = 0; shift < MaxBytesWithoutOverflow * 7; shift += 7)
+			{
 				// ReadByte handles end of stream cases for us.
-				b = ReadByte();
-				count |= (b & 0x7F) << shift;
-				shift += 7;
-			} while ((b & 0x80) != 0);
-			return count;
+				byteReadJustNow = ReadByte();
+				result |= (byteReadJustNow & 0x7Fu) << shift;
+
+				if (byteReadJustNow <= 0x7Fu)
+				{
+					return (int)result; // early exit
+				}
+			}
+
+			// Read the 5th byte. Since we already read 28 bits,
+			// the value of this byte must fit within 4 bits (32 - 28),
+			// and it must not have the high bit set.
+
+			byteReadJustNow = ReadByte();
+			if (byteReadJustNow > 0b_1111u)
+			{
+				throw new FormatException("SR.Format_Bad7BitInt");
+			}
+
+			result |= (uint)byteReadJustNow << (MaxBytesWithoutOverflow * 7);
+			return (int)result;
+		}
+
+		// https://github.com/dotnet/runtime/blob/main/src/libraries/System.Private.CoreLib/src/System/IO/BinaryReader.cs
+		public long Read7BitEncodedInt64()
+		{
+			ulong result = 0;
+			byte byteReadJustNow;
+
+			// Read the integer 7 bits at a time. The high bit
+			// of the byte when on means to continue reading more bytes.
+			//
+			// There are two failure cases: we've read more than 10 bytes,
+			// or the tenth byte is about to cause integer overflow.
+			// This means that we can read the first 9 bytes without
+			// worrying about integer overflow.
+
+			const int MaxBytesWithoutOverflow = 9;
+			for (int shift = 0; shift < MaxBytesWithoutOverflow * 7; shift += 7)
+			{
+				// ReadByte handles end of stream cases for us.
+				byteReadJustNow = ReadByte();
+				result |= (byteReadJustNow & 0x7Ful) << shift;
+
+				if (byteReadJustNow <= 0x7Fu)
+				{
+					return (long)result; // early exit
+				}
+			}
+
+			// Read the 10th byte. Since we already read 63 bits,
+			// the value of this byte must fit within 1 bit (64 - 63),
+			// and it must not have the high bit set.
+
+			byteReadJustNow = ReadByte();
+			if (byteReadJustNow > 0b_1u)
+			{
+				throw new FormatException("SR.Format_Bad7BitInt");
+			}
+
+			result |= (ulong)byteReadJustNow << (MaxBytesWithoutOverflow * 7);
+			return (long)result;
 		}
 
 		public unsafe T Marshalling_ReadStructure<T>() where T : struct

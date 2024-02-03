@@ -25,6 +25,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using WebSocketSharp.Server;
+using static Omni.Internal.Transport.WebTransport;
 
 namespace Omni.Internal.Transport
 {
@@ -38,7 +40,7 @@ namespace Omni.Internal.Transport
 
 		private TransportSettings TransportSettings { get; set; }
 		private bool IsServer { get; set; }
-		public LiteTransportClient<NetPeer> LocalTransportClient { get; set; }
+		public LiteTransportClient<NetPeer> LocalTransportClient { get; private set; }
 
 		public bool IsConnected { get; private set; }
 		public bool IsInitialized { get; private set; }
@@ -51,15 +53,17 @@ namespace Omni.Internal.Transport
 
 		public Dictionary<EndPoint, TcpTransportClient<Socket>> TcpPeerList => throw new NotImplementedException();
 		public Dictionary<EndPoint, LiteTransportClient<NetPeer>> LitePeerList => PeerList;
+		public Dictionary<EndPoint, WebTransportClient<PeerBehaviour>> WebPeerList => throw new NotImplementedException();
 
 		public TcpTransportClient<Socket> TcpClient => throw new NotImplementedException();
 		public LiteTransportClient<NetPeer> LiteClient => LocalTransportClient;
+		public WebTransportClient<PeerBehaviour> WebClient => throw new NotImplementedException();
 
 		public Stopwatch Stopwatch { get; } = new();
 
-		public event Action<bool, NetworkPlayer> OnClientConnected;
-		public event Action<bool, NetworkPlayer> OnClientDisconnected;
-		public event Action<bool, byte[], int, NetworkPlayer> OnMessageReceived;
+		public event Action<bool, NetworkPeer> OnClientConnected;
+		public event Action<bool, NetworkPeer> OnClientDisconnected;
+		public event Action<bool, byte[], int, NetworkPeer> OnMessageReceived;
 
 		public void InitializeTransport(bool isServer, EndPoint endPoint, TransportSettings transportSettings)
 		{
@@ -107,7 +111,7 @@ namespace Omni.Internal.Transport
 					LiteTransportClient<NetPeer> transportClient = new LiteTransportClient<NetPeer>(peer, peer);
 					if (PeerList.TryAdd(peer, transportClient))
 					{
-						OnClientConnected?.Invoke(isServer, transportClient.NetworkPlayer);
+						OnClientConnected?.Invoke(isServer, transportClient.NetworkPeer);
 					}
 					else
 					{
@@ -123,7 +127,7 @@ namespace Omni.Internal.Transport
 				{
 					if (PeerList.TryGetValue(peer, out LiteTransportClient<NetPeer> transportClient))
 					{
-						OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, transportClient.NetworkPlayer);
+						OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, transportClient.NetworkPeer);
 					}
 					else
 					{
@@ -132,7 +136,7 @@ namespace Omni.Internal.Transport
 				}
 				else
 				{
-					OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, LocalTransportClient.NetworkPlayer);
+					OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, LocalTransportClient.NetworkPeer);
 				}
 			};
 
@@ -150,13 +154,13 @@ namespace Omni.Internal.Transport
 			{
 				if (peer.ConnectionState == ConnectionState.Connected)
 				{
-					IsConnected = true;
 					Stopwatch.Start();
-					OnClientConnected?.Invoke(IsServer, LocalTransportClient.NetworkPlayer);
+					IsConnected = true;
+					OnClientConnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
 				}
 
 				// wait to exit the outgoing state!
-				await Task.Delay(100);
+				await Task.Delay(250);
 			}
 		}
 
@@ -174,10 +178,13 @@ namespace Omni.Internal.Transport
 		{
 			if (!IsServer)
 			{
-				await Task.Run(() =>
+				NetPeer peer = await Task.Run<NetPeer>(() =>
 				{
-					Connect(endPoint);
+					return netManager.Connect((IPEndPoint)endPoint, "OmniNet");
 				});
+
+				LocalTransportClient = new LiteTransportClient<NetPeer>(peer, endPoint);
+				WaitForOutgoing(endPoint, peer);
 			}
 		}
 
@@ -187,14 +194,14 @@ namespace Omni.Internal.Transport
 			{
 				if (PeerList.Remove(endPoint, out LiteTransportClient<NetPeer> transportClient))
 				{
-					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPlayer);
+					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
 					NetPeer peer = transportClient.Peer;
 					peer.Disconnect();
 				}
 			}
 			else
 			{
-				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPlayer);
+				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
 				NetPeer peer = LocalTransportClient.Peer;
 				peer.Disconnect();
 			}
@@ -233,16 +240,23 @@ namespace Omni.Internal.Transport
 			return true;
 		}
 
-		public void SendToClient(byte[] buffer, int size, EndPoint endPoint)
+		public void SendToClient(byte[] buffer, int size, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel)
 		{
 			if (IsServer)
 			{
 				if (ValidateSend(buffer, size))
 				{
+					DeliveryMethod deliveryMethod = dataDeliveryMode switch
+					{
+						DataDeliveryMode.Unsecured => DeliveryMethod.Unreliable,
+						DataDeliveryMode.Secured => DeliveryMethod.ReliableOrdered,
+						DataDeliveryMode.SecuredWithAes => DeliveryMethod.ReliableOrdered
+					};
+
 					if (PeerList.TryGetValue(endPoint, out LiteTransportClient<NetPeer> transportClient))
 					{
 						NetPeer peer = transportClient.Peer;
-						peer.Send(buffer, 0, size, DeliveryMethod.Unreliable);
+						peer.Send(buffer, 0, size, channel, deliveryMethod);
 					}
 					else
 					{
@@ -256,20 +270,34 @@ namespace Omni.Internal.Transport
 			}
 		}
 
-		public void SendToServer(byte[] buffer, int size)
+		public void SendToServer(byte[] buffer, int size, DataDeliveryMode dataDeliveryMode, byte channel)
 		{
 			if (!IsServer)
 			{
 				if (ValidateSend(buffer, size))
 				{
-					NetPeer peer = LocalTransportClient.Peer;
-					if (peer.ConnectionState == ConnectionState.Connected)
+					DeliveryMethod deliveryMethod = dataDeliveryMode switch
 					{
-						peer.Send(buffer, 0, size, DeliveryMethod.Unreliable);
+						DataDeliveryMode.Unsecured => DeliveryMethod.Unreliable,
+						DataDeliveryMode.Secured => DeliveryMethod.ReliableOrdered,
+						DataDeliveryMode.SecuredWithAes => DeliveryMethod.ReliableOrdered
+					};
+
+					if (IsConnected)
+					{
+						NetPeer peer = LocalTransportClient.Peer;
+						if (peer.ConnectionState == ConnectionState.Connected)
+						{
+							peer.Send(buffer, 0, size, channel, deliveryMethod);
+						}
+						else
+						{
+							OmniLogger.PrintError($"This transport is not valid for this operation! because it is not connected.");
+						}
 					}
 					else
 					{
-						OmniLogger.PrintError($"This transport is not valid for this operation! because it is not connected.");
+						OmniLogger.PrintError($"This transport is not valid for this operation! because it is not connected. (:");
 					}
 				}
 			}
@@ -281,6 +309,11 @@ namespace Omni.Internal.Transport
 
 		public void Close()
 		{
+			CancellationTokenSource.Dispose();
+			foreach ((EndPoint peer, LiteTransportClient<NetPeer> transportClient) in PeerList)
+			{
+				transportClient.Peer.Disconnect();
+			}
 			netManager.Stop();
 		}
 	}

@@ -16,8 +16,10 @@ namespace Omni.Internal
 {
 	internal enum NetMessage : byte
 	{
-		Ping = 1,
-		Test = 2,
-		Message = 3,
+		Ping,
+		Test,
+		Message, // for client
+		InternalMessage, // internal use
+		RequestId,
 	}
 }

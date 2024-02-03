@@ -48,5 +48,6 @@ namespace Omni.Internal.Transport
 		public int PingInterval { get; set; }
 		public bool UseSafeMtu { get; set; }
 		public int MaxConnections { get; set; }
+		public bool UseHttpsOnly { get; set; }
 	}
 }

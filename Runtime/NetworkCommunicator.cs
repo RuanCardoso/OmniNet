@@ -17,7 +17,6 @@ using Omni.Internal.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Threading;
 using UnityEngine;
 
 namespace Omni.Core
@@ -25,9 +24,14 @@ namespace Omni.Core
 	[DefaultExecutionOrder(-1000)]
 	public class NetworkCommunicator : RealtimeTickBasedSystem
 	{
-		private Dictionary<int, NetworkPlayer> PeersById { get; } = new();
+		private int m_GameObjectId = int.MinValue;
+
+		private Dictionary<int, NetworkPeer> PeersById { get; } = new();
 		private ITransport ServerTransport => OmniNetwork.Omni.ServerTransport;
 		private ITransport ClientTransport => OmniNetwork.Omni.ClientTransport;
+
+		public static DataWriterPool DataWriterPool { get; private set; }
+		public static DataReaderPool DataReaderPool { get; private set; }
 
 		internal void ProcessEvents()
 		{
@@ -46,7 +50,13 @@ namespace Omni.Core
 			}
 		}
 
-		public override void Start()
+		private void Awake()
+		{
+			DataWriterPool = new DataWriterPool(128);
+			DataReaderPool = new DataReaderPool(128);
+		}
+
+		protected override void Start()
 		{
 			base.Start();
 		}
@@ -57,18 +67,23 @@ namespace Omni.Core
 			{
 				case TransportOption.TcpTransport:
 					{
-						if (ClientTransport != null)
+						if (IsClientInitialized())
 						{
-							if (ClientTransport.IsInitialized && ClientTransport.IsConnected)
-							{
 
-							}
 						}
 					}
 					break;
 				case TransportOption.LiteNetTransport:
 					{
-						if (ClientTransport != null)
+						if (IsClientInitialized())
+						{
+
+						}
+					}
+					break;
+				case TransportOption.WebSocketTransport:
+					{
+						if (IsClientInitialized())
 						{
 
 						}
@@ -79,24 +94,51 @@ namespace Omni.Core
 			}
 		}
 
-		public void SendCustomMessage(IDataWriter writer)
+		public void SendCustomMessage<T>(T uniqueId, IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
-			IDataWriter internalWriter = new DataWriter(100);
+			IDataWriter internalWriter = DataWriterPool.Get();
 			internalWriter.Write((byte)NetMessage.Message);
+			internalWriter.Write7BitEncodedInt(NetworkHelper.GetInt32FromGenericEnum(uniqueId));
 			internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
-			SendToServer(internalWriter);
+			SendToServer(internalWriter, dataDeliveryMode, channel);
+			DataWriterPool.Release(internalWriter);
 		}
 
-		public void SendCustomMessage(IDataWriter writer, int playerId)
+		public void SendCustomMessage<T>(T uniqueId, IDataWriter writer, int playerId, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
-			IDataWriter internalWriter = new DataWriter(100);
+			IDataWriter internalWriter = DataWriterPool.Get();
 			internalWriter.Write((byte)NetMessage.Message);
+			internalWriter.Write7BitEncodedInt(NetworkHelper.GetInt32FromGenericEnum(uniqueId));
 			internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
-			SendToClient(internalWriter, playerId);
+			SendToClient(internalWriter, playerId, dataDeliveryMode, channel);
+			DataWriterPool.Release(internalWriter);
 		}
 
-		private void OnClientConnected(bool isServer, NetworkPlayer player)
+		internal void Internal_SendCustomMessage<T>(T uniqueId, IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
+			IDataWriter internalWriter = DataWriterPool.Get();
+			internalWriter.Write((byte)NetMessage.InternalMessage);
+			internalWriter.Write7BitEncodedInt(NetworkHelper.GetInt32FromGenericEnum(uniqueId));
+			internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
+			SendToServer(internalWriter, dataDeliveryMode, channel);
+			DataWriterPool.Release(internalWriter);
+		}
+
+		internal void Internal_SendCustomMessage<T>(T uniqueId, IDataWriter writer, int playerId, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
+		{
+			IDataWriter internalWriter = DataWriterPool.Get();
+			internalWriter.Write((byte)NetMessage.InternalMessage);
+			internalWriter.Write7BitEncodedInt(NetworkHelper.GetInt32FromGenericEnum(uniqueId));
+			internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
+			SendToClient(internalWriter, playerId, dataDeliveryMode, channel);
+			DataWriterPool.Release(internalWriter);
+		}
+
+		private void OnClientConnected(bool isServer, NetworkPeer player)
+		{
+#if UNITY_EDITOR
+			NetworkHelper.ThrowAnErrorIfConcurrent();
+#endif
 			if (isServer)
 			{
 				if (PeersById.TryAdd(player.Id, player))
@@ -110,20 +152,22 @@ namespace Omni.Core
 			}
 			else
 			{
+				if (OmniNetwork.Omni.TransportOption == TransportOption.WebSocketTransport)
+				{
+					OmniLogger.Print($"Client connected successfully. Host: {OmniNetwork.Omni.TransportSettings.Host}:{OmniNetwork.Omni.TransportSettings.ServerPort}");
+					return;
+				}
+
 				OmniLogger.Print($"Client connected successfully. Endpoint: {player.EndPoint}");
 			}
 		}
 
-		private void OnMessageReceived(bool isServer, byte[] data, int length, NetworkPlayer player)
+		private void OnMessageReceived(bool isServer, byte[] data, int length, NetworkPeer player)
 		{
 #if UNITY_EDITOR
-			if (Thread.CurrentThread.ManagedThreadId != OmniNetwork.Omni.ManagedThreadId)
-			{
-				OmniLogger.PrintError("Unity does not support operations outside the main thread.");
-				return;
-			}
+			NetworkHelper.ThrowAnErrorIfConcurrent();
 #endif
-			IDataReader reader = new DataReader(100);
+			IDataReader reader = DataReaderPool.Get();
 			reader.Write(data, 0, length);
 			byte message = reader.ReadByte();
 			// Process the messages to both(client and server)
@@ -138,9 +182,18 @@ namespace Omni.Core
 						break;
 					case NetMessage.Message:
 						{
-							IDataReader internalReader = new DataReader(100);
+							IDataReader internalReader = DataReaderPool.Get();
 							internalReader.Write(data, reader.Position, length);
 							NetworkCallbacks.FireCustomMessage(isServer, internalReader, player);
+							DataReaderPool.Release(internalReader);
+						}
+						break;
+					case NetMessage.InternalMessage:
+						{
+							IDataReader internalReader = DataReaderPool.Get();
+							internalReader.Write(data, reader.Position, length);
+							NetworkCallbacks.Internal_FireCustomMessage(isServer, internalReader, player);
+							DataReaderPool.Release(internalReader);
 						}
 						break;
 				}
@@ -156,17 +209,30 @@ namespace Omni.Core
 						break;
 					case NetMessage.Message:
 						{
-							IDataReader internalReader = new DataReader(100);
+							IDataReader internalReader = DataReaderPool.Get();
 							internalReader.Write(data, reader.Position, length);
 							NetworkCallbacks.FireCustomMessage(isServer, internalReader, player);
+							DataReaderPool.Release(internalReader);
+						}
+						break;
+					case NetMessage.InternalMessage:
+						{
+							IDataReader internalReader = DataReaderPool.Get();
+							internalReader.Write(data, reader.Position, length);
+							NetworkCallbacks.Internal_FireCustomMessage(isServer, internalReader, player);
+							DataReaderPool.Release(internalReader);
 						}
 						break;
 				}
 			}
+			DataReaderPool.Release(reader);
 		}
 
-		private void OnClientDisconnected(bool isServer, NetworkPlayer player)
+		private void OnClientDisconnected(bool isServer, NetworkPeer player)
 		{
+#if UNITY_EDITOR
+			NetworkHelper.ThrowAnErrorIfConcurrent();
+#endif
 			if (isServer)
 			{
 				if (PeersById.Remove(player.Id))
@@ -184,11 +250,11 @@ namespace Omni.Core
 			}
 		}
 
-		internal void SendToClient(IDataWriter writer, int playerId)
+		internal void SendToClient(IDataWriter writer, int playerId, DataDeliveryMode dataDeliveryMode, byte channel)
 		{
-			if (PeersById.TryGetValue(playerId, out NetworkPlayer peer))
+			if (PeersById.TryGetValue(playerId, out NetworkPeer peer))
 			{
-				SendToClient(writer, peer.EndPoint);
+				SendToClient(writer, peer.EndPoint, dataDeliveryMode, channel);
 			}
 			else
 			{
@@ -196,14 +262,52 @@ namespace Omni.Core
 			}
 		}
 
-		internal void SendToClient(IDataWriter writer, EndPoint endPoint)
+		internal void SendToClient(IDataWriter writer, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel)
 		{
-			ServerTransport.SendToClient(writer.Buffer, writer.BytesWritten, endPoint);
+			ServerTransport.SendToClient(writer.Buffer, writer.BytesWritten, endPoint, dataDeliveryMode, channel);
 		}
 
-		internal void SendToServer(IDataWriter writer)
+		internal void SendToServer(IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte channel)
 		{
-			ClientTransport.SendToServer(writer.Buffer, writer.BytesWritten);
+			ClientTransport.SendToServer(writer.Buffer, writer.BytesWritten, dataDeliveryMode, channel);
+		}
+
+		internal int GetUniqueNetworkIdentityId()
+		{
+			return m_GameObjectId++;
+		}
+
+		private bool IsClientInitialized()
+		{
+			if (ClientTransport != null)
+			{
+				if (ClientTransport.IsInitialized && ClientTransport.IsConnected)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private bool IsServerInitialized()
+		{
+			if (ServerTransport != null)
+			{
+				if (ServerTransport.IsInitialized)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		protected override void OnApplicationQuit()
+		{
+			base.OnApplicationQuit();
+			//if (PeersById.Count > 0)
+			//{
+			//	PeersById.Clear();
+			//}
 		}
 	}
 }

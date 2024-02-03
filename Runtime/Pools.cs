@@ -22,24 +22,26 @@ namespace Omni.Core
 	/// Pool of reusable DataWriter's for efficient memory usage and CPU performance.
 	/// This class is not thread-safe.
 	/// </summary>
-	internal class DataWriterPool
+	public class DataWriterPool
 	{
-		private readonly Stack<DataWriter> pool = new();
+		private int length;
+		private readonly Stack<IDataWriter> pool = new();
 
 		public DataWriterPool(int length = 128)
 		{
+			this.length = length;
 			for (int i = 0; i < length; i++)
 			{
 				pool.Push(new DataWriter(length));
 			}
 		}
 
-		public DataWriter Get()
+		public IDataWriter Get()
 		{
 			if (pool.Count == 0)
 			{
 				OmniLogger.Print("Pool: No DataIOHandler's are currently available. A temporary DataIOHandler will be created to handle this data.");
-				return new DataWriter(128);
+				return new DataWriter(length);
 			}
 			else
 			{
@@ -47,10 +49,10 @@ namespace Omni.Core
 			}
 		}
 
-		public void Release(DataWriter IOHandler)
+		public void Release(IDataWriter writer)
 		{
-			IOHandler.Recycle();
-			pool.Push(IOHandler);
+			writer.Clear();
+			pool.Push(writer);
 		}
 
 		public int Count => pool.Count;
@@ -60,9 +62,9 @@ namespace Omni.Core
 	/// Pool of reusable DataReaders's for efficient memory usage and CPU performance.
 	/// This class is not thread-safe.
 	/// </summary>
-	internal class DataReaderPool
+	public class DataReaderPool
 	{
-		private readonly Stack<DataReader> pool = new();
+		private readonly Stack<IDataReader> pool = new();
 
 		public DataReaderPool(int length = 128)
 		{
@@ -72,7 +74,7 @@ namespace Omni.Core
 			}
 		}
 
-		public DataReader Get()
+		public IDataReader Get()
 		{
 			if (pool.Count == 0)
 			{
@@ -85,10 +87,10 @@ namespace Omni.Core
 			}
 		}
 
-		public void Release(DataReader IOHandler)
+		public void Release(IDataReader reader)
 		{
-			IOHandler.Recycle();
-			pool.Push(IOHandler);
+			reader.Recycle();
+			pool.Push(reader);
 		}
 
 		public int Count => pool.Count;

@@ -21,7 +21,7 @@ namespace Omni.Core
 		TcpTransport = 0,
 		[InspectorName("Lite Transport")]
 		LiteNetTransport = 1,
-		[InspectorName(null)]
+		[InspectorName("Web Transport")]
 		WebSocketTransport = 2,
 	}
 }

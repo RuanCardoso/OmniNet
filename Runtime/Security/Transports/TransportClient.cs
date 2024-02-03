@@ -18,6 +18,27 @@ using System.Net;
 
 namespace Omni.Internal.Transport
 {
+	internal class TransportClient<T>
+	{
+		public TransportClient(EndPoint endPoint, T peer)
+		{
+			Peer = peer;
+			if (endPoint != null)
+			{
+				EndPoint = endPoint;
+				NetworkPeer = new NetworkPeer(((IPEndPoint)endPoint).Port, endPoint);
+			}
+			else
+			{
+				throw new Exception("Transport: EndPoint cannot be null!");
+			}
+		}
+
+		internal NetworkPeer NetworkPeer { get; }
+		internal EndPoint EndPoint { get; }
+		internal T Peer { get; }
+	}
+
 	internal class TcpTransportClient<T> : TransportClient<T>
 	{
 		internal byte[] Buffer { get; }
@@ -43,24 +64,10 @@ namespace Omni.Internal.Transport
 		}
 	}
 
-	internal class TransportClient<T>
+	internal class WebTransportClient<T> : TransportClient<T>
 	{
-		public TransportClient(EndPoint endPoint, T peer)
+		internal WebTransportClient(T peer, EndPoint endPoint) : base(endPoint, peer)
 		{
-			Peer = peer;
-			if (endPoint != null)
-			{
-				EndPoint = endPoint;
-				NetworkPlayer = new NetworkPlayer(((IPEndPoint)endPoint).Port, endPoint);
-			}
-			else
-			{
-				throw new Exception("Transport: EndPoint cannot be null!");
-			}
 		}
-
-		internal NetworkPlayer NetworkPlayer { get; }
-		internal EndPoint EndPoint { get; }
-		internal T Peer { get; }
 	}
 }

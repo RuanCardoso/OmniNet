@@ -19,6 +19,7 @@ using System;
 using System.Net;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Omni.Core
 {
@@ -29,36 +30,59 @@ namespace Omni.Core
 	[DefaultExecutionOrder(-3000)]
 	public partial class OmniNetwork : RealtimeTickBasedSystem
 	{
+		const string SceneName = "Omni Server(Debug Mode)";
+
 		public static OmniNetwork Omni { get; private set; }
 		public static NetworkCommunicator Communicator { get; private set; }
 		public static NetworkTime Time { get; private set; }
 		public static NtpServer Ntp { get; private set; }
 
+		public NetworkDispatcher NetworkDispatcher { get; private set; }
 		public GameLoopOption LoopMode => loopMode;
 		public int IOPS { get => m_IOPS; set => m_IOPS = value; }
-		public TransportOption TransportOption { get => transportOption; set => transportOption = value; }
+		public TransportOption TransportOption => transportOption;
+		public bool HasServer => ServerTransport.IsInitialized;
+		public Scene? ServerScene { get; private set; }
+
+#if UNITY_SERVER && !UNITY_EDITOR
+		public bool IsConnected => HasServer;
+#else
+		public bool IsConnected => ClientTransport.IsConnected;
+#endif
 
 		internal int ManagedThreadId { get; private set; }
 		internal TransportSettings TransportSettings { get; private set; }
 		internal ITransport ServerTransport { get; private set; }
 		internal ITransport ClientTransport { get; private set; }
 
-		private bool IsInitialized { get; set; }
+		private bool m_IsInitialized;
 
 		private void Awake()
 		{
+			#region Instance
 			Omni = this;
+			#endregion
+
+			#region Components
+			NetworkDispatcher = new NetworkDispatcher();
 			Communicator = GetComponent<NetworkCommunicator>();
 			Time = GetComponent<NetworkTime>();
 			Ntp = GetComponent<NtpServer>();
+			#endregion
+
+			#region Initialize
+			SimpleHttpProtocol.AddEventListener();
 			InitializeTransport();
+			#endregion
 		}
 
-		public override void Start()
+		protected override void Start()
 		{
 			base.Start();
 			ManagedThreadId = Thread.CurrentThread.ManagedThreadId;
+#if !UNITY_SERVER || UNITY_EDITOR
 			InitializeConnection();
+#endif
 		}
 
 		private void Update()
@@ -66,6 +90,24 @@ namespace Omni.Core
 			if (Omni.LoopMode == GameLoopOption.RealTime)
 			{
 				Simulate();
+			}
+
+			NetworkDispatcher.Process();
+		}
+
+		// Simulate the scene on FixedUpdate.
+		private void FixedUpdate()
+		{
+			if (physicsMode == LocalPhysicsMode.Physics3D)
+			{
+				PhysicsScene? physicsScene = ServerScene?.GetPhysicsScene();
+				physicsScene?.Simulate(UnityEngine.Time.fixedDeltaTime);
+			}
+
+			if (physicsMode == LocalPhysicsMode.Physics2D)
+			{
+				PhysicsScene2D? physicsScene = ServerScene?.GetPhysicsScene2D();
+				physicsScene?.Simulate(UnityEngine.Time.fixedDeltaTime);
 			}
 		}
 
@@ -96,7 +138,10 @@ namespace Omni.Core
 		{
 			if (ServerTransport != null && ServerTransport.IsInitialized)
 			{
-				ServerTransport.Receive();
+				if (TransportOption != TransportOption.WebSocketTransport)
+				{
+					ServerTransport.Receive();
+				}
 			}
 
 			if (ClientTransport != null)
@@ -125,12 +170,12 @@ namespace Omni.Core
 
 		internal void InitializeTransport()
 		{
-			if (IsInitialized)
+			if (m_IsInitialized)
 			{
 				return;
 			}
 
-			IsInitialized = true;
+			m_IsInitialized = true;
 			switch (TransportOption)
 			{
 				case TransportOption.TcpTransport:
@@ -145,6 +190,13 @@ namespace Omni.Core
 						ServerTransport = new LiteNetLibTransport();
 						ClientTransport = new LiteNetLibTransport();
 						OnLiteNetSettingsChanged();
+					}
+					break;
+				case TransportOption.WebSocketTransport:
+					{
+						ServerTransport = new WebTransport();
+						ClientTransport = new WebTransport();
+						OnWebSocketSettingsChanged();
 					}
 					break;
 				default:
@@ -178,6 +230,9 @@ namespace Omni.Core
 			if (NetworkHelper.IsAvailablePort(TransportSettings.ServerPort))
 			{
 				ServerTransport.InitializeTransport(true, new IPEndPoint(IPAddress.Any, TransportSettings.ServerPort), TransportSettings);
+#if !UNITY_SERVER || UNITY_EDITOR
+				CreateServerSimulation();
+#endif
 			}
 			else
 			{
@@ -195,8 +250,21 @@ namespace Omni.Core
 			}
 		}
 
-		private void OnApplicationQuit()
+		private void CreateServerSimulation()
 		{
+			if (HasServer)
+			{
+				if (Application.isPlaying)
+				{
+					ServerScene = SceneManager.CreateScene(SceneName, new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
+				}
+			}
+		}
+
+		protected override void OnApplicationQuit()
+		{
+			base.OnApplicationQuit();
+			SimpleHttpProtocol.Close();
 			if (ServerTransport != null && ServerTransport.IsInitialized)
 			{
 				ServerTransport.Close();
@@ -208,4 +276,16 @@ namespace Omni.Core
 			}
 		}
 	}
+}
+
+public enum LocalPhysicsMode
+{
+	//
+	// Resumo:
+	//     A local 2D physics Scene will be created and owned by the Scene.
+	Physics2D = 1,
+	//
+	// Resumo:
+	//     A local 3D physics Scene will be created and owned by the Scene.
+	Physics3D = 2
 }

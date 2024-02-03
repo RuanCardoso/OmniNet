@@ -91,12 +91,13 @@ namespace Omni.Core
 				{
 					double b = OnClientT.Invoke(); // client time
 
-					IDataReader reader = new DataReader(50);
+					IDataReader reader = NetworkCommunicator.DataReaderPool.Get();
 					reader.Write(data, 0, len);
 
 					double a = reader.ReadDouble();
 					double x = reader.ReadDouble();
 					double y = reader.ReadDouble();
+					NetworkCommunicator.DataReaderPool.Release(reader);
 
 					// rtt (atraso) = (b-a)-(y-x) = .
 					RttExAvg.Add((b - a) - (y - x));
@@ -113,17 +114,19 @@ namespace Omni.Core
 				{
 					double x = OnServerT.Invoke(); // server time
 
-					IDataReader reader = new DataReader(50);
+					IDataReader reader = NetworkCommunicator.DataReaderPool.Get();
 					reader.Write(data, 0, len);
 
 					double a = reader.ReadDouble();
+					NetworkCommunicator.DataReaderPool.Release(reader);
 
-					IDataWriter writer = new DataWriter(50);
+					IDataWriter writer = NetworkCommunicator.DataWriterPool.Get();
 					writer.Write(a);
 					writer.Write(x);
 					double y = OnServerT.Invoke(); // server time
 					writer.Write(y);
 					ntpServer.Send(writer.Buffer, writer.BytesWritten, endPoint);
+					NetworkCommunicator.DataWriterPool.Release(writer);
 				}
 			}
 
@@ -137,9 +140,10 @@ namespace Omni.Core
 			{
 				if (OnClientT != null)
 				{
-					IDataWriter writer = new DataWriter(50);
+					IDataWriter writer = NetworkCommunicator.DataWriterPool.Get();
 					writer.Write(OnClientT.Invoke());
 					ntpClient.Send(writer.Buffer, writer.BytesWritten, endPoint);
+					NetworkCommunicator.DataWriterPool.Release(writer);
 				}
 			}
 
@@ -198,7 +202,7 @@ namespace Omni.Core
 			ntpProtocol.Awake(serverPort, clientPort, sampleWindow);
 		}
 
-		public override void Start()
+		protected override void Start()
 		{
 			base.Start();
 			ntpProtocol.Start(accuracy);
@@ -243,8 +247,9 @@ namespace Omni.Core
 			}
 		}
 
-		private void OnApplicationQuit()
+		protected override void OnApplicationQuit()
 		{
+			base.OnApplicationQuit();
 			ntpProtocol.Close();
 		}
 	}

@@ -17,7 +17,7 @@ using System.Net;
 
 namespace Omni.Core
 {
-	public class NetworkPlayer
+	public class NetworkPeer
 	{
 		public int Id { get; }
 		public string Name { get; private set; }
@@ -25,7 +25,7 @@ namespace Omni.Core
 		public EndPoint EndPoint { get; }
 		public Dictionary<int, object> Properties { get; } = new();
 
-		internal NetworkPlayer(int id, EndPoint endPoint)
+		internal NetworkPeer(int id, EndPoint endPoint)
 		{
 			Id = id;
 			DatabaseId = -1;

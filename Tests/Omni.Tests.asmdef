@@ -4,7 +4,8 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Omni.Core"
+        "Omni.Core",
+        "Omni.Database"
     ],
     "includePlatforms": [
         "Editor"

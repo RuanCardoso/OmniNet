@@ -23,6 +23,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using static Omni.Internal.Transport.WebTransport;
 
 #pragma warning disable
 
@@ -32,9 +33,9 @@ namespace Omni.Internal.Transport
 	{
 		private const int ExpectedSize = 2;
 
-		public event Action<bool, NetworkPlayer> OnClientConnected;
-		public event Action<bool, NetworkPlayer> OnClientDisconnected;
-		public event Action<bool, byte[], int, NetworkPlayer> OnMessageReceived;
+		public event Action<bool, NetworkPeer> OnClientConnected;
+		public event Action<bool, NetworkPeer> OnClientDisconnected;
+		public event Action<bool, byte[], int, NetworkPeer> OnMessageReceived;
 
 		public Dictionary<EndPoint, TcpTransportClient<Socket>> PeerList { get; } = new();
 		public CancellationTokenSource CancellationTokenSource { get; } = new();
@@ -42,7 +43,7 @@ namespace Omni.Internal.Transport
 		private TransportSettings TransportSettings { get; set; }
 		private Socket Socket { get; set; }
 		private bool IsServer { get; set; }
-		public TcpTransportClient<Socket> LocalTransportClient { get; set; }
+		public TcpTransportClient<Socket> LocalTransportClient { get; private set; }
 
 		public bool IsConnected { get; private set; }
 		public bool IsInitialized { get; private set; }
@@ -55,11 +56,13 @@ namespace Omni.Internal.Transport
 
 		public Dictionary<EndPoint, TcpTransportClient<Socket>> TcpPeerList => PeerList;
 		public Dictionary<EndPoint, LiteTransportClient<NetPeer>> LitePeerList => throw new NotImplementedException();
+		public Dictionary<EndPoint, WebTransportClient<PeerBehaviour>> WebPeerList => throw new NotImplementedException();
 
 		public Stopwatch Stopwatch { get; } = new();
 
 		public TcpTransportClient<Socket> TcpClient => LocalTransportClient;
 		public LiteTransportClient<NetPeer> LiteClient => throw new NotImplementedException();
+		public WebTransportClient<PeerBehaviour> WebClient => throw new NotImplementedException();
 
 		private void SetSettings(Socket socket, TransportSettings transportSettings)
 		{
@@ -106,7 +109,7 @@ namespace Omni.Internal.Transport
 							if (PeerList.TryAdd(remoteEndPoint, transportClient))
 							{
 								SetSettings(socket, transportSettings);
-								OnClientConnected?.Invoke(isServer, transportClient.NetworkPlayer);
+								OnClientConnected?.Invoke(isServer, transportClient.NetworkPeer);
 							}
 							else
 							{
@@ -140,7 +143,7 @@ namespace Omni.Internal.Transport
 				Socket.Connect(endPoint);
 				Stopwatch.Start();
 				IsConnected = true;
-				OnClientConnected?.Invoke(IsServer, LocalTransportClient.NetworkPlayer);
+				OnClientConnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
 			}
 		}
 
@@ -151,7 +154,7 @@ namespace Omni.Internal.Transport
 				await Socket.ConnectAsync(endPoint);
 				Stopwatch.Start();
 				IsConnected = true;
-				OnClientConnected?.Invoke(IsServer, LocalTransportClient.NetworkPlayer);
+				OnClientConnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
 			}
 		}
 
@@ -202,7 +205,7 @@ namespace Omni.Internal.Transport
 							{
 								TotalMessagesReceived++;
 								TotalBytesReceived += (ulong)(length + ExpectedSize);
-								OnMessageReceived?.Invoke(IsServer, transportClient.Buffer, length, transportClient.NetworkPlayer);
+								OnMessageReceived?.Invoke(IsServer, transportClient.Buffer, length, transportClient.NetworkPeer);
 								// 2 Bytes - ushort(65535) - 65kb(max receive)
 								transportClient.SetExpectedLength(ExpectedSize, false); // - complete message
 							}
@@ -223,7 +226,7 @@ namespace Omni.Internal.Transport
 					{
 						TotalMessagesReceived++;
 						TotalBytesReceived += (ulong)(transportClient.ExpectedLength + ExpectedSize);
-						OnMessageReceived?.Invoke(IsServer, transportClient.Buffer, transportClient.ExpectedLength, transportClient.NetworkPlayer);
+						OnMessageReceived?.Invoke(IsServer, transportClient.Buffer, transportClient.ExpectedLength, transportClient.NetworkPeer);
 						// 2 Bytes - ushort(65535) - 65kb(max receive)
 						transportClient.SetExpectedLength(ExpectedSize, false); // - complete message
 
@@ -290,7 +293,7 @@ namespace Omni.Internal.Transport
 			return offset == length;
 		}
 
-		public void SendToClient(byte[] buffer, int length, EndPoint endPoint)
+		public void SendToClient(byte[] buffer, int length, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel)
 		{
 			if (IsServer)
 			{
@@ -309,7 +312,7 @@ namespace Omni.Internal.Transport
 			}
 		}
 
-		public void SendToServer(byte[] buffer, int length)
+		public void SendToServer(byte[] buffer, int length, DataDeliveryMode dataDeliveryMode, byte channel)
 		{
 			if (!IsServer)
 			{
@@ -405,13 +408,13 @@ namespace Omni.Internal.Transport
 			{
 				if (PeerList.Remove(endPoint, out TcpTransportClient<Socket> transportClient))
 				{
-					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPlayer);
+					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
 					transportClient.Peer.Close();
 				}
 			}
 			else
 			{
-				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPlayer);
+				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
 				Socket.Close();
 			}
 		}

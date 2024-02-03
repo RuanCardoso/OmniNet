@@ -21,14 +21,16 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using WebSocketSharp.Server;
+using static Omni.Internal.Transport.WebTransport;
 
 namespace Omni.Internal.Interfaces
 {
 	internal interface ITransport
 	{
-		event Action<bool, NetworkPlayer> OnClientConnected; // IsServer? // Player
-		event Action<bool, NetworkPlayer> OnClientDisconnected; // IsServer? // Player
-		event Action<bool, byte[], int, NetworkPlayer> OnMessageReceived; // IsServer? // Data // Size Data // Player
+		event Action<bool, NetworkPeer> OnClientConnected; // IsServer? // Player
+		event Action<bool, NetworkPeer> OnClientDisconnected; // IsServer? // Player
+		event Action<bool, byte[], int, NetworkPeer> OnMessageReceived; // IsServer? // Data // Size Data // Player
 
 		Stopwatch Stopwatch { get; }
 		CancellationTokenSource CancellationTokenSource { get; }
@@ -45,14 +47,16 @@ namespace Omni.Internal.Interfaces
 		void Disconnect(EndPoint endPoint);
 		void Receive();
 		void Receive(Socket socket);
-		void SendToClient(byte[] buffer, int size, EndPoint endPoint);
-		void SendToServer(byte[] buffer, int size);
+		void SendToClient(byte[] buffer, int size, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel);
+		void SendToServer(byte[] buffer, int size, DataDeliveryMode dataDeliveryMode, byte channel);
 		void Close();
 
 		Dictionary<EndPoint, TcpTransportClient<Socket>> TcpPeerList { get; }
 		Dictionary<EndPoint, LiteTransportClient<NetPeer>> LitePeerList { get; }
+		Dictionary<EndPoint, WebTransportClient<PeerBehaviour>> WebPeerList { get; }
 
 		TcpTransportClient<Socket> TcpClient { get; }
 		LiteTransportClient<NetPeer> LiteClient { get; }
+		WebTransportClient<PeerBehaviour> WebClient { get; }
 	}
 }
