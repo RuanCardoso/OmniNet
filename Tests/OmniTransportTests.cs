@@ -63,27 +63,26 @@ public class OmniTransportTests
 	public void CheckIfPortIsDisponible()
 	{
 		TcpListener tcpListener = new TcpListener(IPAddress.Any, 7778);
-		UdpClient udpClient = new UdpClient(6262);
 		tcpListener.Start();
 
-		bool value = NetworkHelper.IsAvailablePort(1024);
+		bool value = NetworkHelper.IsAvailablePort(1024, NetProtocol.Tcp);
 		Assert.AreEqual(value, true);
 
-		bool value2 = NetworkHelper.IsAvailablePort(1025);
+		bool value2 = NetworkHelper.IsAvailablePort(1025, NetProtocol.Tcp);
 		Assert.AreEqual(value2, true);
 
 		//bool value3 = NetworkHelper.IsAvailablePort(123);
 		//Assert.AreEqual(value3, false);
 
-		bool value4 = NetworkHelper.IsAvailablePort(7778);
+		bool value4 = NetworkHelper.IsAvailablePort(7778, NetProtocol.Tcp);
 		Assert.AreEqual(value4, false);
 
-		bool value4inverted = !NetworkHelper.IsAvailablePort(7778);
+		bool value4inverted = !NetworkHelper.IsAvailablePort(7778, NetProtocol.Tcp);
 		Assert.AreEqual(value4inverted, true);
 
 		tcpListener.Stop();
 
-		bool value5 = NetworkHelper.IsAvailablePort(7778);
+		bool value5 = NetworkHelper.IsAvailablePort(7778, NetProtocol.Tcp);
 		Assert.AreEqual(value5, true);
 	}
 }

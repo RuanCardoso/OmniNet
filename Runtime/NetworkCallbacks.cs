@@ -18,10 +18,16 @@ namespace Omni.Core
 {
 	public static class NetworkCallbacks
 	{
-		public static event Action<bool, IDataReader, NetworkPeer> OnCustomMessage; // Is Server // Player Id
-		internal static void FireCustomMessage(bool isServer, IDataReader dataReader, NetworkPeer player) => OnCustomMessage?.Invoke(isServer, dataReader, player);
+		public static event Action<bool, IDataReader, NetworkPeer> OnCustomMessageReceived;
+		internal static void FireCustomMessage(bool isServer, IDataReader dataReader, NetworkPeer player) => OnCustomMessageReceived?.Invoke(isServer, dataReader, player);
 
-		internal static event Action<bool, IDataReader, NetworkPeer> Internal_OnCustomMessage; // Is Server // Player Id
-		internal static void Internal_FireCustomMessage(bool isServer, IDataReader dataReader, NetworkPeer player) => Internal_OnCustomMessage?.Invoke(isServer, dataReader, player);
+		public static event Action<bool, int, IDataReader, NetworkPeer> OnLargeDataReceived;
+		internal static void FireLargeData(bool isServer, int option, IDataReader dataReader, NetworkPeer player) => OnLargeDataReceived?.Invoke(isServer, option, dataReader, player);
+
+		internal static event Action<bool, IDataReader, NetworkPeer> Internal_OnCustomMessageReceived;
+		internal static void Internal_FireCustomMessage(bool isServer, IDataReader dataReader, NetworkPeer player) => Internal_OnCustomMessageReceived?.Invoke(isServer, dataReader, player);
+
+		internal static event Action<bool, int, IDataReader, NetworkPeer> Internal_OnLargeDataReceived;
+		internal static void Internal_FireLargeData(bool isServer, int option, IDataReader dataReader, NetworkPeer player) => Internal_OnLargeDataReceived?.Invoke(isServer, option, dataReader, player);
 	}
 }

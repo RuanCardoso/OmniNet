@@ -21,5 +21,9 @@ namespace Omni.Internal
 		Message, // for client
 		InternalMessage, // internal use
 		RequestId,
+		Rpc,
+		LargeBlockOfBytes,
+		InternalLargeBlockOfBytes,
+        NetVar,
 	}
 }

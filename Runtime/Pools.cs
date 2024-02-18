@@ -12,6 +12,7 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using System;
 using System.Collections.Generic;
 
 #pragma warning disable
@@ -38,9 +39,19 @@ namespace Omni.Core
 
 		public IDataWriter Get()
 		{
+			IDataWriter writer = Internal_Get();
+			if (writer.Position > 0 || writer.BytesWritten > 0)
+			{
+				throw new Exception("Error: Data writer is not in the expected state. Make sure to consume or reset the writer before calling Get().");
+			}
+			return writer;
+		}
+
+		private IDataWriter Internal_Get()
+		{
 			if (pool.Count == 0)
 			{
-				OmniLogger.Print("Pool: No DataIOHandler's are currently available. A temporary DataIOHandler will be created to handle this data.");
+				OmniLogger.Print("Pool: No DataWriter are currently available. A temporary DataWriter will be created to handle this data.");
 				return new DataWriter(length);
 			}
 			else
@@ -51,6 +62,11 @@ namespace Omni.Core
 
 		public void Release(IDataWriter writer)
 		{
+			if (writer.Position == 0 || writer.BytesWritten == 0)
+			{
+				throw new Exception("Error: Data reader cannot be released as the pool has already been released.");
+			}
+
 			writer.Clear();
 			pool.Push(writer);
 		}
@@ -76,9 +92,19 @@ namespace Omni.Core
 
 		public IDataReader Get()
 		{
+			IDataReader reader = Internal_Get();
+			if (reader.Position > 0 || reader.BytesWritten > 0)
+			{
+				throw new Exception("Error: Data reader is not in the expected state. Make sure to consume or reset the reader before calling Get().");
+			}
+			return reader;
+		}
+
+		private IDataReader Internal_Get()
+		{
 			if (pool.Count == 0)
 			{
-				OmniLogger.Print("Pool: No DataIOHandler's are currently available. A temporary DataIOHandler will be created to handle this data.");
+				OmniLogger.Print("Pool: No DataReader are currently available. A temporary DataReader will be created to handle this data.");
 				return new DataReader(1500);
 			}
 			else
@@ -89,7 +115,12 @@ namespace Omni.Core
 
 		public void Release(IDataReader reader)
 		{
-			reader.Recycle();
+			if (reader.Position == 0 || reader.BytesWritten == 0)
+			{
+				throw new Exception("Error: Data reader cannot be released as the pool has already been released.");
+			}
+
+			reader.Clear();
 			pool.Push(reader);
 		}
 

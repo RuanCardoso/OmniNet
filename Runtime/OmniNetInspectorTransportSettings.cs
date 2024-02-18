@@ -15,16 +15,30 @@
 using Omni.Internal;
 using Omni.Internal.Transport;
 using System;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.Events;
 
 namespace Omni.Core
 {
-	[RequireComponent(typeof(NetworkCommunicator))]
-	[RequireComponent(typeof(NetworkMonitor))]
-	[RequireComponent(typeof(NetworkTime))]
-	public partial class OmniNetwork : RealtimeTickBasedSystem
+	public partial class OmniNetwork // Part2
 	{
+		[SerializeField]
+		[InfoBox("You must generate a new GUID every compilation to ensure uniqueness. This GUID will be used for client authentication.\n")]
+		[ReadOnly]
+		private string guid = System.Guid.NewGuid().ToString();
+
+#if UNITY_EDITOR
+		[ContextMenu("Generate Guid")]
+		private void GenerateGuid()
+		{
+			guid = System.Guid.NewGuid().ToString();
+			EditorUtility.SetDirty(gameObject);
+		}
+#endif
+
 		[SerializeField]
 		[InfoBox("Defines how the Editor simulation will work.")]
 		private LocalPhysicsMode physicsMode = LocalPhysicsMode.Physics3D;
@@ -39,7 +53,7 @@ namespace Omni.Core
 		private TransportOption transportOption = TransportOption.TcpTransport;
 
 		[InfoBox("Please consider increasing (IOPS) in the event that read operations are experiencing a discernible lag relative to the sending rate.\r\n")]
-		[SerializeField][EnableIf("transportOption", TransportOption.TcpTransport)][MinValue(1)] private int m_IOPS = 1;
+		[SerializeField]/*[EnableIf("transportOption", TransportOption.TcpTransport)]*/[MinValue(1)] private int m_IOPS = 1;
 
 		[SerializeField]
 		private UnityEvent<TransportSettings, RuntimePlatform> OnTransportSettings;
@@ -117,9 +131,9 @@ namespace Omni.Core
 		[OnValueChanged(nameof(GetAll))]
 		private uint MaxFps = 60;
 		[SerializeField]
-		[Range(1, 1500)]
+		[Range(128, 1400)]
 		[OnValueChanged(nameof(GetAll))]
-		private ushort MaxMessageSize = 256;
+		private ushort MaxMessageSize = 128;
 		[SerializeField]
 		[Range(1, 1500)]
 		[OnValueChanged(nameof(GetAll))]

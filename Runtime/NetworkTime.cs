@@ -121,7 +121,7 @@ namespace Omni.Core
 		{
 			get
 			{
-				return OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased
+				return OmniNetwork.Main.LoopMode == GameLoopOption.TickBased
 					? (int)Math.Max(0, (MathHelper.MinMax(OmniNetwork.Ntp.Latency, 1.035d) * UpdateClock.FixedTimestep / 2 * 1000.0d) - (UpdateClock.DeltaTick * UpdateClock.FixedTimestep / 2 * 1000.0d))
 					: (int)Math.Max(0, (MathHelper.MinMax(OmniNetwork.Ntp.Latency, 0.035d) / 2 * 1000.0d) - (Time.deltaTime / 2 * 1000.0d));
 			}
@@ -136,14 +136,14 @@ namespace Omni.Core
 			FixedUpdateClock = new Clock(fixedUpdateTickRate, TickModeOption.FixedUpdate);
 		}
 
-		protected override void Start()
+		public override void Start()
 		{
 			base.Start();
 		}
 
 		private void Update()
 		{
-			if (OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased)
+			if (OmniNetwork.Main.LoopMode == GameLoopOption.TickBased)
 			{
 				UpdateClock.OnTick();
 			}
@@ -159,7 +159,7 @@ namespace Omni.Core
 
 		private void FixedUpdate()
 		{
-			if (OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased)
+			if (OmniNetwork.Main.LoopMode == GameLoopOption.TickBased)
 			{
 				FixedUpdateClock.OnTick();
 			}

@@ -12,24 +12,22 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using Omni.Internal.Interfaces;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace Omni.Core
 {
+	[DefaultExecutionOrder(-400)]
 	public class NetworkIdentity : RealtimeTickBasedSystem
 	{
-		internal static Dictionary<(bool, int), NetworkIdentity> NetworkIdentities { get; } = new(); // Is Server, Instance Id
-
-		// Note: Byte allow only 255 SyncVars per identity.
-		// Note: Use another identity if you need more!
-		internal byte OnSyncBaseId { get; set; }
-		internal Action<byte, IDataReader> OnSyncBase { get; set; }
+		private ITransport ServerTransport => OmniNetwork.Main.ServerTransport;
+		private ITransport ClientTransport => OmniNetwork.Main.ClientTransport;
+		internal Dictionary<int, NetworkBehaviour> NetworkBehaviours { get; } = new Dictionary<int, NetworkBehaviour>(); // Network Behaviour Id, Network Behaviour Instance
 
 		[SerializeField]
 		[InfoBox("Static: This object has no interaction with the network, but a copy of it will be generated on the server side(Debug Mode)")]
@@ -42,14 +40,71 @@ namespace Omni.Core
 		[SerializeField]
 		[ReadOnly]
 		private int m_Id;
+		[ReadOnly]
+		private int m_OwnerId; // 0 - Is Server
 		[SerializeField]
 		[ReadOnly]
 		private bool m_IsServer;
+		[SerializeField]
+		[ReadOnly]
+		private bool m_IsDynamic;
 
-		public bool IsStatic { get => m_IsStatic; private set => m_IsStatic = value; }
-		public bool IsServerSimulation { get => m_IsServerSimulation; private set => m_IsServerSimulation = value; }
-		public int Id { get => m_Id; private set => m_Id = value; }
-		public bool IsServer { get => m_IsServer; private set => m_IsServer = value; }
+		public int Id
+		{
+			get => m_Id;
+			internal set => m_Id = value;
+		}
+
+		public int OwnerId
+		{
+			get => m_OwnerId;
+			internal set => m_OwnerId = value;
+		}
+
+		public bool IsServer
+		{
+			get
+			{
+				if (ServerTransport == null)
+				{
+					return false;
+				}
+
+				if (!ServerTransport.IsInitialized)
+				{
+					return false;
+				}
+				return m_IsServer;
+			}
+			internal set => m_IsServer = value;
+		}
+
+		public bool IsClient
+		{
+			get
+			{
+				if (ClientTransport == null)
+				{
+					return false;
+				}
+
+				if (!ClientTransport.IsInitialized || !ClientTransport.IsConnected)
+				{
+					return false;
+				}
+				return !m_IsServer;
+			}
+		}
+
+		public bool IsDynamic
+		{
+			get => m_IsDynamic;
+			internal set => m_IsDynamic = value;
+		}
+
+		public SpawnMode SpawnMode => m_SpawnMode;
+		public bool IsStatic => m_IsStatic;
+		public bool IsServerSimulation => m_IsServerSimulation;
 
 #if UNITY_EDITOR
 		private void OnValidate()
@@ -59,17 +114,13 @@ namespace Omni.Core
 				return;
 			}
 
-			if (m_SpawnMode == SpawnMode.Scene)
+			if (m_Id == 0)
 			{
-				int instanceId = GetInstanceID();
+				int instanceId = gameObject.GetInstanceID();
 				if (m_Id != instanceId)
 				{
 					m_Id = instanceId;
 				}
-			}
-			else
-			{
-				m_Id = 0;
 			}
 		}
 
@@ -84,9 +135,16 @@ namespace Omni.Core
 #if UNITY_SERVER && !UNITY_EDITOR
 			IsServer = true;
 #endif
+#if UNITY_EDITOR
+			gameObject.name = gameObject.name.Replace("(Clone)", "");
+#endif
+			if (!OmniNetwork.Communicator.NetworkIdentities.TryAdd(ValueTuple.Create(m_Id, IsServer), this))
+			{
+				OmniLogger.PrintError($"Error: Duplicated ID '{m_Id}'. Ensure unique IDs for each instance of Network Identity");
+			}
 		}
 
-		protected override void Start()
+		public override void Start()
 		{
 			if (IsStatic)
 			{
@@ -94,6 +152,15 @@ namespace Omni.Core
 				CreateServerSimulation();
 #endif
 				return;
+			}
+
+			if (m_SpawnMode == SpawnMode.Dynamic)
+			{
+				if (!m_IsDynamic)
+				{
+					OmniLogger.PrintError("A dynamic object must be instantiated.");
+					Destroy(gameObject);
+				}
 			}
 
 			base.Start();
@@ -113,60 +180,32 @@ namespace Omni.Core
 
 		private IEnumerator Initialize()
 		{
-			yield return new WaitUntil(() => OmniNetwork.Omni.IsConnected);
+			yield return new WaitUntil(() => OmniNetwork.Main.IsConnected);
 #if !UNITY_SERVER || UNITY_EDITOR
 			if (m_SpawnMode == SpawnMode.Scene)
 			{
 				CreateServerSimulation();
 			}
+			MakeLabeledInfo();
 #endif
 			// Note: All initialization code should be here, because that's when the server and client are ready.
-			RequestGameObjectId();
-		}
-
-		private void RequestGameObjectId()
-		{
-			if (m_SpawnMode == SpawnMode.Dynamic)
-			{
-				gameObject.hideFlags = HideFlags.HideInHierarchy | HideFlags.HideInInspector;
-				gameObject.SetActive(false);
-
-				// Instantiate the player
-				try
-				{
-					if (m_Id == 0)
-					{
-						//IDataWriter writer = NetworkCommunicator.DataWriterPool.Get();
-						//writer.Write((byte)InternalNetMessage.DynamicSpawn);
-						//IDataReader reader = await OmniNetwork.Communicator.Internal_SendCustomMessageAsync(writer, DataDeliveryMode.Secured, 0);
-						//NetworkCommunicator.DataWriterPool.Release(writer);
-						Debug.LogError("Instantiate");
-					}
-				}
-				catch (TaskCanceledException) { }
-			}
-			else
-			{
-#if !UNITY_SERVER || UNITY_EDITOR
-				MakeLabeledInfo();
-#endif
-			}
+			// .......
 		}
 
 		private void CreateServerSimulation()
 		{
-			if (!IsServerSimulation && OmniNetwork.Omni.HasServer) // Work only on the server object
+			if (!IsServerSimulation && OmniNetwork.Main.HasServer) // Work only on the server object
 			{
 				// Assign exposed vars before instantiating prefab....
-				IsServerSimulation = IsServer = true;
+				m_IsServerSimulation = IsServer = true;
 				GameObject serverObject = Instantiate(gameObject);
 				// Unassign exposed vars after instantiating prefab....
-				IsServerSimulation = IsServer = false;
+				m_IsServerSimulation = IsServer = false;
 				NetworkIdentity serverIdentity = serverObject.GetComponent<NetworkIdentity>();
 				serverIdentity.IsServer = true;
 
 				// Ignore physics between client object and server object
-				SceneManager.MoveGameObjectToScene(serverObject, OmniNetwork.Omni.ServerScene.GetValueOrDefault());
+				SceneManager.MoveGameObjectToScene(serverObject, OmniNetwork.Main.ServerScene.GetValueOrDefault());
 
 				// Disable shadows for server simulation;
 				Renderer[] renderers = serverObject.GetComponentsInChildren<Renderer>();
@@ -208,7 +247,7 @@ namespace Omni.Core
 		}
 	}
 
-	enum SpawnMode
+	public enum SpawnMode
 	{
 		Scene,
 		Dynamic

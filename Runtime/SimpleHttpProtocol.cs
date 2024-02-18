@@ -15,112 +15,159 @@
 using Omni.Internal;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Omni.Core
 {
-	public class SimpleHttpProtocol
+	public static class SimpleHttpProtocol
 	{
-		private enum HttpOption
+		enum HttpOption
 		{
-			App = 235, // node express
-			Axios = 251, // js fetch
+			Response = 14,
+			Fetch = 15,
 		}
 
-		internal class Route
-		{
-			public Route(Action<IDataReader, IDataWriter> path, bool isSecure)
-			{
-				Path = path;
-				IsSecure = isSecure;
-			}
+		public static HttpServer Server { get; } = new HttpServer();
+		public static HttpClient Client { get; } = new HttpClient();
 
-			internal Action<IDataReader, IDataWriter> Path { get; }
-			internal bool IsSecure { get; }
-		}
-
-		// Server
-		public class App
+		public class HttpServer
 		{
-			internal readonly Dictionary<string, Route> m_paths = new();
-			public void Post(string path, Action<IDataReader, IDataWriter> func, bool isSecure = true)
+			internal Dictionary<string, Action<IDataReader, IDataWriter, NetworkPeer>> m_routes = new();
+			public void Post(string route, Action<IDataReader, IDataWriter, NetworkPeer> response)
 			{
 #if UNITY_EDITOR
 				NetworkHelper.ThrowAnErrorIfConcurrent();
 #endif
-				if (!m_paths.TryAdd(path, new Route(func, isSecure)))
+				if (response == null)
+					throw new ArgumentNullException("request or response is null");
+
+				if (!m_routes.TryAdd(route, response))
 				{
-					OmniLogger.PrintError($"Error: Route '{path}' already exists. Use a unique route for each post method.");
+					throw new NotSupportedException($"The route {route} is global and must be unique.");
 				}
 			}
 		}
 
-		// Client
-		public class Axios
+		public class HttpClient
 		{
-			internal Queue<TaskCompletionSource<IDataReader>> m_tasks = new();
-			public Task<IDataReader> Post(string path, IDataWriter writer, bool isSecure = true)
+			internal int m_requestId = int.MinValue;
+			internal Dictionary<int, Action<IDataReader>> m_results = new();
+			public void Post(string route, Action<IDataWriter> request, Action<IDataReader> response)
 			{
 #if UNITY_EDITOR
 				NetworkHelper.ThrowAnErrorIfConcurrent();
 #endif
+				if (request == null || response == null)
+					throw new ArgumentNullException("request or response is null");
+
+				int requestId = m_requestId;
+				if (m_results.TryAdd(requestId, response))
+				{
+					IDataWriter writer = NetworkCommunicator.DataWriterPool.Get();
+					writer.Write7BitEncodedInt(requestId);
+					writer.Write(route);
+					request(writer);
+					OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Fetch, writer, DataDeliveryMode.ReliableEncryptedOrdered, 0);
+					NetworkCommunicator.DataWriterPool.Release(writer);
+					m_requestId++;
+				}
+				else
+				{
+					throw new NotSupportedException($"The post method!");
+				}
+			}
+
+			public Task<IDataReader> Post(string route, Action<IDataWriter> request, int timeout = 3000)
+			{
+				if (request == null)
+					throw new ArgumentNullException("request is null");
+
 				TaskCompletionSource<IDataReader> tcs = new();
-				m_tasks.Enqueue(tcs);
-				IDataWriter internalWriter = NetworkCommunicator.DataWriterPool.Get();
-				internalWriter.Write(path);
-				internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
-				OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Axios, internalWriter, isSecure ? DataDeliveryMode.SecuredWithAes : DataDeliveryMode.Secured, 0);
-				NetworkCommunicator.DataWriterPool.Release(internalWriter);
+				CancellationTokenSource cts = new();
+				Client.Post(route, request, (res) =>
+				{
+					if (cts != null && !cts.IsCancellationRequested)
+					{
+						cts.Cancel();
+						tcs.SetResult(res);
+						cts.Dispose();
+					}
+				});
+
+				Task.Run(async () =>
+				{
+					await Task.Delay(timeout, cts.Token);
+					if (cts != null && !cts.IsCancellationRequested)
+					{
+						cts.Cancel();
+						tcs.SetException(new TimeoutException());
+						cts.Dispose();
+					}
+				}, cts.Token);
 				return tcs.Task;
 			}
 		}
 
-		public static App Server { get; } = new();
-		public static Axios Client { get; } = new();
-
 		internal static void AddEventListener()
 		{
-			NetworkCallbacks.Internal_OnCustomMessage += NetworkCallbacks_Internal_OnCustomMessage;
+			NetworkCallbacks.Internal_OnCustomMessageReceived += OnRoute;
 		}
 
-		private static void NetworkCallbacks_Internal_OnCustomMessage(bool isServer, IDataReader reader, NetworkPeer peer)
+		private static void OnRoute(bool isServer, IDataReader reader, NetworkPeer peer)
 		{
 			HttpOption httpOption = reader.ReadCustomMessage<HttpOption>();
-			if (isServer && httpOption == HttpOption.Axios)
+			if (isServer && httpOption == HttpOption.Fetch)
 			{
-				string path = reader.ReadString();
-				if (Server.m_paths.TryGetValue(path, out Route route))
+				int requestId = reader.Read7BitEncodedInt();
+				string route = reader.ReadString();
+
+				if (Server.m_routes.TryGetValue(route, out var exec))
 				{
-					IDataWriter internalWriter = NetworkCommunicator.DataWriterPool.Get();
-					route.Path(reader, internalWriter);
-					OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.App, internalWriter, peer.Id, route.IsSecure ? DataDeliveryMode.SecuredWithAes : DataDeliveryMode.Secured, 0);
-					NetworkCommunicator.DataWriterPool.Release(internalWriter);
+					#region Writers
+					IDataWriter httpHeader = NetworkCommunicator.DataWriterPool.Get();
+					IDataWriter httpResponse = NetworkCommunicator.DataWriterPool.Get();
+					#endregion
+
+					#region Initialize
+					httpHeader.Write7BitEncodedInt(requestId);
+					httpHeader.Write(route);
+					exec(reader, httpResponse, peer);
+					httpHeader.Write(httpResponse.Buffer, 0, httpResponse.BytesWritten);
+					if (httpResponse.BytesWritten > 0)
+						OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Response, httpHeader, peer.Id, DataDeliveryMode.ReliableEncryptedOrdered, 0);
+					else OmniLogger.PrintError("Error: The requested route does not have a response from the server.");
+					#endregion
+
+					#region Recycle
+					NetworkCommunicator.DataWriterPool.Release(httpResponse);
+					NetworkCommunicator.DataWriterPool.Release(httpHeader);
+					#endregion
 				}
 				else
 				{
-					OmniLogger.PrintError($"Error: Route '{path}' does not exists.");
+					OmniLogger.PrintError($"The route {route} does not exists.");
 				}
 			}
-			else if (!isServer && httpOption == HttpOption.App)
+			else if (!isServer && httpOption == HttpOption.Response)
 			{
-				if (Client.m_tasks.Count > 0)
+				int requestId = reader.Read7BitEncodedInt();
+				string route = reader.ReadString();
+				if (Client.m_results.Remove(requestId, out var exec))
 				{
-					TaskCompletionSource<IDataReader> tcs = Client.m_tasks.Dequeue();
-					tcs.SetResult(reader);
+					exec(reader);
 				}
 				else
 				{
-					throw new Exception("There are no http tasks, something is wrong ):");
+					OmniLogger.PrintError($"Client Response -> The route {route} does not exists.");
 				}
+			}
+			else
+			{
+				throw new NotImplementedException($"Http Option not implemented! -> {httpOption}");
 			}
 		}
 
-		internal static void Close()
-		{
-			foreach (var task in Client.m_tasks)
-			{
-				task.SetCanceled();
-			}
-		}
+		internal static void Close() { }
 	}
 }

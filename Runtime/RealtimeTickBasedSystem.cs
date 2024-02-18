@@ -12,13 +12,14 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using UnityEngine;
+
 namespace Omni.Core
 {
-	public class RealtimeTickBasedSystem : DatabaseBehaviour, IRealtimeTickBasedSystem
+	public class RealtimeTickBasedSystem : MonoBehaviour, IRealtimeTickBasedSystem
 	{
-		protected override void Start()
+		public virtual void Start()
 		{
-			base.Start();
 			OmniNetwork.Time.UpdateClock.AddHandler(this);
 		}
 

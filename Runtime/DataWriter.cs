@@ -15,6 +15,7 @@
 using MessagePack;
 using Newtonsoft.Json;
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -23,9 +24,9 @@ namespace Omni.Core
 	public class DataWriter : IDataWriter
 	{
 		public byte[] Buffer { get; }
-		public int Position { get; private set; }
-		public int BytesWritten { get; private set; }
-		public Encoding Encoding { get; private set; }
+		public int Position { get; set; }
+		public int BytesWritten { get; set; }
+		public Encoding Encoding { get; set; }
 
 		public DataWriter(int size)
 		{
@@ -38,7 +39,12 @@ namespace Omni.Core
 			int available = count - offset;
 			for (int i = 0; i < available; i++)
 			{
-				Write(buffer[offset + i]);
+				int index = offset + i;
+				if (index > (buffer.Length - 1))
+				{
+					throw new Exception("Data Writer -> An attempt was made to obtain a boundary outside the ranges of the source array(buffer).");
+				}
+				Write(buffer[index]);
 			}
 		}
 
@@ -48,6 +54,35 @@ namespace Omni.Core
 			{
 				Write(value[i]);
 			}
+		}
+
+		public void Write(ReadOnlySpan<byte> value)
+		{
+			for (int i = 0; i < value.Length; i++)
+			{
+				Write(value[i]);
+			}
+		}
+
+		public void Write(Stream value)
+		{
+			int count = (int)value.Length;
+			while (Position < count)
+			{
+				int n = value.Read(Buffer, Position, count - Position);
+				if (ThrowIfNotEnoughSpace(n))
+				{
+					Position += n;
+					BytesWritten += n;
+				}
+				else break;
+			}
+		}
+
+		public void Write(char value)
+		{
+			Write((byte)value);
+			Write((byte)(value >> 8));
 		}
 
 		public void Write(byte value)
@@ -335,10 +370,9 @@ namespace Omni.Core
 		{
 			if (Position + size > Buffer.Length)
 			{
-				OmniLogger.PrintError($"Insufficient space to write {size} bytes. Current position: {Position}, requested position: {Position + size}");
+				OmniLogger.PrintError($"Insufficient space to write {size} bytes. Current position: {Position}, requested position: {Position + size} | buffer length: {Buffer.Length}");
 				return false;
 			}
-
 			return true;
 		}
 	}

@@ -15,18 +15,20 @@
 using Omni.Core;
 using System;
 using System.Net;
+using System.Threading;
 
 namespace Omni.Internal.Transport
 {
 	internal class TransportClient<T>
 	{
+		static int Id { get; set; } = 0; // int.MinValue;
 		public TransportClient(EndPoint endPoint, T peer)
 		{
 			Peer = peer;
 			if (endPoint != null)
 			{
 				EndPoint = endPoint;
-				NetworkPeer = new NetworkPeer(((IPEndPoint)endPoint).Port, endPoint);
+				NetworkPeer = new NetworkPeer(Id++, endPoint);
 			}
 			else
 			{
@@ -44,6 +46,8 @@ namespace Omni.Internal.Transport
 		internal byte[] Buffer { get; }
 		internal int ExpectedLength { get; private set; } = 2; // 2 Bytes(prefix) - ushort(65535) - 65kb(max receive)
 		internal bool PendingMessage { get; private set; }
+		internal DateTime LastReceivedTime { get; set; } = DateTime.UtcNow;
+		internal CancellationTokenSource CancellationTokenSource { get; } = new CancellationTokenSource();
 
 		internal TcpTransportClient(byte[] buffer, T peer, EndPoint endPoint) : base(endPoint, peer)
 		{

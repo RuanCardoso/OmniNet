@@ -12,6 +12,8 @@
     License: Open Source (MIT)
     ===========================================================*/
 
+using Newtonsoft.Json.Utilities;
+using Omni.Core.Cryptography;
 using Omni.Internal;
 using Omni.Internal.Interfaces;
 using Omni.Internal.Transport;
@@ -27,12 +29,13 @@ namespace Omni.Core
 	[RequireComponent(typeof(NetworkMonitor))]
 	[RequireComponent(typeof(NetworkTime))]
 	[RequireComponent(typeof(NtpServer))]
-	[DefaultExecutionOrder(-3000)]
-	public partial class OmniNetwork : RealtimeTickBasedSystem
+	[RequireComponent(typeof(PortForwarding))]
+	[DefaultExecutionOrder(-3000)] // Priority
+	public partial class OmniNetwork : RealtimeTickBasedSystem // Part1
 	{
 		const string SceneName = "Omni Server(Debug Mode)";
 
-		public static OmniNetwork Omni { get; private set; }
+		public static OmniNetwork Main { get; private set; }
 		public static NetworkCommunicator Communicator { get; private set; }
 		public static NetworkTime Time { get; private set; }
 		public static NtpServer Ntp { get; private set; }
@@ -40,14 +43,16 @@ namespace Omni.Core
 		public NetworkDispatcher NetworkDispatcher { get; private set; }
 		public GameLoopOption LoopMode => loopMode;
 		public int IOPS { get => m_IOPS; set => m_IOPS = value; }
+		public string Guid { get => guid; set => guid = value; }
 		public TransportOption TransportOption => transportOption;
-		public bool HasServer => ServerTransport.IsInitialized;
+		public bool HasServer => ServerTransport != null && ServerTransport.IsInitialized;
+		public bool HasClient => ClientTransport != null && ClientTransport.IsInitialized && ClientTransport.IsConnected;
 		public Scene? ServerScene { get; private set; }
 
 #if UNITY_SERVER && !UNITY_EDITOR
 		public bool IsConnected => HasServer;
 #else
-		public bool IsConnected => ClientTransport.IsConnected;
+		public bool IsConnected => HasClient;
 #endif
 
 		internal int ManagedThreadId { get; private set; }
@@ -57,10 +62,18 @@ namespace Omni.Core
 
 		private bool m_IsInitialized;
 
+		#region Rsa && Aes
+		internal string PublicKey { get; private set; }
+		internal string PrivateKey { get; private set; }
+		internal byte[] AesKey { get; private set; }
+		#endregion
+
 		private void Awake()
 		{
 			#region Instance
-			Omni = this;
+			Main = this;
+			_ = NetworkHelper.AddResolver(null);
+			AotHelper.EnsureDictionary<string, object>();
 			#endregion
 
 			#region Components
@@ -71,15 +84,34 @@ namespace Omni.Core
 			#endregion
 
 			#region Initialize
+			ManagedThreadId = Thread.CurrentThread.ManagedThreadId;
 			SimpleHttpProtocol.AddEventListener();
 			InitializeTransport();
 			#endregion
+
+			// Let's generate a pair of RSA keys for exchanging aes keys between client and server.
+			// Only the 'server' will generate the key pair.
+			#region Rsa && Aes
+			if (HasServer)
+			{
+				RsaCryptography.GetRsaKeys(out string privateKey, out string publicKey);
+				if (privateKey.Length > 0 && publicKey.Length > 0)
+				{
+					PublicKey = StringCipher.Encrypt(publicKey, Guid);
+					PrivateKey = privateKey;
+				}
+				else throw new Exception("Error generating RSA keys. Please verify that the generation process is working correctly.");
+			}
+#if !UNITY_SERVER || UNITY_EDITOR
+			AesKey = AesCryptography.GenerateKey();
+#endif
+			#endregion
 		}
 
-		protected override void Start()
+		public override void Start()
 		{
 			base.Start();
-			ManagedThreadId = Thread.CurrentThread.ManagedThreadId;
+			// Server build has no client!
 #if !UNITY_SERVER || UNITY_EDITOR
 			InitializeConnection();
 #endif
@@ -87,7 +119,7 @@ namespace Omni.Core
 
 		private void Update()
 		{
-			if (Omni.LoopMode == GameLoopOption.RealTime)
+			if (Main.LoopMode == GameLoopOption.RealTime)
 			{
 				Simulate();
 			}
@@ -113,7 +145,7 @@ namespace Omni.Core
 
 		public override void OnUpdateTick(ITickData tick)
 		{
-			if (Omni.LoopMode == GameLoopOption.TickBased)
+			if (Main.LoopMode == GameLoopOption.TickBased)
 			{
 				Simulate();
 			}
@@ -121,14 +153,7 @@ namespace Omni.Core
 
 		private void Simulate()
 		{
-			if (TransportOption == TransportOption.TcpTransport)
-			{
-				for (int i = 0; i < IOPS; i++)
-				{
-					Receive();
-				}
-			}
-			else
+			for (int i = 0; i < IOPS; i++)
 			{
 				Receive();
 			}
@@ -226,8 +251,18 @@ namespace Omni.Core
 				}
 			}
 
+			NetProtocol protocol = TransportOption switch
+			{
+				TransportOption.LiteNetTransport => NetProtocol.Udp,
+				TransportOption.TcpTransport => NetProtocol.Tcp,
+				TransportOption.WebSocketTransport => NetProtocol.WebSocket,
+				_ => throw new Exception("Invalid protocol!"),
+			};
+
 			OnTransportSettings?.Invoke(TransportSettings, Application.platform);
-			if (NetworkHelper.IsAvailablePort(TransportSettings.ServerPort))
+			// The Server does not start in WebGl as it is not supported in browsers, it must be run outside of a browser environment.
+#if !UNITY_WEBGL || UNITY_EDITOR
+			if (NetworkHelper.IsAvailablePort(TransportSettings.ServerPort, protocol))
 			{
 				ServerTransport.InitializeTransport(true, new IPEndPoint(IPAddress.Any, TransportSettings.ServerPort), TransportSettings);
 #if !UNITY_SERVER || UNITY_EDITOR
@@ -238,8 +273,9 @@ namespace Omni.Core
 			{
 				OmniLogger.Print("There is an active server instance running, but it seems uninitialized in this instance. The application will continue.");
 			}
+#endif
 
-			if (NetworkHelper.IsAvailablePort(TransportSettings.ClientPort))
+			if (NetworkHelper.IsAvailablePort(TransportSettings.ClientPort, protocol))
 			{
 				ClientTransport.InitializeTransport(false, new IPEndPoint(IPAddress.Any, TransportSettings.ClientPort), TransportSettings);
 			}
@@ -261,9 +297,8 @@ namespace Omni.Core
 			}
 		}
 
-		protected override void OnApplicationQuit()
+		public void OnApplicationQuit()
 		{
-			base.OnApplicationQuit();
 			SimpleHttpProtocol.Close();
 			if (ServerTransport != null && ServerTransport.IsInitialized)
 			{
@@ -276,16 +311,23 @@ namespace Omni.Core
 			}
 		}
 	}
-}
 
-public enum LocalPhysicsMode
-{
-	//
-	// Resumo:
-	//     A local 2D physics Scene will be created and owned by the Scene.
-	Physics2D = 1,
-	//
-	// Resumo:
-	//     A local 3D physics Scene will be created and owned by the Scene.
-	Physics3D = 2
+	public enum LocalPhysicsMode
+	{
+		//
+		// Resumo:
+		//     A local 2D physics Scene will be created and owned by the Scene.
+		Physics2D = 1,
+		//
+		// Resumo:
+		//     A local 3D physics Scene will be created and owned by the Scene.
+		Physics3D = 2
+	}
+
+	public enum NetProtocol
+	{
+		Tcp,
+		Udp,
+		WebSocket
+	}
 }

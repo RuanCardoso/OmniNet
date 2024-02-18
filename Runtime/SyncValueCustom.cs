@@ -19,15 +19,15 @@ namespace Omni.Core
 	[Serializable]
 	public class SyncValueCustom<T> : SyncBase<T> where T : unmanaged, ISyncCustom
 	{
-		public SyncValueCustom(NetworkIdentity identity, T value = default, Action<T> onChanged = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(identity, value, deliveryMode, target, processingOption, cachingOption, authority, value)
+		public SyncValueCustom(NetworkBehaviour behaviour, T value, Action<T> onChanged) : base(behaviour, value, value)
 		{
-			if (identity == null)
+			if (behaviour == null)
 			{
 				OmniLogger.PrintError("Error: SyncVar -> The provided NetworkIdentity is null.");
 				return;
 			}
 
-			identity.OnSyncBase += (id, message) =>
+			behaviour.OnSyncBase += (id, message) =>
 			{
 				if (this.Id == id)
 				{

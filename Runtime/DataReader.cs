@@ -15,7 +15,7 @@
 using MessagePack;
 using Newtonsoft.Json;
 using System;
-using System.Runtime.CompilerServices;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -24,9 +24,10 @@ namespace Omni.Core
 	public class DataReader : IDataReader
 	{
 		public byte[] Buffer { get; }
-		public int Position { get; private set; }
-		public int BytesWritten { get; private set; }
-		public Encoding Encoding { get; private set; }
+		public int Position { get; set; }
+		public int BytesWritten { get; set; }
+		public bool ResetPositionAfterWriting { get; set; } = true;
+		public Encoding Encoding { get; set; }
 
 		public DataReader(int size)
 		{
@@ -39,17 +40,83 @@ namespace Omni.Core
 			int available = count - offset;
 			for (int i = 0; i < available; i++)
 			{
-				if (!(Position + count > Buffer.Length))
+				if (ThrowIfNotEnoughSpace(1))
 				{
-					Buffer[Position++] = buffer[offset + i];
+					int index = offset + i;
+					if (index > (buffer.Length - 1))
+					{
+						throw new Exception("Data Reader -> An attempt was made to obtain a boundary outside the ranges of the source array(buffer).");
+					}
+					Buffer[Position++] = buffer[index];
 					BytesWritten += 1;
 				}
-				else
-				{
-					OmniLogger.PrintError($"DataReader: Insufficient space to write {count} bytes. Current position: {Position}, requested position: {Position + count}");
-				}
+				else break;
 			}
-			Position = 0;
+
+			if (ResetPositionAfterWriting)
+			{
+				Position = 0;
+			}
+		}
+
+		public void Write(Span<byte> value)
+		{
+			int count = value.Length;
+			int available = count;
+			for (int i = 0; i < available; i++)
+			{
+				if (ThrowIfNotEnoughSpace(1))
+				{
+					Buffer[Position++] = value[i];
+					BytesWritten += 1;
+				}
+				else break;
+			}
+
+			if (ResetPositionAfterWriting)
+			{
+				Position = 0;
+			}
+		}
+
+		public void Write(ReadOnlySpan<byte> value)
+		{
+			int count = value.Length;
+			int available = count;
+			for (int i = 0; i < available; i++)
+			{
+				if (ThrowIfNotEnoughSpace(1))
+				{
+					Buffer[Position++] = value[i];
+					BytesWritten += 1;
+				}
+				else break;
+			}
+
+			if (ResetPositionAfterWriting)
+			{
+				Position = 0;
+			}
+		}
+
+		public void Write(Stream value)
+		{
+			int count = (int)value.Length;
+			while (Position < count)
+			{
+				int n = value.Read(Buffer, Position, count - Position);
+				if (ThrowIfNotEnoughSpace(n))
+				{
+					Position += n;
+					BytesWritten += n;
+				}
+				else break;
+			}
+
+			if (ResetPositionAfterWriting)
+			{
+				Position = 0;
+			}
 		}
 
 		public void Read(byte[] buffer, int offset, int count)
@@ -73,7 +140,14 @@ namespace Omni.Core
 		public T ReadCustomMessage<T>() where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			int tValue = Read7BitEncodedInt();
-			return Unsafe.As<int, T>(ref tValue);
+			return tValue.ReadCustomMessage<T>();
+		}
+
+		public char ReadChar()
+		{
+			char value = (char)ReadByte();
+			value |= (char)(ReadByte() << 8);
+			return value;
 		}
 
 		public byte ReadByte()
@@ -454,7 +528,7 @@ namespace Omni.Core
 			}
 		}
 
-		public void Recycle()
+		public void Clear()
 		{
 			Position = 0;
 			BytesWritten = 0;
@@ -468,7 +542,16 @@ namespace Omni.Core
 				OmniLogger.PrintError("Possible Error: Double event not registered for the same IOHandler? Possible double data read.");
 				return false;
 			}
+			return true;
+		}
 
+		private bool ThrowIfNotEnoughSpace(int size)
+		{
+			if (Position + size > Buffer.Length)
+			{
+				OmniLogger.PrintError($"DataReader: Insufficient space to write {size} bytes. Current position: {Position} | requested position: {Position + size} | buffer length: {Buffer.Length}");
+				return false;
+			}
 			return true;
 		}
 	}

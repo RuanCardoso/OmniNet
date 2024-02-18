@@ -49,7 +49,7 @@ namespace Omni.Core
 			public void Awake(int serverPort = 1023, int clientPort = 1025, int windowSize = 3)
 			{
 				OffsetExAvg = new ExponentialMovingAverage(windowSize);
-				if (NetworkHelper.IsAvailablePort(serverPort))
+				if (NetworkHelper.IsAvailablePort(serverPort, NetProtocol.Udp))
 				{
 					ntpServer.Bind(new IPEndPoint(IPAddress.Any, serverPort));
 					OmniLogger.Print($"The NTP Server was started on port: {serverPort}");
@@ -59,7 +59,7 @@ namespace Omni.Core
 					OmniLogger.Print($"An Ntp server is already running on port {serverPort}, but it seems uninitialized in this instance. The application will continue.");
 				}
 
-				if (NetworkHelper.IsAvailablePort(clientPort))
+				if (NetworkHelper.IsAvailablePort(clientPort, NetProtocol.Udp))
 				{
 					ntpClient.Bind(new IPEndPoint(IPAddress.Any, clientPort));
 				}
@@ -180,7 +180,7 @@ namespace Omni.Core
 			get
 			{
 #pragma warning disable IDE0046
-				if (OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased)
+				if (OmniNetwork.Main.LoopMode == GameLoopOption.TickBased)
 				{
 					return (long)(ticks + ntpProtocol.OffsetExAvg.GetAverage());
 				}
@@ -196,13 +196,13 @@ namespace Omni.Core
 
 		private void Awake()
 		{
-			queryPeer = new IPEndPoint(IPAddress.Parse(OmniNetwork.Omni.TransportSettings.Host), serverPort);
-			ntpProtocol.OnServerT += () => OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased ? ticks : Time.timeAsDouble;
-			ntpProtocol.OnClientT += () => OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased ? ticks : Time.timeAsDouble;
+			queryPeer = new IPEndPoint(IPAddress.Parse(OmniNetwork.Main.TransportSettings.Host), serverPort);
+			ntpProtocol.OnServerT += () => OmniNetwork.Main.LoopMode == GameLoopOption.TickBased ? ticks : Time.timeAsDouble;
+			ntpProtocol.OnClientT += () => OmniNetwork.Main.LoopMode == GameLoopOption.TickBased ? ticks : Time.timeAsDouble;
 			ntpProtocol.Awake(serverPort, clientPort, sampleWindow);
 		}
 
-		protected override void Start()
+		public override void Start()
 		{
 			base.Start();
 			ntpProtocol.Start(accuracy);
@@ -211,7 +211,7 @@ namespace Omni.Core
 
 		private void Update()
 		{
-			if (OmniNetwork.Omni.LoopMode == GameLoopOption.RealTime)
+			if (OmniNetwork.Main.LoopMode == GameLoopOption.RealTime)
 			{
 				ntpProtocol.Update();
 			}
@@ -219,7 +219,7 @@ namespace Omni.Core
 
 		public override void OnUpdateTick(ITickData tick)
 		{
-			if (OmniNetwork.Omni.LoopMode == GameLoopOption.TickBased)
+			if (OmniNetwork.Main.LoopMode == GameLoopOption.TickBased)
 			{
 				ntpProtocol.Update();
 			}
@@ -247,9 +247,8 @@ namespace Omni.Core
 			}
 		}
 
-		protected override void OnApplicationQuit()
+		public void OnApplicationQuit()
 		{
-			base.OnApplicationQuit();
 			ntpProtocol.Close();
 		}
 	}

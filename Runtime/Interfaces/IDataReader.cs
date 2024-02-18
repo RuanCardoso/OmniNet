@@ -15,6 +15,7 @@
 using MessagePack;
 using Newtonsoft.Json;
 using System;
+using System.IO;
 using System.Text;
 
 namespace Omni.Core
@@ -22,14 +23,19 @@ namespace Omni.Core
 	public interface IDataReader
 	{
 		byte[] Buffer { get; }
-		int Position { get; }
-		int BytesWritten { get; }
-		Encoding Encoding { get; }
-		void Recycle();
+		int Position { get; set; }
+		int BytesWritten { get; set; }
+		bool ResetPositionAfterWriting { get; set; }
+		Encoding Encoding { get; set; }
+		void Clear();
 		void Write(byte[] buffer, int offset, int count);
+		void Write(Span<byte> value);
+		void Write(ReadOnlySpan<byte> value);
+		void Write(Stream value);
 		void Read(byte[] buffer, int offset, int count);
 		int Read(Span<byte> value);
 		T ReadCustomMessage<T>() where T : unmanaged, IComparable, IConvertible, IFormattable;
+		char ReadChar();
 		byte ReadByte();
 		short ReadShort();
 		int ReadInt();
@@ -42,8 +48,8 @@ namespace Omni.Core
 		string ReadString();
 		string ReadStringWithoutAllocation();
 		void DeserializeWithCustom<T>(ISyncCustom ISyncCustom) where T : class;
-		T DeserializeWithJsonNet<T>(JsonSerializerSettings options);
-		T DeserializeWithMsgPack<T>(MessagePackSerializerOptions options);
+		T DeserializeWithJsonNet<T>(JsonSerializerSettings options = null);
+		T DeserializeWithMsgPack<T>(MessagePackSerializerOptions options = null);
 		uint ReadUInt();
 		ulong ReadULong();
 		bool ReadBool();

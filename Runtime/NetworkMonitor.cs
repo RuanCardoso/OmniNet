@@ -61,8 +61,8 @@ namespace Omni.Internal
 			}
 		}
 
-		private static ITransport ServerTransport => OmniNetwork.Omni.ServerTransport;
-		private static ITransport ClientTransport => OmniNetwork.Omni.ClientTransport;
+		private static ITransport ServerTransport => OmniNetwork.Main.ServerTransport;
+		private static ITransport ClientTransport => OmniNetwork.Main.ClientTransport;
 
 		[SerializeField] private bool isEnabled = true;
 		[SerializeField][Range(1, 50)] private int fontSize = 18;
@@ -160,7 +160,7 @@ namespace Omni.Internal
 					{
 						if (GUI.Button(new Rect((screenWidth / 2) - (150 / 2), (screenHeight / 2) - (50 / 2), 150, 50), "Start Server", buttonStyle))
 						{
-							OmniNetwork.Omni.InitializeTransport();
+							OmniNetwork.Main.InitializeTransport();
 						}
 					}
 				}
@@ -173,8 +173,8 @@ namespace Omni.Internal
 				{
 					if (GUI.Button(new Rect((screenWidth / 2) - (200 / 2), ((screenHeight / 2) - (50 / 2)) + 60, 200, 50), "Start Client & Server", buttonStyle))
 					{
-						OmniNetwork.Omni.InitializeTransport();
-						OmniNetwork.Omni.InitializeConnection();
+						OmniNetwork.Main.InitializeTransport();
+						OmniNetwork.Main.InitializeConnection();
 					}
 				}
 			}

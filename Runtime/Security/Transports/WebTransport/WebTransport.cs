@@ -33,6 +33,8 @@ using Server = WebSocketSharp.Server;
 
 namespace Omni.Internal.Transport
 {
+	// This class uses WebSocketSharp.Server for the server.
+	// and Native WebSocket for the client, so we can support WebGl.
 	internal class WebTransport : ITransport, ITransportClient<WebTransportClient<WebTransport.PeerBehaviour>>
 	{
 		internal class PeerBehaviour : Server.WebSocketBehavior
@@ -40,6 +42,7 @@ namespace Omni.Internal.Transport
 			internal WebTransport WebTransport { get; set; }
 			internal Client.WebSocket WebClient { get; set; }
 			internal bool IsServer { get; set; }
+			private bool IsDisconnected { get; set; }
 
 			public PeerBehaviour()
 			{
@@ -54,7 +57,7 @@ namespace Omni.Internal.Transport
 
 			protected override void OnOpen()
 			{
-				OmniNetwork.Omni.NetworkDispatcher.Dispatch(() =>
+				OmniNetwork.Main.NetworkDispatcher.Dispatch(() =>
 				{
 					Internal_OnOpen();
 				});
@@ -89,7 +92,7 @@ namespace Omni.Internal.Transport
 
 			protected override void OnMessage(MessageEventArgs e)
 			{
-				OmniNetwork.Omni.NetworkDispatcher.Dispatch(() =>
+				OmniNetwork.Main.NetworkDispatcher.Dispatch(() =>
 				{
 					Internal_OnMessage(e);
 				});
@@ -136,7 +139,7 @@ namespace Omni.Internal.Transport
 
 			protected override void OnError(ErrorEventArgs e)
 			{
-				OmniNetwork.Omni.NetworkDispatcher.Dispatch(() =>
+				OmniNetwork.Main.NetworkDispatcher.Dispatch(() =>
 				{
 					Internal_OnError();
 				});
@@ -146,14 +149,18 @@ namespace Omni.Internal.Transport
 			{
 				try
 				{
-					WebTransport.Disconnect(UserEndPoint);
+					if (!IsDisconnected)
+					{
+						WebTransport.Disconnect(UserEndPoint);
+						IsDisconnected = true;
+					}
 				}
 				catch (InvalidOperationException) { }
 			}
 
 			protected override void OnClose(CloseEventArgs e)
 			{
-				OmniNetwork.Omni.NetworkDispatcher.Dispatch(() =>
+				OmniNetwork.Main.NetworkDispatcher.Dispatch(() =>
 				{
 					Internal_OnClose();
 				});
@@ -163,14 +170,25 @@ namespace Omni.Internal.Transport
 			{
 				try
 				{
-					WebTransport.Disconnect(UserEndPoint);
+					if (!IsDisconnected)
+					{
+						WebTransport.Disconnect(UserEndPoint);
+						IsDisconnected = true;
+					}
 				}
 				catch (InvalidOperationException) { }
 			}
 
-			internal void Disconnect()
+			internal async void Disconnect()
 			{
-				Close();
+				if (IsServer)
+				{
+					Close();
+				}
+				else
+				{
+					await WebClient.Close();
+				}
 			}
 		}
 
@@ -270,9 +288,13 @@ namespace Omni.Internal.Transport
 			}
 			else
 			{
-				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
-				PeerBehaviour peer = LocalTransportClient.Peer;
-				peer.Disconnect();
+				if (IsConnected)
+				{
+					IsConnected = false;
+					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
+					PeerBehaviour peer = LocalTransportClient.Peer;
+					peer.Disconnect();
+				}
 			}
 		}
 
@@ -371,7 +393,7 @@ namespace Omni.Internal.Transport
 			}
 		}
 
-		public void Close()
+		public async void Close()
 		{
 			CancellationTokenSource.Dispose();
 			foreach ((EndPoint peer, WebTransportClient<PeerBehaviour> transportClient) in PeerList.ToList())
@@ -380,7 +402,12 @@ namespace Omni.Internal.Transport
 			}
 
 			m_Server?.Stop();
-			m_Client?.Close();
+
+			try
+			{
+				await m_Client?.Close();
+			}
+			catch { }
 		}
 	}
 }

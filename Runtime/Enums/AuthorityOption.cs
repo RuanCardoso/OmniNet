@@ -14,27 +14,27 @@
 
 namespace Omni.Core
 {
-	/// <summary>
-	/// Represents the authority mode for network objects.
-	/// </summary>
-	public enum AuthorityMode
-	{
-		/// <summary>
-		/// When is mine, the object will be controlled by the local player.
-		/// </summary>
-		Mine,
-		/// <summary>
-		/// When is server, the object will be controlled by the server.
-		/// </summary>
-		Server,
-		/// <summary>
-		/// When is client, the object will be controlled by the remote player.<br/>
-		/// All players has authority over the object.
-		/// </summary>
-		Client,
-		/// <summary>
-		/// When is custom, the object will be controlled by the your authority implementation.
-		/// </summary>
-		Custom
-	}
+	///// <summary>
+	///// Represents the authority mode for network objects.
+	///// </summary>
+	//public enum AuthorityMode
+	//{
+	//	/// <summary>
+	//	/// When is mine, the object will be controlled by the local player.
+	//	/// </summary>
+	//	Mine,
+	//	/// <summary>
+	//	/// When is server, the object will be controlled by the server.
+	//	/// </summary>
+	//	Server,
+	//	/// <summary>
+	//	/// When is client, the object will be controlled by the remote player.<br/>
+	//	/// All players has authority over the object.
+	//	/// </summary>
+	//	Client,
+	//	/// <summary>
+	//	/// When is custom, the object will be controlled by the your authority implementation.
+	//	/// </summary>
+	//	Custom
+	//}
 }

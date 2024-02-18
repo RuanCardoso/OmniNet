@@ -64,6 +64,8 @@ namespace Omni.Internal.Transport
 		public LiteTransportClient<NetPeer> LiteClient => throw new NotImplementedException();
 		public WebTransportClient<PeerBehaviour> WebClient => throw new NotImplementedException();
 
+		private Queue<Action> m_queues = new Queue<Action>();
+
 		private void SetSettings(Socket socket, TransportSettings transportSettings)
 		{
 			socket.Blocking = true;
@@ -162,6 +164,13 @@ namespace Omni.Internal.Transport
 		{
 			if (IsServer)
 			{
+				// Perform 'operations' before 'receive operations' to avoid modifying the collection in the middle of iteration.
+				while (m_queues.Count > 0)
+				{
+					Action exec = m_queues.Dequeue();
+					exec();
+				}
+
 				foreach ((EndPoint peer, TcpTransportClient<Socket> transportClient) in PeerList)
 				{
 					ReadMessage(transportClient);
@@ -180,20 +189,30 @@ namespace Omni.Internal.Transport
 
 		private void ReadMessage(TcpTransportClient<Socket> transportClient)
 		{
+			CancellationToken token = transportClient.CancellationTokenSource.Token;
+			if (CancellationTokenSource.IsCancellationRequested || token.IsCancellationRequested)
+			{
+				return;
+			}
+
 			Socket socket = transportClient.Peer;
 			EndPoint peer = transportClient.EndPoint;
 			if (socket.Available >= transportClient.ExpectedLength)
 			{
+				transportClient.LastReceivedTime = DateTime.UtcNow;
 				if (!transportClient.PendingMessage)
 				{
-					if (ReadExactly(transportClient.Buffer, transportClient.ExpectedLength, socket))
+					if (ReadExactly(transportClient.Buffer, transportClient.ExpectedLength, socket, token))
 					{
 						ushort length = (ushort)(transportClient.Buffer[0] | transportClient.Buffer[1] << 8);
 						transportClient.SetExpectedLength(length, true);
 
 						if (length > TransportSettings.MaxMessageSize)
 						{
-							Disconnect(peer);
+							m_queues.Enqueue(() =>
+							{
+								Disconnect(peer);
+							});
 							return;
 						}
 
@@ -201,7 +220,7 @@ namespace Omni.Internal.Transport
 						// This is optional, but it speeds up message processing, saving iterations.
 						if (socket.Available >= length)
 						{
-							if (ReadExactly(transportClient.Buffer, length, socket))
+							if (ReadExactly(transportClient.Buffer, length, socket, token))
 							{
 								TotalMessagesReceived++;
 								TotalBytesReceived += (ulong)(length + ExpectedSize);
@@ -211,18 +230,24 @@ namespace Omni.Internal.Transport
 							}
 							else
 							{
-								Disconnect(peer);
+								m_queues.Enqueue(() =>
+								{
+									Disconnect(peer);
+								});
 							}
 						}
 					}
 					else
 					{
-						Disconnect(peer);
+						m_queues.Enqueue(() =>
+						{
+							Disconnect(peer);
+						});
 					}
 				}
 				else
 				{
-					if (ReadExactly(transportClient.Buffer, transportClient.ExpectedLength, socket))
+					if (ReadExactly(transportClient.Buffer, transportClient.ExpectedLength, socket, token))
 					{
 						TotalMessagesReceived++;
 						TotalBytesReceived += (ulong)(transportClient.ExpectedLength + ExpectedSize);
@@ -234,27 +259,47 @@ namespace Omni.Internal.Transport
 						// This is optional, but it speeds up header processing, saving iterations.
 						if (socket.Available >= ExpectedSize)
 						{
-							if (ReadExactly(transportClient.Buffer, ExpectedSize, socket))
+							if (ReadExactly(transportClient.Buffer, ExpectedSize, socket, token))
 							{
 								ushort length = (ushort)(transportClient.Buffer[0] | transportClient.Buffer[1] << 8);
 								transportClient.SetExpectedLength(length, true);
 
 								if (length > TransportSettings.MaxMessageSize)
 								{
-									Disconnect(peer);
+									m_queues.Enqueue(() =>
+									{
+										Disconnect(peer);
+									});
 									return;
 								}
 							}
 							else
 							{
-								Disconnect(peer);
+								m_queues.Enqueue(() =>
+								{
+									Disconnect(peer);
+								});
 							}
 						}
 					}
 					else
 					{
-						Disconnect(peer);
+						m_queues.Enqueue(() =>
+						{
+							Disconnect(peer);
+						});
 					}
+				}
+			}
+			else
+			{
+				TimeSpan poll = DateTime.UtcNow - transportClient.LastReceivedTime;
+				if (poll.TotalSeconds > 1.5f)
+				{
+					m_queues.Enqueue(() =>
+					{
+						Disconnect(peer);
+					});
 				}
 			}
 		}
@@ -263,12 +308,12 @@ namespace Omni.Internal.Transport
 		/// Message Framing (https://blog.stephencleary.com/2009/04/message-framing.html)
 		/// Read exactly the number of bytes specified by the size parameter.
 		/// </summary>
-		private bool ReadExactly(byte[] buffer, int length, Socket socket)
+		private bool ReadExactly(byte[] buffer, int length, Socket socket, CancellationToken token)
 		{
 			int offset = 0;
 			while (offset < length)
 			{
-				if (CancellationTokenSource.IsCancellationRequested)
+				if (CancellationTokenSource.IsCancellationRequested || token.IsCancellationRequested)
 				{
 					return false;
 				}
@@ -289,7 +334,6 @@ namespace Omni.Internal.Transport
 				catch (SocketException) { return false; }
 				catch (Exception) { return false; }
 			}
-
 			return offset == length;
 		}
 
@@ -409,13 +453,49 @@ namespace Omni.Internal.Transport
 				if (PeerList.Remove(endPoint, out TcpTransportClient<Socket> transportClient))
 				{
 					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
-					transportClient.Peer.Close();
+					DisconnectRemotePeer(transportClient);
 				}
 			}
 			else
 			{
-				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
-				Socket.Close();
+				if (IsConnected)
+				{
+					IsConnected = false;
+					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
+					DisconnectLocalPeer();
+				}
+			}
+		}
+
+		private void DisconnectLocalPeer()
+		{
+			try
+			{
+				LocalTransportClient?.CancellationTokenSource?.Cancel();
+				Socket?.Shutdown(SocketShutdown.Both);
+				Socket?.Disconnect(false);
+				Socket?.Close();
+			}
+			catch { }
+			finally
+			{
+				LocalTransportClient?.CancellationTokenSource?.Dispose();
+			}
+		}
+
+		private void DisconnectRemotePeer(TcpTransportClient<Socket> transportClient)
+		{
+			try
+			{
+				transportClient?.CancellationTokenSource?.Cancel();
+				transportClient?.Peer?.Shutdown(SocketShutdown.Both);
+				transportClient?.Peer?.Disconnect(false);
+				transportClient?.Peer?.Close();
+			}
+			catch { }
+			finally
+			{
+				transportClient?.CancellationTokenSource?.Dispose();
 			}
 		}
 
@@ -424,11 +504,11 @@ namespace Omni.Internal.Transport
 			try
 			{
 				CancellationTokenSource.Cancel();
-				Socket.Close();
+				DisconnectLocalPeer();
 
 				foreach ((EndPoint peer, TcpTransportClient<Socket> transportClient) in PeerList)
 				{
-					transportClient.Peer.Close();
+					DisconnectRemotePeer(transportClient);
 				}
 			}
 			finally

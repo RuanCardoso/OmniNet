@@ -14,18 +14,18 @@
 
 namespace Omni.Core
 {
-	/// <summary>
-	/// Determines whether the data will be processed on the server or not.
-	/// </summary>
-	public enum DataProcessingOption : byte
-	{
-		/// <summary>
-		/// The data will not be processed on the server.
-		/// </summary>
-		DoNotProcessOnServer = 0,
-		/// <summary>
-		/// The data will be processed on the server.
-		/// </summary>
-		ProcessOnServer = 1,
-	}
+	///// <summary>
+	///// Determines whether the data will be processed on the server or not.
+	///// </summary>
+	//public enum DataProcessingOption : byte
+	//{
+	//	/// <summary>
+	//	/// The data will not be processed on the server.
+	//	/// </summary>
+	//	DoNotProcessOnServer = 0,
+	//	/// <summary>
+	//	/// The data will be processed on the server.
+	//	/// </summary>
+	//	ProcessOnServer = 1,
+	//}
 }

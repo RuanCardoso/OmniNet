@@ -26,75 +26,52 @@ namespace Omni.Core
 		public TypeCode TypeCode { get; }
 
 		private Enum enumType;
-		[SerializeField] private T value = default;
-		private bool HasAuthority => authority switch
-		{
-			//AuthorityMode.Mine => @this.IsMine,
-			//AuthorityMode.Server => @this.IsServer,
-			//AuthorityMode.Client => @this.IsClient,
-			//AuthorityMode.Custom => @this.IsCustom,
-			_ => default,
-		};
+		[SerializeField]
+		private T value = default;
 
 		private readonly bool isStruct;
 		private readonly bool isReferenceType;
 		private readonly bool isValueTypeSupported;
-		private readonly NetworkIdentity identity;
+		private readonly NetworkBehaviour behaviour;
 		private readonly ISyncCustom ISerialize;
-		private readonly DataDeliveryMode deliveryMode;
-		private readonly DataTarget target;
-		private readonly DataProcessingOption processingOption;
-		private readonly DataCachingOption cachingOption;
-		private readonly AuthorityMode authority;
-		public SyncBase(NetworkIdentity @this, T value, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, AuthorityMode authority, Enum enumType = null)
+
+		public SyncBase(NetworkBehaviour behaviour, T value, Enum enumType = null)
 		{
 			this.enumType = enumType;
 			this.value = value;
-			this.identity = @this;
-			this.deliveryMode = deliveryMode;
-			this.target = target;
-			this.processingOption = processingOption;
-			this.cachingOption = cachingOption;
-			this.authority = authority;
-			SetId(@this);
+			this.behaviour = behaviour;
+
+			#region Initialize
+			SetId(behaviour);
 			var type = value.GetType();
 			isStruct = type.IsValueType;
 			isReferenceType = !type.IsValueType;
 			isValueTypeSupported = ValueTypeConverter.types.Contains(type);
 			TypeCode = Type.GetTypeCode(type);
+			#endregion
 		}
 
-		public SyncBase(NetworkIdentity identity, T value, DataDeliveryMode deliveryMode, DataTarget target, DataProcessingOption processingOption, DataCachingOption cachingOption, AuthorityMode authority, ISyncCustom ISerialize)
+		public SyncBase(NetworkBehaviour behaviour, T value, ISyncCustom ISerialize)
 		{
 			this.value = value;
-			this.identity = identity;
+			this.behaviour = behaviour;
 			this.ISerialize = ISerialize;
-			this.deliveryMode = deliveryMode;
-			this.target = target;
-			this.processingOption = processingOption;
-			this.cachingOption = cachingOption;
-			this.authority = authority;
-			SetId(identity);
+
+			#region Initialize
+			SetId(behaviour);
 			var type = value.GetType();
 			isStruct = type.IsValueType;
 			isReferenceType = false;
 			isValueTypeSupported = false;
 			TypeCode = Type.GetTypeCode(type);
+			#endregion
 		}
 
-		private void SetId(NetworkIdentity identity)
+		private void SetId(NetworkBehaviour behaviour)
 		{
-			if (identity == null)
+			if (behaviour.OnSyncBaseId < byte.MaxValue)
 			{
-				OmniLogger.PrintError("Error: SyncVar -> The provided NetworkIdentity is null.");
-				return;
-			}
-
-			// Note: Byte allow only 255 SyncVars per identity.
-			// Note: Use another identity if you need more.
-			if (identity.OnSyncBaseId < byte.MaxValue)
-			{
-				Id = ++identity.OnSyncBaseId;
+				Id = ++behaviour.OnSyncBaseId;
 			}
 			else
 			{
@@ -158,7 +135,7 @@ namespace Omni.Core
 			if (!Application.isPlaying)
 				return;
 
-			if (identity == null)
+			if (behaviour == null)
 			{
 				OmniLogger.PrintError($"Error: It seems that the variable {GetType().Name} is not properly initialized. Please check if it's missing initialization.");
 				return;

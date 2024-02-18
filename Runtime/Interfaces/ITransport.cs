@@ -21,7 +21,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using WebSocketSharp.Server;
 using static Omni.Internal.Transport.WebTransport;
 
 namespace Omni.Internal.Interfaces

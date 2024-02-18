@@ -21,6 +21,7 @@ using Omni.Internal.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -70,6 +71,7 @@ namespace Omni.Internal.Transport
 			IPEndPoint iPEndPoint = (IPEndPoint)endPoint;
 			netManager = new NetManager(listener);
 			// Set Settings
+			netManager.UnconnectedMessagesEnabled = true;
 			netManager.AutoRecycle = true;
 			netManager.UseNativeSockets = transportSettings.UseNativeSockets;
 			netManager.BroadcastReceiveEnabled = transportSettings.BroadcastReceiveEnabled;
@@ -122,22 +124,12 @@ namespace Omni.Internal.Transport
 
 			listener.NetworkReceiveEvent += (peer, dataReader, deliveryMethod, channel) =>
 			{
-				byte[] remainingBytes = dataReader.GetRemainingBytes();
-				if (isServer)
-				{
-					if (PeerList.TryGetValue(peer, out LiteTransportClient<NetPeer> transportClient))
-					{
-						OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, transportClient.NetworkPeer);
-					}
-					else
-					{
-						OmniLogger.PrintError("Transport Receive Event: The client is not connected!");
-					}
-				}
-				else
-				{
-					OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, LocalTransportClient.NetworkPeer);
-				}
+				Receive(isServer, peer, dataReader);
+			};
+
+			listener.NetworkReceiveUnconnectedEvent += (remoteEndPoint, dataReader, messageType) =>
+			{
+				Receive(isServer, LocalTransportClient.Peer, dataReader);
 			};
 
 			listener.PeerDisconnectedEvent += (peer, info) =>
@@ -146,6 +138,26 @@ namespace Omni.Internal.Transport
 			};
 
 			IsInitialized = true;
+		}
+
+		private void Receive(bool isServer, NetPeer peer, NetPacketReader dataReader)
+		{
+			byte[] remainingBytes = dataReader.GetRemainingBytes();
+			if (isServer)
+			{
+				if (PeerList.TryGetValue(peer, out LiteTransportClient<NetPeer> transportClient))
+				{
+					OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, transportClient.NetworkPeer);
+				}
+				else
+				{
+					OmniLogger.PrintError("Transport Receive Event: The client is not connected!");
+				}
+			}
+			else
+			{
+				OnMessageReceived?.Invoke(IsServer, remainingBytes, remainingBytes.Length, LocalTransportClient.NetworkPeer);
+			}
 		}
 
 		private async void WaitForOutgoing(EndPoint endPoint, NetPeer peer)
@@ -194,16 +206,20 @@ namespace Omni.Internal.Transport
 			{
 				if (PeerList.Remove(endPoint, out LiteTransportClient<NetPeer> transportClient))
 				{
-					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
 					NetPeer peer = transportClient.Peer;
+					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
 					peer.Disconnect();
 				}
 			}
 			else
 			{
-				OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
 				NetPeer peer = LocalTransportClient.Peer;
-				peer.Disconnect();
+				if (peer.ConnectionState == ConnectionState.Connected && IsConnected)
+				{
+					IsConnected = false;
+					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
+					peer.Disconnect();
+				}
 			}
 		}
 
@@ -248,9 +264,13 @@ namespace Omni.Internal.Transport
 				{
 					DeliveryMethod deliveryMethod = dataDeliveryMode switch
 					{
-						DataDeliveryMode.Unsecured => DeliveryMethod.Unreliable,
-						DataDeliveryMode.Secured => DeliveryMethod.ReliableOrdered,
-						DataDeliveryMode.SecuredWithAes => DeliveryMethod.ReliableOrdered
+						DataDeliveryMode.Unreliable => DeliveryMethod.Unreliable,
+						DataDeliveryMode.ReliableOrdered => DeliveryMethod.ReliableOrdered,
+						DataDeliveryMode.ReliableUnordered => DeliveryMethod.ReliableUnordered,
+						DataDeliveryMode.ReliableSequenced => DeliveryMethod.ReliableSequenced,
+						DataDeliveryMode.ReliableEncryptedOrdered => DeliveryMethod.ReliableOrdered, // Cryptography is at a higher layer.
+						DataDeliveryMode.ReliableEncryptedUnordered => DeliveryMethod.ReliableUnordered, // Cryptography is at a higher layer.
+						DataDeliveryMode.ReliableEncryptedSequenced => DeliveryMethod.ReliableSequenced, // Cryptography is at a higher layer.
 					};
 
 					if (PeerList.TryGetValue(endPoint, out LiteTransportClient<NetPeer> transportClient))
@@ -260,7 +280,7 @@ namespace Omni.Internal.Transport
 					}
 					else
 					{
-						OmniLogger.PrintError("TCP Error: Failed to perform operation because the client is not connected to the server.");
+						OmniLogger.PrintError("Lite Error: Failed to perform operation because the client is not connected to the server.");
 					}
 				}
 			}
@@ -278,9 +298,9 @@ namespace Omni.Internal.Transport
 				{
 					DeliveryMethod deliveryMethod = dataDeliveryMode switch
 					{
-						DataDeliveryMode.Unsecured => DeliveryMethod.Unreliable,
-						DataDeliveryMode.Secured => DeliveryMethod.ReliableOrdered,
-						DataDeliveryMode.SecuredWithAes => DeliveryMethod.ReliableOrdered
+						DataDeliveryMode.Unreliable => DeliveryMethod.Unreliable,
+						DataDeliveryMode.ReliableOrdered => DeliveryMethod.ReliableOrdered,
+						DataDeliveryMode.ReliableEncryptedOrdered => DeliveryMethod.ReliableOrdered
 					};
 
 					if (IsConnected)

@@ -19,9 +19,9 @@ namespace Omni.Core
 	[Serializable]
 	public class SyncValue<T> : SyncBase<T> where T : unmanaged
 	{
-		public SyncValue(NetworkIdentity identity, T value = default, Action<T> onChanged = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(identity, value, deliveryMode, target, processingOption, cachingOption, authority)
+		public SyncValue(NetworkBehaviour behaviour, T value, Action<T> onChanged) : base(behaviour, value)
 		{
-			if (identity == null)
+			if (behaviour == null)
 			{
 				OmniLogger.PrintError("Error: SyncVar -> The provided NetworkIdentity is null.");
 				return;
@@ -33,7 +33,7 @@ namespace Omni.Core
 			if (_ == typeof(Trigger))
 				throw new Exception($"Use \"SyncValue\" instead \"SyncValue<T>\"");
 
-			identity.OnSyncBase += (id, message) =>
+			behaviour.OnSyncBase += (id, message) =>
 			{
 				if (this.Id == id)
 				{
@@ -47,15 +47,15 @@ namespace Omni.Core
 	[Serializable]
 	public class SyncValue : SyncBase<Trigger>
 	{
-		public SyncValue(NetworkIdentity identity, Action onChanged, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(identity, default, deliveryMode, target, processingOption, cachingOption, authority)
+		public SyncValue(NetworkBehaviour behaviour, Action onChanged) : base(behaviour, default)
 		{
-			if (identity == null)
+			if (behaviour == null)
 			{
 				OmniLogger.PrintError("Error: SyncVar -> The provided NetworkIdentity is null.");
 				return;
 			}
 
-			identity.OnSyncBase += (id, message) =>
+			behaviour.OnSyncBase += (id, message) =>
 			{
 				if (this.Id == id)
 				{
@@ -77,15 +77,15 @@ namespace Omni.Core
 		where T : unmanaged
 	{
 		public T Value => base.Get();
-		public SyncValue(NetworkIdentity identity, Enum value = default, Action<Enum> onChanged = null, DataDeliveryMode deliveryMode = DataDeliveryMode.Unsecured, DataTarget target = DataTarget.Broadcast, DataProcessingOption processingOption = DataProcessingOption.DoNotProcessOnServer, DataCachingOption cachingOption = DataCachingOption.None, AuthorityMode authority = AuthorityMode.Server) : base(identity, (T)Convert.ChangeType(value, typeof(T)), deliveryMode, target, processingOption, cachingOption, authority, value)
+		public SyncValue(NetworkBehaviour behaviour, Enum value = default, Action<Enum> onChanged = null) : base(behaviour, (T)Convert.ChangeType(value, typeof(T)), value)
 		{
-			if (identity == null)
+			if (behaviour == null)
 			{
 				OmniLogger.PrintError("Error: SyncVar -> The provided NetworkIdentity is null.");
 				return;
 			}
 
-			identity.OnSyncBase += (id, message) =>
+			behaviour.OnSyncBase += (id, message) =>
 			{
 				if (this.Id == id)
 				{

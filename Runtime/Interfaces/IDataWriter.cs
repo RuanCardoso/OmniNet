@@ -15,6 +15,7 @@
 using MessagePack;
 using Newtonsoft.Json;
 using System;
+using System.IO;
 using System.Text;
 
 namespace Omni.Core
@@ -22,12 +23,15 @@ namespace Omni.Core
 	public interface IDataWriter
 	{
 		byte[] Buffer { get; }
-		int Position { get; }
-		int BytesWritten { get; }
-		Encoding Encoding { get; }
+		int Position { get; set; }
+		int BytesWritten { get; set; }
+		Encoding Encoding { get; set; }
 		void Clear();
 		void Write(byte[] buffer, int offset, int count);
 		void Write(Span<byte> value);
+		void Write(ReadOnlySpan<byte> value);
+		void Write(Stream value);
+		void Write(char value);
 		void Write(byte value);
 		void Write(short value);
 		void Write(int value);
@@ -42,8 +46,8 @@ namespace Omni.Core
 		void Write(string value);
 		void WriteWithoutAllocation(string value);
 		void SerializeWithCustom<T>(ISyncCustom ISyncCustom) where T : class;
-		void SerializeWithJsonNet<T>(T data, JsonSerializerSettings options);
-		void SerializeWithMsgPack<T>(T data, MessagePackSerializerOptions options);
+		void SerializeWithJsonNet<T>(T data, JsonSerializerSettings options = null);
+		void SerializeWithMsgPack<T>(T data, MessagePackSerializerOptions options = null);
 		void Write(bool value);
 		void Write(bool v1, bool v2);
 		void Write(bool v1, bool v2, bool v3);
