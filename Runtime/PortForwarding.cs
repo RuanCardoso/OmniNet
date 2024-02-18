@@ -49,8 +49,6 @@ namespace Omni.Internal
 			}
 		}
 
-		[InfoBox("This component enables your local computer to function as a public server, allowing external access to specified ports. Ensure UPnP or PMP is enabled in your router settings.")]
-		[InfoBox("To stop an instance, set Enabled to false. To activate, set it to true.")]
 		[SerializeField]
 		private PortMapping[] m_Mapping = new PortMapping[] { new("Omni Server"), new("Ntp Server") };
 

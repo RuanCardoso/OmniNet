@@ -159,18 +159,23 @@ namespace Omni.Core
 		private IPEndPoint queryPeer;
 		private long ticks;
 
+		[BoxGroup("Ntp Settings")]
 		[SerializeField]
 		private ushort serverPort = 1023;
+		[BoxGroup("Ntp Settings")]
 		[SerializeField]
 		private ushort clientPort = 1025;
-		[InfoBox("Adjust precision settings to fit your reality and gaming style; maybe the default setting is not recommended. Evaluate your use case carefully.")]
+		[BoxGroup("Ntp Settings")]
+		[InfoBox("Adjust precision settings to fit your reality and gaming style; maybe the default setting is not recommended. Evaluate your use case carefully.\n")]
 		[Header("Accuracy Settings")]
 		[SerializeField]
 		[MinValue(1)]
 		private int sampleWindow = 3;
+		[BoxGroup("Ntp Settings")]
 		[SerializeField]
 		[Range(0f, 1f)]
 		private double accuracy = 0.5d;
+		[BoxGroup("Ntp Settings")]
 		[SerializeField]
 		[Range(1f, 3600f)]
 		[Label("Query Interval(Sec)")] private float queryInterval = 5;
