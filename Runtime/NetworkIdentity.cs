@@ -133,6 +133,7 @@ namespace Omni.Core
 		private void Awake()
 		{
 #if UNITY_SERVER && !UNITY_EDITOR
+            m_IsServerSimulation = true;
 			IsServer = true;
 #endif
 #if UNITY_EDITOR

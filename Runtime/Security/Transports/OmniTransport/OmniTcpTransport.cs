@@ -294,7 +294,7 @@ namespace Omni.Internal.Transport
 			else
 			{
 				TimeSpan poll = DateTime.UtcNow - transportClient.LastReceivedTime;
-				if (poll.TotalSeconds > 1.5f)
+				if (poll.TotalSeconds > 3.5f)
 				{
 					m_queues.Enqueue(() =>
 					{

@@ -53,13 +53,15 @@ namespace Omni.Core
 		{
 			internal int m_requestId = int.MinValue;
 			internal Dictionary<int, Action<IDataReader>> m_results = new();
-			public void Post(string route, Action<IDataWriter> request, Action<IDataReader> response)
+			public void Post(string route, Action<IDataWriter> request, Action<IDataReader> response, DataDeliveryMode dataDeliveryMode = DataDeliveryMode.ReliableEncryptedOrdered)
 			{
 #if UNITY_EDITOR
 				NetworkHelper.ThrowAnErrorIfConcurrent();
 #endif
 				if (request == null || response == null)
 					throw new ArgumentNullException("request or response is null");
+				if (dataDeliveryMode == DataDeliveryMode.Unreliable)
+					throw new NotSupportedException("The 'Unreliable' data delivery mode is not supported.");
 
 				int requestId = m_requestId;
 				if (m_results.TryAdd(requestId, response))
@@ -68,7 +70,7 @@ namespace Omni.Core
 					writer.Write7BitEncodedInt(requestId);
 					writer.Write(route);
 					request(writer);
-					OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Fetch, writer, DataDeliveryMode.ReliableEncryptedOrdered, 0);
+					OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Fetch, writer, dataDeliveryMode, 0);
 					NetworkCommunicator.DataWriterPool.Release(writer);
 					m_requestId++;
 				}
@@ -80,9 +82,6 @@ namespace Omni.Core
 
 			public Task<IDataReader> Post(string route, Action<IDataWriter> request, int timeout = 3000)
 			{
-				if (request == null)
-					throw new ArgumentNullException("request is null");
-
 				TaskCompletionSource<IDataReader> tcs = new();
 				CancellationTokenSource cts = new();
 				Client.Post(route, request, (res) =>
@@ -114,7 +113,7 @@ namespace Omni.Core
 			NetworkCallbacks.Internal_OnCustomMessageReceived += OnRoute;
 		}
 
-		private static void OnRoute(bool isServer, IDataReader reader, NetworkPeer peer)
+		private static void OnRoute(bool isServer, IDataReader reader, NetworkPeer peer, DataDeliveryMode deliveryMode)
 		{
 			HttpOption httpOption = reader.ReadCustomMessage<HttpOption>();
 			if (isServer && httpOption == HttpOption.Fetch)
@@ -135,7 +134,7 @@ namespace Omni.Core
 					exec(reader, httpResponse, peer);
 					httpHeader.Write(httpResponse.Buffer, 0, httpResponse.BytesWritten);
 					if (httpResponse.BytesWritten > 0)
-						OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Response, httpHeader, peer.Id, DataDeliveryMode.ReliableEncryptedOrdered, 0);
+						OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Response, httpHeader, peer.Id, deliveryMode, 0);
 					else OmniLogger.PrintError("Error: The requested route does not have a response from the server.");
 					#endregion
 

@@ -72,7 +72,7 @@ namespace Omni.Core
 		public string Name { get; set; }
 		[@Key(3)]
 		[JsonProperty("Props")]
-		public Dictionary<int, object> Properties { get; } = new();
+		public Dictionary<string, object> Properties { get; } = new();
 		[IgnoreMember]
 		[JsonIgnore]
 		public EndPoint EndPoint { get; private set; }
@@ -119,7 +119,7 @@ namespace Omni.Core
 			Id = from.Id;
 			DatabaseId = from.DatabaseId;
 			Name = from.Name;
-			foreach ((int key, object value) in from.Properties)
+			foreach ((string key, object value) in from.Properties)
 			{
 				Properties.Add(key, value);
 			}

@@ -27,6 +27,7 @@ namespace Omni.Core
 		public int Position { get; set; }
 		public int BytesWritten { get; set; }
 		public bool ResetPositionAfterWriting { get; set; } = true;
+		public bool IsReleased { get; set; }
 		public Encoding Encoding { get; set; }
 
 		public DataReader(int size)

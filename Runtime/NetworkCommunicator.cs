@@ -36,8 +36,8 @@ namespace Omni.Core
 		}
 
 		private Dictionary<int, NetworkPeer> PeersById { get; } = new();
-		private ITransport ServerTransport => OmniNetwork.Main.ServerTransport;
-		private ITransport ClientTransport => OmniNetwork.Main.ClientTransport;
+		private ITransport ServerTransport => Main.ServerTransport;
+		private ITransport ClientTransport => Main.ClientTransport;
 
 		internal Dictionary<ValueTuple<int, bool>, NetworkIdentity> NetworkIdentities { get; } = new Dictionary<ValueTuple<int, bool>, NetworkIdentity>(); // (Network Identity Id, Is Server), Network Identity Instance
 
@@ -68,14 +68,14 @@ namespace Omni.Core
 			if (ClientTransport != null)
 			{
 				ClientTransport.OnClientConnected += OnClientConnected;
-				ClientTransport.OnMessageReceived += OnMessageReceived;
+				ClientTransport.OnMessageReceived += OnMessageReceived; // Exclusive
 				ClientTransport.OnClientDisconnected += OnClientDisconnected;
 			}
 
 			if (ServerTransport != null)
 			{
 				ServerTransport.OnClientConnected += OnClientConnected;
-				ServerTransport.OnMessageReceived += OnMessageReceived;
+				ServerTransport.OnMessageReceived += OnMessageReceived; // Exclusive
 				ServerTransport.OnClientDisconnected += OnClientDisconnected;
 			}
 		}
@@ -87,18 +87,18 @@ namespace Omni.Core
 			NetworkCallbacks.Internal_OnLargeDataReceived += OnLargeDataReceived;
 		}
 
-		private void OnLargeDataReceived(bool isServer, int option, IDataReader reader, NetworkPeer peer)
+		private void OnLargeDataReceived(bool isServer, int option, IDataReader reader, NetworkPeer peer, DataDeliveryMode deliveryMode)
 		{
 			LargeDataOption largeDataOption = option.ReadCustomMessage<LargeDataOption>();
 			if (!isServer)
 			{
 				switch (largeDataOption)
 				{
+					// authentication
 					case LargeDataOption.PublicKeyExchange:
 						{
 							try
 							{
-								// Client auth
 								// Send the Aes Key to the Server
 								string publicKey = StringCipher.Decrypt(reader.ReadString(), Main.Guid);
 								// Exchange Aes Keys, the client will send its aes key to the server.
@@ -133,6 +133,8 @@ namespace Omni.Core
 						byte[] encryptedKey = new byte[length];
 						reader.Read(encryptedKey, 0, length); // 128 bits -> 16 Bytes
 						peer.AesKey = RsaCryptography.Decrypt(encryptedKey, Main.PrivateKey);
+						// Authenticated
+						NetworkCallbacks.FireServerClientConnected(peer);
 					}
 					catch (Exception ex)
 					{
@@ -146,8 +148,6 @@ namespace Omni.Core
 		public override void Start()
 		{
 			base.Start();
-			// Simple Http Requests
-			HandleHttpRequests();
 		}
 
 		private void Update()
@@ -185,44 +185,59 @@ namespace Omni.Core
 			#endregion
 		}
 
-		private void HandleHttpRequests()
+		public void SendCustomMessage<T>(T uniqueId, IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, int peerId, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
-			//Server.Post("/ex", (req, res, peer) =>
-			//{
-			//});
+			switch (dataTarget)
+			{
+				case DataTarget.Self:
+					SendCustomMessage(uniqueId, writer, peerId, dataDeliveryMode, channel);
+					break;
+				case DataTarget.Broadcast:
+					{
+						foreach ((int _, NetworkPeer peer) in GetPeers())
+						{
+							SendCustomMessage(uniqueId, writer, peer.Id, dataDeliveryMode, channel);
+						}
+					}
+					break;
+				case DataTarget.BroadcastExcludingSelf:
+					{
+						foreach ((int _, NetworkPeer peer) in GetPeers())
+						{
+							if (peer.Id == peerId)
+								continue;
+
+							SendCustomMessage(uniqueId, writer, peer.Id, dataDeliveryMode, channel);
+						}
+					}
+					break;
+				case DataTarget.Server:
+					SendCustomMessage(uniqueId, writer, dataDeliveryMode, channel);
+					break;
+			}
 		}
 
-		//public void P2P_SendCustomMessage<T>(T uniqueId, IDataWriter writer, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
-		//{
-		//	IDataWriter internalWriter = DataWriterPool.Get();
-		//	internalWriter.Write((byte)NetMessage.Message);
-		//	internalWriter.Write7BitEncodedInt(NetworkHelper.GetInt32FromGenericEnum(uniqueId));
-		//	internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
-		//	P2P_Send(internalWriter, endPoint, dataDeliveryMode, channel);
-		//	DataWriterPool.Release(internalWriter);
-		//}
-
-		public void SendCustomMessage<T>(T uniqueId, IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
+		public void SendCustomMessage<T>(T uniqueId, IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			SendCustomMessage(uniqueId, NetMessage.Message, writer, 0, dataDeliveryMode, channel);
 		}
 
-		public void SendCustomMessage<T>(T uniqueId, IDataWriter writer, int peerId, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
+		public void SendCustomMessage<T>(T uniqueId, IDataWriter writer, int peerId, DataDeliveryMode dataDeliveryMode, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			SendCustomMessage(uniqueId, NetMessage.Message, writer, peerId, dataDeliveryMode, channel);
 		}
 
-		internal void Internal_SendCustomMessage<T>(T uniqueId, IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
+		internal void Internal_SendCustomMessage<T>(T uniqueId, IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			SendCustomMessage(uniqueId, NetMessage.InternalMessage, writer, 0, dataDeliveryMode, channel);
 		}
 
-		internal void Internal_SendCustomMessage<T>(T uniqueId, IDataWriter writer, int peerId, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
+		internal void Internal_SendCustomMessage<T>(T uniqueId, IDataWriter writer, int peerId, DataDeliveryMode dataDeliveryMode, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			SendCustomMessage(uniqueId, NetMessage.InternalMessage, writer, peerId, dataDeliveryMode, channel);
 		}
 
-		private void SendCustomMessage<T>(T uniqueId, NetMessage msgType, IDataWriter writer, int peerId, DataDeliveryMode dataDeliveryMode, byte channel) where T : unmanaged, IComparable, IConvertible, IFormattable
+		private void SendCustomMessage<T>(T uniqueId, NetMessage msgType, IDataWriter writer, int peerId, DataDeliveryMode dataDeliveryMode, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			IDataWriter internalWriter = DataWriterPool.Get();
 			internalWriter.Write((byte)msgType);
@@ -233,17 +248,17 @@ namespace Omni.Core
 			DataWriterPool.Release(internalWriter);
 		}
 
-		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int identityId, byte networkBehaviourId, byte rpcId, byte channel)
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int identityId, byte networkBehaviourId, byte rpcId, byte channel = 0)
 		{
-			CallRpc(writer, dataDeliveryMode, 0, identityId, networkBehaviourId, rpcId, channel);
+			InternalRpc(writer, dataDeliveryMode, 0, identityId, networkBehaviourId, rpcId, channel);
 		}
 
-		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte rpcId, byte channel)
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte rpcId, byte channel = 0)
 		{
-			CallRpc(writer, dataDeliveryMode, peerId, identityId, networkBehaviourId, rpcId, channel);
+			InternalRpc(writer, dataDeliveryMode, peerId, identityId, networkBehaviourId, rpcId, channel);
 		}
 
-		private void CallRpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte rpcId, byte channel)
+		private void InternalRpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte rpcId, byte channel = 0)
 		{
 			IDataWriter internalWriter = DataWriterPool.Get();
 			internalWriter.Write((byte)NetMessage.Rpc);
@@ -256,17 +271,17 @@ namespace Omni.Core
 			DataWriterPool.Release(internalWriter);
 		}
 
-		internal void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int identityId, byte networkBehaviourId, byte netVarId, byte channel)
+		internal void SyncVariable(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int identityId, byte networkBehaviourId, byte netVarId, byte channel = 0)
 		{
-			CallNetVar(writer, dataDeliveryMode, 0, identityId, networkBehaviourId, netVarId, channel);
+			InternalSyncVariable(writer, dataDeliveryMode, 0, identityId, networkBehaviourId, netVarId, channel);
 		}
 
-		internal void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte netVarId, byte channel)
+		internal void SyncVariable(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte netVarId, byte channel = 0)
 		{
-			CallNetVar(writer, dataDeliveryMode, peerId, identityId, networkBehaviourId, netVarId, channel);
+			InternalSyncVariable(writer, dataDeliveryMode, peerId, identityId, networkBehaviourId, netVarId, channel);
 		}
 
-		private void CallNetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte netVarId, byte channel)
+		private void InternalSyncVariable(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte netVarId, byte channel = 0)
 		{
 			IDataWriter internalWriter = DataWriterPool.Get();
 			internalWriter.Write((byte)NetMessage.NetVar);
@@ -279,27 +294,59 @@ namespace Omni.Core
 			DataWriterPool.Release(internalWriter);
 		}
 
-		public void SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int blockSize = 256, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
+		public void SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, int peerId, int blockSize = 64, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
-			Auto_SendLargeBlocksOfData(uniqueId, NetMessage.LargeBlockOfBytes, data, dataDeliveryMode, 0, blockSize, channel);
+			switch (dataTarget)
+			{
+				case DataTarget.Self:
+					SendLargeBlocksOfData(uniqueId, data, dataDeliveryMode, peerId, blockSize, channel);
+					break;
+				case DataTarget.Broadcast:
+					{
+						foreach ((int _, NetworkPeer peer) in GetPeers())
+						{
+							SendLargeBlocksOfData(uniqueId, data, dataDeliveryMode, peer.Id, blockSize, channel);
+						}
+					}
+					break;
+				case DataTarget.BroadcastExcludingSelf:
+					{
+						foreach ((int _, NetworkPeer peer) in GetPeers())
+						{
+							if (peer.Id == peerId)
+								continue;
+
+							SendLargeBlocksOfData(uniqueId, data, dataDeliveryMode, peer.Id, blockSize, channel);
+						}
+					}
+					break;
+				case DataTarget.Server:
+					SendLargeBlocksOfData(uniqueId, data, dataDeliveryMode, blockSize, channel);
+					break;
+			}
 		}
 
-		public void SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int peerId, int blockSize = 256, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
+		public void SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int blockSize = 64, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
-			Auto_SendLargeBlocksOfData(uniqueId, NetMessage.LargeBlockOfBytes, data, dataDeliveryMode, peerId, blockSize, channel);
+			SendLargeBlocksOfData(uniqueId, NetMessage.LargeBlockOfBytes, data, dataDeliveryMode, 0, blockSize, channel);
 		}
 
-		internal void Internal_SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int blockSize = 256, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
+		public void SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int peerId, int blockSize = 64, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
-			Auto_SendLargeBlocksOfData(uniqueId, NetMessage.InternalLargeBlockOfBytes, data, dataDeliveryMode, 0, blockSize, channel);
+			SendLargeBlocksOfData(uniqueId, NetMessage.LargeBlockOfBytes, data, dataDeliveryMode, peerId, blockSize, channel);
 		}
 
-		internal void Internal_SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int peerId, int blockSize = 256, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
+		internal void Internal_SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int blockSize = 64, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
-			Auto_SendLargeBlocksOfData(uniqueId, NetMessage.InternalLargeBlockOfBytes, data, dataDeliveryMode, peerId, blockSize, channel);
+			SendLargeBlocksOfData(uniqueId, NetMessage.InternalLargeBlockOfBytes, data, dataDeliveryMode, 0, blockSize, channel);
 		}
 
-		private void Auto_SendLargeBlocksOfData<T>(T uniqueId, NetMessage msgType, IDataWriter data, DataDeliveryMode dataDeliveryMode, int peerId, int blockSize = 256, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
+		internal void Internal_SendLargeBlocksOfData<T>(T uniqueId, IDataWriter data, DataDeliveryMode dataDeliveryMode, int peerId, int blockSize = 64, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
+		{
+			SendLargeBlocksOfData(uniqueId, NetMessage.InternalLargeBlockOfBytes, data, dataDeliveryMode, peerId, blockSize, channel);
+		}
+
+		private void SendLargeBlocksOfData<T>(T uniqueId, NetMessage msgType, IDataWriter data, DataDeliveryMode dataDeliveryMode, int peerId, int blockSize = 64, byte channel = 0) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			if (dataDeliveryMode == DataDeliveryMode.Unreliable)
 			{
@@ -371,7 +418,7 @@ namespace Omni.Core
 			{
 				IDataWriter pingRequest = DataWriterPool.Get();
 				pingRequest.Write((byte)NetMessage.Ping);
-				SendToServer(pingRequest, DataDeliveryMode.Unreliable, 0);
+				SendToServer(pingRequest, DataDeliveryMode.Unreliable, 0); // Unreliable, not important!
 				DataWriterPool.Release(pingRequest);
 				yield return new WaitForSeconds(1);
 			}
@@ -425,28 +472,8 @@ namespace Omni.Core
 						OmniLogger.Print($"Client successfully connected! Endpoint: {Main.TransportSettings.Host}:{Main.TransportSettings.ServerPort}");
 						return;
 				}
-				OmniLogger.Print($"Client successfully connected! Endpoint: {peer.EndPoint}");
 
-				//try
-				//{
-				//	IDataReader response = await Client.Post("/auth", (req) => { });
-				//	NetworkPeer peer = response.DeserializeWithMsgPack<NetworkPeer>();
-				//	player.CopyFrom(peer);
-				//	if (player.Id > 0) // Id 0 not allowed!
-				//	{
-				//		if (Main.TransportOption == TransportOption.WebSocketTransport)
-				//		{
-				//			OmniLogger.Print($"Client successfully connected! Endpoint: {OmniNetwork.Main.TransportSettings.Host}:{OmniNetwork.Main.TransportSettings.ServerPort}");
-				//			return;
-				//		}
-				//		OmniLogger.Print($"Client successfully connected! Endpoint: {player.EndPoint}");
-				//	}
-				//}
-				//catch (Exception ex)
-				//{
-				//	OmniLogger.LogStacktrace(ex);
-				//	OmniLogger.PrintError("Authentication failed, please try again later.");
-				//}
+				OmniLogger.Print($"Client successfully connected! Endpoint: {peer.EndPoint}");
 			}
 		}
 
@@ -503,7 +530,7 @@ namespace Omni.Core
 						IDataReader reader = DataReaderPool.Get();
 						reader.Write(header.Buffer, header.Position, header.BytesWritten);
 						if (msgType == NetMessage.Message) NetworkCallbacks.FireCustomMessage(isServer, reader, peer);
-						else if (msgType == NetMessage.InternalMessage) NetworkCallbacks.Internal_FireCustomMessage(isServer, reader, peer);
+						else if (msgType == NetMessage.InternalMessage) NetworkCallbacks.Internal_FireCustomMessage(isServer, reader, peer, deliveryMode);
 						DataReaderPool.Release(reader);
 					}
 					break;
@@ -529,7 +556,7 @@ namespace Omni.Core
 							reader.Position = 0;
 							// The message is complete!
 							if (msgType == NetMessage.LargeBlockOfBytes) NetworkCallbacks.FireLargeData(isServer, option, reader, peer);
-							else if (msgType == NetMessage.InternalLargeBlockOfBytes) NetworkCallbacks.Internal_FireLargeData(isServer, option, reader, peer);
+							else if (msgType == NetMessage.InternalLargeBlockOfBytes) NetworkCallbacks.Internal_FireLargeData(isServer, option, reader, peer, deliveryMode);
 							dataBlock.Finish(); // Clear the data block.
 						}
 					}
@@ -610,6 +637,7 @@ namespace Omni.Core
 				if (PeersById.Remove(peer.Id))
 				{
 					OmniLogger.Print($"The server disconnected the player: {peer.EndPoint} -> Id: {peer.Id}");
+					NetworkCallbacks.FireServerClientDisconnected(peer);
 				}
 				else
 				{

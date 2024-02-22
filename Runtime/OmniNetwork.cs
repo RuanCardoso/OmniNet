@@ -22,6 +22,7 @@ using System.Net;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Scripting;
 
 namespace Omni.Core
 {
@@ -115,6 +116,8 @@ namespace Omni.Core
 #if !UNITY_SERVER || UNITY_EDITOR
 			InitializeConnection();
 #endif
+			CheckGarbageCollectorSettings();
+			CheckApiModeSettings();
 		}
 
 		private void Update()
@@ -295,6 +298,24 @@ namespace Omni.Core
 					ServerScene = SceneManager.CreateScene(SceneName, new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
 				}
 			}
+		}
+
+		private void CheckGarbageCollectorSettings()
+		{
+			if (!GarbageCollector.isIncremental)
+			{
+				OmniLogger.Print("Consider enabling \"Incremental Garbage Collection\" for improved performance. This option can maximize performance by efficiently managing memory usage during runtime.");
+			}
+		}
+
+		private void CheckApiModeSettings()
+		{
+#if !NETSTANDARD2_1
+            OmniLogger.Print("Consider changing the API Mode to \".NET Standard 2.1\" for improved performance and compatibility. .NET Standard 2.1 offers enhanced features, performance optimizations, and broader library support, resulting in better performance and increased functionality for your application.");
+#endif
+#if !ENABLE_IL2CPP && !UNITY_EDITOR
+            OmniLogger.Print("Consider changing the API Mode to \"IL2CPP\" for optimal performance. IL2CPP provides enhanced performance and security by converting your code into highly optimized C++ during the build process.");
+#endif
 		}
 
 		public void OnApplicationQuit()

@@ -26,8 +26,10 @@ namespace Omni.Core
 		public byte[] Buffer { get; }
 		public int Position { get; set; }
 		public int BytesWritten { get; set; }
+		public bool IsReleased { get; set; }
 		public Encoding Encoding { get; set; }
 
+		public static DataWriter Empty { get; } = new DataWriter(30);
 		public DataWriter(int size)
 		{
 			Buffer = new byte[size];

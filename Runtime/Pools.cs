@@ -33,17 +33,20 @@ namespace Omni.Core
 			this.length = length;
 			for (int i = 0; i < length; i++)
 			{
-				pool.Push(new DataWriter(length));
+				DataWriter writer = new DataWriter(length);
+				writer.IsReleased = true;
+				pool.Push(writer);
 			}
 		}
 
 		public IDataWriter Get()
 		{
 			IDataWriter writer = Internal_Get();
-			if (writer.Position > 0 || writer.BytesWritten > 0)
+			if (!writer.IsReleased)
 			{
 				throw new Exception("Error: Data writer is not in the expected state. Make sure to consume or reset the writer before calling Get().");
 			}
+			writer.IsReleased = false;
 			return writer;
 		}
 
@@ -62,11 +65,12 @@ namespace Omni.Core
 
 		public void Release(IDataWriter writer)
 		{
-			if (writer.Position == 0 || writer.BytesWritten == 0)
+			if (writer.IsReleased)
 			{
 				throw new Exception("Error: Data reader cannot be released as the pool has already been released.");
 			}
 
+			writer.IsReleased = true;
 			writer.Clear();
 			pool.Push(writer);
 		}
@@ -86,17 +90,20 @@ namespace Omni.Core
 		{
 			for (int i = 0; i < length; i++)
 			{
-				pool.Push(new DataReader(length));
+				DataReader reader = new DataReader(length);
+				reader.IsReleased = true;
+				pool.Push(reader);
 			}
 		}
 
 		public IDataReader Get()
 		{
 			IDataReader reader = Internal_Get();
-			if (reader.Position > 0 || reader.BytesWritten > 0)
+			if (!reader.IsReleased)
 			{
 				throw new Exception("Error: Data reader is not in the expected state. Make sure to consume or reset the reader before calling Get().");
 			}
+			reader.IsReleased = false;
 			return reader;
 		}
 
@@ -115,11 +122,12 @@ namespace Omni.Core
 
 		public void Release(IDataReader reader)
 		{
-			if (reader.Position == 0 || reader.BytesWritten == 0)
+			if (reader.IsReleased)
 			{
 				throw new Exception("Error: Data reader cannot be released as the pool has already been released.");
 			}
 
+			reader.IsReleased = true;
 			reader.Clear();
 			pool.Push(reader);
 		}
