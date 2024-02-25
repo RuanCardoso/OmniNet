@@ -24,7 +24,9 @@ namespace Omni.Core
 	[DefaultExecutionOrder(-300)]
 	public abstract class NetworkBehaviour : RealtimeTickBasedSystem
 	{
+		private static HashSet<ValueTuple<int, int>> RegisteredBehaviours { get; } = new HashSet<ValueTuple<int, int>>();
 		internal Dictionary<int, Action<IDataReader, NetworkPeer>> RemoteFuncs { get; } = new Dictionary<int, Action<IDataReader, NetworkPeer>>(); // RPC Id, RPC Func
+
 		[SerializeField][Required("It cannot be null!")] private NetworkIdentity m_Identity;
 		[SerializeField][ReadOnly] private byte m_Id;
 
@@ -51,12 +53,24 @@ namespace Omni.Core
 			{
 				OmniLogger.PrintError($"Error: Duplicated ID '{m_Id}'. Ensure unique IDs for each instance of Network Behaviour");
 			}
+
+#if UNITY_EDITOR
+			if (RegisteredBehaviours.Add(ValueTuple.Create(m_Identity.Id, m_Id)))
+			{
+				OnNetworkEventsRegister();
+			}
+#endif
 		}
 
 		public override void Start()
 		{
 			base.Start();
 			StartCoroutine(Internal_OnNetworkStart());
+		}
+
+		public virtual void OnNetworkEventsRegister()
+		{
+
 		}
 
 		public abstract void OnNetworkStart();
@@ -155,11 +169,11 @@ namespace Omni.Core
 		}
 
 		protected virtual void OnPropertyChanged(byte id) { }
-		protected virtual void OnClientDefaultSettings(byte id, out DataDeliveryMode deliveryMode, out byte channel)
+		protected virtual void OnClientDefaultSettings(byte id, out DataDeliveryMode deliveryMode, out byte sequenceChannel)
 		{
 			// Default
 			deliveryMode = DataDeliveryMode.ReliableOrdered;
-			channel = 0;
+			sequenceChannel = 0;
 		}
 
 		protected virtual void OnServerDefaultSettings(byte id, IDataWriter writer)
@@ -183,8 +197,8 @@ namespace Omni.Core
 			if (IsClient)
 			{
 				OnPropertyChanged(id);
-				OnClientDefaultSettings(id, out DataDeliveryMode deliveryMode, out byte channel);
-				OmniNetwork.Communicator.SyncVariable(writer, deliveryMode, m_Identity.Id, m_Id, id, channel);
+				OnClientDefaultSettings(id, out DataDeliveryMode deliveryMode, out byte sequenceChannel);
+				OmniNetwork.Communicator.SyncVariable(writer, deliveryMode, m_Identity.Id, m_Id, id, sequenceChannel);
 			}
 			else
 			{
@@ -224,23 +238,23 @@ namespace Omni.Core
 			}
 		}
 
-		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte netVarId, byte channel = 0)
+		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte netVarId, byte sequenceChannel = 0)
 		{
-			OmniNetwork.Communicator.SyncVariable(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, netVarId, channel);
+			OmniNetwork.Communicator.SyncVariable(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, netVarId, sequenceChannel);
 		}
 
-		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte netVarId, byte channel = 0)
+		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte netVarId, byte sequenceChannel = 0)
 		{
 			switch (dataTarget)
 			{
 				case DataTarget.Self:
-					NetVar(writer, dataDeliveryMode, m_Identity.OwnerId, netVarId, channel);
+					NetVar(writer, dataDeliveryMode, m_Identity.OwnerId, netVarId, sequenceChannel);
 					break;
 				case DataTarget.Broadcast:
 					{
 						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
 						{
-							NetVar(writer, dataDeliveryMode, peer.Id, netVarId, channel);
+							NetVar(writer, dataDeliveryMode, peer.Id, netVarId, sequenceChannel);
 						}
 					}
 					break;
@@ -251,7 +265,7 @@ namespace Omni.Core
 							if (peer.Id == m_Identity.OwnerId)
 								continue;
 
-							NetVar(writer, dataDeliveryMode, peer.Id, netVarId, channel);
+							NetVar(writer, dataDeliveryMode, peer.Id, netVarId, sequenceChannel);
 						}
 					}
 					break;
@@ -260,18 +274,18 @@ namespace Omni.Core
 			}
 		}
 
-		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte rpcId, byte channel = 0)
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte rpcId, byte sequenceChannel = 0)
 		{
 			switch (dataTarget)
 			{
 				case DataTarget.Self:
-					Rpc(writer, dataDeliveryMode, m_Identity.OwnerId, rpcId, channel);
+					Rpc(writer, dataDeliveryMode, m_Identity.OwnerId, rpcId, sequenceChannel);
 					break;
 				case DataTarget.Broadcast:
 					{
 						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
 						{
-							Rpc(writer, dataDeliveryMode, peer.Id, rpcId, channel);
+							Rpc(writer, dataDeliveryMode, peer.Id, rpcId, sequenceChannel);
 						}
 					}
 					break;
@@ -282,21 +296,21 @@ namespace Omni.Core
 							if (peer.Id == m_Identity.OwnerId)
 								continue;
 
-							Rpc(writer, dataDeliveryMode, peer.Id, rpcId, channel);
+							Rpc(writer, dataDeliveryMode, peer.Id, rpcId, sequenceChannel);
 						}
 					}
 					break;
 				case DataTarget.Server:
-					Rpc(writer, dataDeliveryMode, rpcId, channel);
+					Rpc(writer, dataDeliveryMode, rpcId, sequenceChannel);
 					break;
 			}
 		}
 
-		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte rpcId, byte channel = 0)
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte rpcId, byte sequenceChannel = 0)
 		{
 			if (!IsServer)
 			{
-				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, m_Identity.Id, m_Id, rpcId, channel);
+				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, m_Identity.Id, m_Id, rpcId, sequenceChannel);
 			}
 			else
 			{
@@ -304,11 +318,11 @@ namespace Omni.Core
 			}
 		}
 
-		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte rpcId, byte channel = 0)
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte rpcId, byte sequenceChannel = 0)
 		{
 			if (IsServer)
 			{
-				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, rpcId, channel);
+				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, rpcId, sequenceChannel);
 			}
 			else
 			{

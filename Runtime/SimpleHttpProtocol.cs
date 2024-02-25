@@ -115,7 +115,7 @@ namespace Omni.Core
 
 		private static void OnRoute(bool isServer, IDataReader reader, NetworkPeer peer, DataDeliveryMode deliveryMode)
 		{
-			HttpOption httpOption = reader.ReadCustomMessage<HttpOption>();
+			HttpOption httpOption = reader.ReadCustomMessage<HttpOption>(out int lastPos);
 			if (isServer && httpOption == HttpOption.Fetch)
 			{
 				int requestId = reader.Read7BitEncodedInt();
@@ -161,10 +161,7 @@ namespace Omni.Core
 					OmniLogger.PrintError($"Client Response -> The route {route} does not exists.");
 				}
 			}
-			else
-			{
-				throw new NotImplementedException($"Http Option not implemented! -> {httpOption}");
-			}
+			else reader.Position = lastPos;
 		}
 
 		internal static void Close() { }

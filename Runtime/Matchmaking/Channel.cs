@@ -12,10 +12,12 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-namespace Omni.Core
+using System.Collections.Generic;
+
+namespace Omni.Core.IMatchmaking
 {
-	public static class AwaitableHelper
+	public class Channel
 	{
-		
+		public Dictionary<int, NetworkPeer> PeersById { get; } = new();
 	}
 }

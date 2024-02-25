@@ -110,12 +110,13 @@ namespace Omni.Internal
 			return uniqueId;
 		}
 
-		public static IFormatterResolver Formatter { get; private set; }
+		public static MessagePackSerializerOptions Formatter => MessagePackSerializer.DefaultOptions;
+		public static IFormatterResolver IFormatter { get; private set; }
 		public static MessagePackSerializerOptions AddResolver(IFormatterResolver IFormatterResolver)
 		{
 			IFormatterResolver ??= CompositeResolver.Create(/*GeneratedMessagePackResolver.Instance, */UnityBlitWithPrimitiveArrayResolver.Instance, UnityResolver.Instance, StandardResolver.Instance);
-			Formatter = CompositeResolver.Create(IFormatterResolver, Formatter);
-			return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(Formatter);
+			IFormatter = CompositeResolver.Create(IFormatterResolver, IFormatter);
+			return MessagePackSerializer.DefaultOptions = MessagePackSerializerOptions.Standard.WithResolver(IFormatter);
 		}
 	}
 }

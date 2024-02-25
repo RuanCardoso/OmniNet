@@ -34,12 +34,12 @@ namespace Omni.Core
 			if (isServer && OmniNetwork.Main.HasServer)
 			{
 				// Ignore physics between client object and server object
-				SceneManager.MoveGameObjectToScene(identity.gameObject, OmniNetwork.Main.ServerScene.GetValueOrDefault());
+				SceneManager.MoveGameObjectToScene(identity.gameObject, OmniNetwork.Main.EditorScene.GetValueOrDefault());
 			}
 #endif
 			// Unassign exposed vars after instantiating prefab....
 			prefab.gameObject.SetActive(true);
-			NetworkCallbacks.FireServerGameObjectInstantiated(identity, owner);
+			NetworkCallbacks.FireGameObjectInstantiated(isServer, identity, owner);
 			return identity;
 		}
 

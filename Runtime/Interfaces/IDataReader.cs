@@ -35,7 +35,7 @@ namespace Omni.Core
 		void Write(Stream value);
 		void Read(byte[] buffer, int offset, int count);
 		int Read(Span<byte> value);
-		T ReadCustomMessage<T>() where T : unmanaged, IComparable, IConvertible, IFormattable;
+		T ReadCustomMessage<T>(out int lastPos) where T : unmanaged, IComparable, IConvertible, IFormattable;
 		char ReadChar();
 		byte ReadByte();
 		short ReadShort();

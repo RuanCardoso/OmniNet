@@ -1,68 +1,47 @@
 using Omni.Core;
-using System;
 using UnityEngine;
+using static Omni.Core.OmniNetwork;
 
 namespace Omni.Internal.Samples
 {
-	[Remote(Id = 10, Name = "SyncColor", Self = false)]
 	public partial class RpcWithSourceGeneratos : NetworkBehaviour
 	{
-		partial void SyncColor_Client(IDataReader reader, NetworkPeer peer)
+		public override void OnNetworkStart()
 		{
-			throw new System.NotImplementedException();
+
 		}
 
-		partial void SyncColor_Server(IDataReader reader, NetworkPeer peer)
+		public override void OnNetworkEventsRegister()
 		{
-			throw new System.NotImplementedException();
+			NetworkCallbacks.OnChannelPlayerJoined += NetworkCallbacks_OnChannelPlayerJoined;
+			NetworkCallbacks.OnChannelPlayerLeft += NetworkCallbacks_OnChannelPlayerLeft;
 		}
 
-		[SerializeField]
-		private bool IsServerAuthority = false;
-
-		[NetVar(SerializeAsJson = true)]
-		private Action<float, byte[]> OnSync;
-
-		public override void Awake()
+		private void NetworkCallbacks_OnChannelPlayerJoined(bool arg1, NetworkPeer arg2, int arg3)
 		{
-			base.Awake();
-
-			OnSync += (health, arr) =>
-			{
-				OmniLogger.PrintError($"Chegou evento do: {IsServer} : {health} : {arr.Length}");
-			};
+			OmniLogger.PrintError("Entrou no: " + arg3 + " : " + arg1);
 		}
 
-		public override void Start()
+		private void NetworkCallbacks_OnChannelPlayerLeft(bool arg1, NetworkPeer arg2, int arg3)
 		{
-			base.Start();
+			OmniLogger.PrintError("Left no: " + arg3 + " : " + arg1);
 		}
 
 		private void Update()
 		{
-			// Use the generated property to sync!
-			if (IsServerAuthority)
+			if (Input.GetKeyDown(KeyCode.V) && IsServer)
 			{
-				if (IsServer)
-				{
-					//SyncColor(DataWriter.Empty, DataDeliveryMode.Unreliable, 1);
-				}
+				int channel = 1;
+				Matchmaking.JoinChannel(channel, 1);
+				OmniLogger.PrintError("Enviado");
 			}
-			else
+
+			if (Input.GetKeyDown(KeyCode.G) && IsServer)
 			{
-				if (IsClient)
-				{
-					if (Input.GetKeyDown(KeyCode.L))
-					{
-						OnSyncInvoke(10f, new byte[] { 10, 10 });
-					}
-				}
+				int channel = 1;
+				Matchmaking.LeaveChannel(channel, 1);
+				OmniLogger.PrintError("Enviado");
 			}
-		}
-
-		public override void OnNetworkStart()
-		{
-
 		}
 	}
 }

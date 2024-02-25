@@ -14,6 +14,7 @@
 
 using Newtonsoft.Json.Utilities;
 using Omni.Core.Cryptography;
+using Omni.Core.IMatchmaking;
 using Omni.Internal;
 using Omni.Internal.Interfaces;
 using Omni.Internal.Transport;
@@ -31,43 +32,45 @@ namespace Omni.Core
 	[RequireComponent(typeof(NetworkTime))]
 	[RequireComponent(typeof(NtpServer))]
 	[RequireComponent(typeof(PortForwarding))]
+	[RequireComponent(typeof(Matchmaking))]
 	[DefaultExecutionOrder(-3000)] // Priority
 	public partial class OmniNetwork : RealtimeTickBasedSystem // Part1
 	{
 		const string SceneName = "Omni Server(Debug Mode)";
 
 		public static OmniNetwork Main { get; private set; }
-		public static NetworkCommunicator Communicator { get; private set; }
-		public static NetworkTime Time { get; private set; }
 		public static NtpServer Ntp { get; private set; }
+		public static NetworkTime Time { get; private set; }
+		public static Matchmaking Matchmaking { get; private set; }
+		public static NetworkCommunicator Communicator { get; private set; }
 
+		public string Guid { get => guid; set => guid = value; }
 		public NetworkDispatcher NetworkDispatcher { get; private set; }
 		public GameLoopOption LoopMode => loopMode;
-		public int IOPS { get => m_IOPS; set => m_IOPS = value; }
-		public string Guid { get => guid; set => guid = value; }
 		public TransportOption TransportOption => transportOption;
+		public int IOPS { get => m_IOPS; set => m_IOPS = value; }
 		public bool HasServer => ServerTransport != null && ServerTransport.IsInitialized;
 		public bool HasClient => ClientTransport != null && ClientTransport.IsInitialized && ClientTransport.IsConnected;
-		public Scene? ServerScene { get; private set; }
 
 #if UNITY_SERVER && !UNITY_EDITOR
 		public bool IsConnected => HasServer;
 #else
 		public bool IsConnected => HasClient;
 #endif
+		public Scene? EditorScene { get; private set; }
 
 		internal int ManagedThreadId { get; private set; }
 		internal TransportSettings TransportSettings { get; private set; }
 		internal ITransport ServerTransport { get; private set; }
 		internal ITransport ClientTransport { get; private set; }
 
-		private bool m_IsInitialized;
-
 		#region Rsa && Aes
 		internal string PublicKey { get; private set; }
 		internal string PrivateKey { get; private set; }
 		internal byte[] AesKey { get; private set; }
 		#endregion
+
+		private bool m_IsInitialized;
 
 		private void Awake()
 		{
@@ -80,6 +83,7 @@ namespace Omni.Core
 			#region Components
 			NetworkDispatcher = new NetworkDispatcher();
 			Communicator = GetComponent<NetworkCommunicator>();
+			Matchmaking = GetComponent<Matchmaking>();
 			Time = GetComponent<NetworkTime>();
 			Ntp = GetComponent<NtpServer>();
 			#endregion
@@ -135,13 +139,13 @@ namespace Omni.Core
 		{
 			if (physicsMode == LocalPhysicsMode.Physics3D)
 			{
-				PhysicsScene? physicsScene = ServerScene?.GetPhysicsScene();
+				PhysicsScene? physicsScene = EditorScene?.GetPhysicsScene();
 				physicsScene?.Simulate(UnityEngine.Time.fixedDeltaTime);
 			}
 
 			if (physicsMode == LocalPhysicsMode.Physics2D)
 			{
-				PhysicsScene2D? physicsScene = ServerScene?.GetPhysicsScene2D();
+				PhysicsScene2D? physicsScene = EditorScene?.GetPhysicsScene2D();
 				physicsScene?.Simulate(UnityEngine.Time.fixedDeltaTime);
 			}
 		}
@@ -231,6 +235,11 @@ namespace Omni.Core
 					throw new NotImplementedException("Omni: Invalid transport!");
 			}
 
+			if (Matchmaking != null)
+			{
+				Matchmaking.ProcessEvents();
+			}
+
 			if (Communicator != null)
 			{
 				Communicator.ProcessEvents();
@@ -295,7 +304,7 @@ namespace Omni.Core
 			{
 				if (Application.isPlaying)
 				{
-					ServerScene = SceneManager.CreateScene(SceneName, new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
+					EditorScene = SceneManager.CreateScene(SceneName, new CreateSceneParameters((UnityEngine.SceneManagement.LocalPhysicsMode)physicsMode));
 				}
 			}
 		}
