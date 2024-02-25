@@ -25,6 +25,7 @@ namespace Omni.Core
 		byte[] Buffer { get; }
 		int Position { get; set; }
 		int BytesWritten { get; set; }
+		bool IsReleased { get; set; }
 		Encoding Encoding { get; set; }
 		void Clear();
 		void Write(byte[] buffer, int offset, int count);

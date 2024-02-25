@@ -12,10 +12,12 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
+using System.Collections.Generic;
 
-namespace Omni.Core
+namespace Omni.Core.IMatchmaking
 {
-    [Serializable]
-    public struct Trigger { }
+	public class Channel
+	{
+		public Dictionary<int, NetworkPeer> PeersById { get; } = new();
+	}
 }

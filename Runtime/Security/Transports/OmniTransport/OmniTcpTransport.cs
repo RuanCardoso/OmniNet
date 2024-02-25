@@ -294,7 +294,7 @@ namespace Omni.Internal.Transport
 			else
 			{
 				TimeSpan poll = DateTime.UtcNow - transportClient.LastReceivedTime;
-				if (poll.TotalSeconds > 1.5f)
+				if (poll.TotalSeconds > 3.5f)
 				{
 					m_queues.Enqueue(() =>
 					{
@@ -337,7 +337,7 @@ namespace Omni.Internal.Transport
 			return offset == length;
 		}
 
-		public void SendToClient(byte[] buffer, int length, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel)
+		public void SendToClient(byte[] buffer, int length, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte sequenceChannel)
 		{
 			if (IsServer)
 			{
@@ -356,7 +356,7 @@ namespace Omni.Internal.Transport
 			}
 		}
 
-		public void SendToServer(byte[] buffer, int length, DataDeliveryMode dataDeliveryMode, byte channel)
+		public void SendToServer(byte[] buffer, int length, DataDeliveryMode dataDeliveryMode, byte sequenceChannel)
 		{
 			if (!IsServer)
 			{

@@ -46,8 +46,8 @@ namespace Omni.Internal.Interfaces
 		void Disconnect(EndPoint endPoint);
 		void Receive();
 		void Receive(Socket socket);
-		void SendToClient(byte[] buffer, int size, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel);
-		void SendToServer(byte[] buffer, int size, DataDeliveryMode dataDeliveryMode, byte channel);
+		void SendToClient(byte[] buffer, int size, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte sequenceChannel);
+		void SendToServer(byte[] buffer, int size, DataDeliveryMode dataDeliveryMode, byte sequenceChannel);
 		void Close();
 
 		Dictionary<EndPoint, TcpTransportClient<Socket>> TcpPeerList { get; }

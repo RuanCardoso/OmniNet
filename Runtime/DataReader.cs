@@ -27,6 +27,7 @@ namespace Omni.Core
 		public int Position { get; set; }
 		public int BytesWritten { get; set; }
 		public bool ResetPositionAfterWriting { get; set; } = true;
+		public bool IsReleased { get; set; }
 		public Encoding Encoding { get; set; }
 
 		public DataReader(int size)
@@ -137,8 +138,9 @@ namespace Omni.Core
 			return value.Length;
 		}
 
-		public T ReadCustomMessage<T>() where T : unmanaged, IComparable, IConvertible, IFormattable
+		public T ReadCustomMessage<T>(out int lastPos) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
+			lastPos = Position;
 			int tValue = Read7BitEncodedInt();
 			return tValue.ReadCustomMessage<T>();
 		}

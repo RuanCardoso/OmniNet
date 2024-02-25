@@ -16,6 +16,7 @@ using Omni.Internal.Interfaces;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
@@ -122,6 +123,19 @@ namespace Omni.Core
 					m_Id = instanceId;
 				}
 			}
+			else
+			{
+				IsDuplicated(FindObjectsOfType<NetworkIdentity>(true));
+			}
+
+			void IsDuplicated(NetworkIdentity[] identities)
+			{
+				int count = identities.Count(x => x.m_Id == m_Id);
+				if (count > 1) // duplicated id...
+				{
+					m_Id = gameObject.GetInstanceID();
+				}
+			}
 		}
 
 		private void Reset()
@@ -133,6 +147,7 @@ namespace Omni.Core
 		private void Awake()
 		{
 #if UNITY_SERVER && !UNITY_EDITOR
+            m_IsServerSimulation = true;
 			IsServer = true;
 #endif
 #if UNITY_EDITOR
@@ -205,7 +220,7 @@ namespace Omni.Core
 				serverIdentity.IsServer = true;
 
 				// Ignore physics between client object and server object
-				SceneManager.MoveGameObjectToScene(serverObject, OmniNetwork.Main.ServerScene.GetValueOrDefault());
+				SceneManager.MoveGameObjectToScene(serverObject, OmniNetwork.Main.EditorScene.GetValueOrDefault());
 
 				// Disable shadows for server simulation;
 				Renderer[] renderers = serverObject.GetComponentsInChildren<Renderer>();

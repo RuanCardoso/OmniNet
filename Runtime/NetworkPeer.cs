@@ -72,10 +72,13 @@ namespace Omni.Core
 		public string Name { get; set; }
 		[@Key(3)]
 		[JsonProperty("Props")]
-		public Dictionary<int, object> Properties { get; } = new();
+		public Dictionary<string, object> Properties { get; } = new();
 		[IgnoreMember]
 		[JsonIgnore]
 		public EndPoint EndPoint { get; private set; }
+		[@Key(4)]
+		[JsonProperty("Channel")]
+		public int Channel { get; internal set; }
 
 		internal NetworkPeer(int id, EndPoint endPoint)
 		{
@@ -94,24 +97,24 @@ namespace Omni.Core
 			EndPoint = endPoint;
 		}
 
-		public byte[] Serialize()
+		public byte[] SerializePeerWithMsgPack(MessagePackSerializerOptions options = null)
 		{
-			return MessagePackSerializer.Serialize(this, MessagePackSerializer.DefaultOptions.WithCompression(MessagePackCompression.Lz4Block));
+			return MessagePackSerializer.Serialize(this, options);
 		}
 
-		public string SerializeAsJson()
+		public string SerializePeerWithJsonNet(JsonSerializerSettings jsonSerializerSettings = null)
 		{
-			return JsonConvert.SerializeObject(this, Formatting.Indented);
+			return JsonConvert.SerializeObject(this, Formatting.Indented, jsonSerializerSettings);
 		}
 
-		public byte[] SerializeProperties()
+		public byte[] SerializePropertiesWithMsgPack(MessagePackSerializerOptions options = null)
 		{
-			return MessagePackSerializer.Serialize(Properties, MessagePackSerializer.DefaultOptions.WithCompression(MessagePackCompression.Lz4Block));
+			return MessagePackSerializer.Serialize(Properties, options);
 		}
 
-		public string SerializePropertiesAsJson()
+		public string SerializePropertiesWithJsonNet(JsonSerializerSettings jsonSerializerSettings = null)
 		{
-			return JsonConvert.SerializeObject(Properties, Formatting.Indented);
+			return JsonConvert.SerializeObject(Properties, Formatting.Indented, jsonSerializerSettings);
 		}
 
 		public void CopyFrom(NetworkPeer from)
@@ -119,7 +122,7 @@ namespace Omni.Core
 			Id = from.Id;
 			DatabaseId = from.DatabaseId;
 			Name = from.Name;
-			foreach ((int key, object value) in from.Properties)
+			foreach ((string key, object value) in from.Properties)
 			{
 				Properties.Add(key, value);
 			}

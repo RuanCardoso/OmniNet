@@ -13,6 +13,7 @@
     ===========================================================*/
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -21,14 +22,15 @@ using UnityEngine;
 namespace Omni.Core
 {
 	[DefaultExecutionOrder(-300)]
-	public class NetworkBehaviour : RealtimeTickBasedSystem
+	public abstract class NetworkBehaviour : RealtimeTickBasedSystem
 	{
-		internal byte OnSyncBaseId { get; set; }
-		internal Action<byte, IDataReader> OnSyncBase { get; set; }
+		private static HashSet<ValueTuple<int, int>> RegisteredBehaviours { get; } = new HashSet<ValueTuple<int, int>>();
 		internal Dictionary<int, Action<IDataReader, NetworkPeer>> RemoteFuncs { get; } = new Dictionary<int, Action<IDataReader, NetworkPeer>>(); // RPC Id, RPC Func
 
 		[SerializeField][Required("It cannot be null!")] private NetworkIdentity m_Identity;
 		[SerializeField][ReadOnly] private byte m_Id;
+
+		public byte Id => m_Id;
 		public NetworkIdentity Identity => m_Identity;
 		public bool IsMine => OmniNetwork.Communicator.IsMine(m_Identity.OwnerId);
 		public bool IsServer => m_Identity.IsServer;
@@ -51,6 +53,31 @@ namespace Omni.Core
 			{
 				OmniLogger.PrintError($"Error: Duplicated ID '{m_Id}'. Ensure unique IDs for each instance of Network Behaviour");
 			}
+
+#if UNITY_EDITOR
+			if (RegisteredBehaviours.Add(ValueTuple.Create(m_Identity.Id, m_Id)))
+			{
+				OnNetworkEventsRegister();
+			}
+#endif
+		}
+
+		public override void Start()
+		{
+			base.Start();
+			StartCoroutine(Internal_OnNetworkStart());
+		}
+
+		public virtual void OnNetworkEventsRegister()
+		{
+
+		}
+
+		public abstract void OnNetworkStart();
+		private IEnumerator Internal_OnNetworkStart()
+		{
+			yield return new WaitUntil(() => m_Identity.IsServerSimulation ? IsServer : IsClient);
+			OnNetworkStart();
 		}
 
 #if UNITY_EDITOR
@@ -113,6 +140,16 @@ namespace Omni.Core
 		}
 #endif
 
+		protected NetworkPeer GetPeerByid(int peerId)
+		{
+			return OmniNetwork.Communicator.GetPeerById(peerId);
+		}
+
+		protected Dictionary<int, NetworkPeer> GetPeers()
+		{
+			return OmniNetwork.Communicator.GetPeers();
+		}
+
 		protected IDataWriter GetWriter() => NetworkCommunicator.DataWriterPool.Get();
 		protected IDataReader GetReader() => NetworkCommunicator.DataReaderPool.Get();
 
@@ -121,27 +158,52 @@ namespace Omni.Core
 
 		// Sync NetVar with Roslyn Generators (:
 		// Roslyn methods!
-		protected virtual void OnCustomSerialize(byte id, IDataWriter writer)
+		protected virtual void OnCustomSerialize(byte id, IDataWriter writer, int argIndex = 0)
 		{
 			throw new NotImplementedException("OnCustomSerialize must be overridden in a derived class.");
 		}
 
-		protected virtual void OnCustomDeserialize(byte id, IDataReader reader)
+		protected virtual void OnCustomDeserialize(byte id, IDataReader reader, int argIndex = 0)
 		{
 			throw new NotImplementedException("OnCustomDeserialize must be overridden in a derived class.");
 		}
-		protected virtual bool OnPropertyChanged(string netVarName, int id) => true;
+
+		protected virtual void OnPropertyChanged(byte id) { }
+		protected virtual void OnClientDefaultSettings(byte id, out DataDeliveryMode deliveryMode, out byte sequenceChannel)
+		{
+			// Default
+			deliveryMode = DataDeliveryMode.ReliableOrdered;
+			sequenceChannel = 0;
+		}
+
+		protected virtual void OnServerDefaultSettings(byte id, IDataWriter writer)
+		{
+			// Default
+			NetVar(writer, DataDeliveryMode.ReliableOrdered, DataTarget.Broadcast, id, 0);
+		}
 #pragma warning disable CA1822
 #pragma warning disable IDE1006
-		internal void Internal___2205032023(byte id, IDataReader dataReader) => ___2205032023(id, dataReader);
-		protected virtual void ___2205032023(byte id, IDataReader dataReader) { throw new NotImplementedException("___2205032023 must be overridden in a derived class."); } // Deserialize when receive from network!
-		protected void ___2205032024(IDataWriter writer, byte id) // called when OnPropertyChanged returns True
+		internal void Internal___2205032023(byte id, IDataReader dataReader)
+		{
+			___2205032023(id, dataReader); // Deserialize
+			OnPropertyChanged(id);
+		}
+		// Deserialize method implemented by source generator!
+		protected virtual void ___2205032023(byte id, IDataReader dataReader) { throw new NotImplementedException("___2205032023 must be overridden in a derived class."); }
+		protected void ___2205032024(IDataWriter writer, byte id)
 #pragma warning restore IDE1006
 #pragma warning restore CA1822
 		{
 			if (IsClient)
 			{
-				OmniNetwork.Communicator.NetVar(writer, DataDeliveryMode.ReliableOrdered, m_Identity.Id, m_Id, id, 0);
+				OnPropertyChanged(id);
+				OnClientDefaultSettings(id, out DataDeliveryMode deliveryMode, out byte sequenceChannel);
+				OmniNetwork.Communicator.SyncVariable(writer, deliveryMode, m_Identity.Id, m_Id, id, sequenceChannel);
+			}
+			else
+			{
+				OnPropertyChanged(id);
+				OnServerDefaultSettings(id, writer);
 			}
 		}
 
@@ -176,11 +238,79 @@ namespace Omni.Core
 			}
 		}
 
-		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte rpcId, byte channel = 0)
+		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte netVarId, byte sequenceChannel = 0)
+		{
+			OmniNetwork.Communicator.SyncVariable(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, netVarId, sequenceChannel);
+		}
+
+		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte netVarId, byte sequenceChannel = 0)
+		{
+			switch (dataTarget)
+			{
+				case DataTarget.Self:
+					NetVar(writer, dataDeliveryMode, m_Identity.OwnerId, netVarId, sequenceChannel);
+					break;
+				case DataTarget.Broadcast:
+					{
+						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						{
+							NetVar(writer, dataDeliveryMode, peer.Id, netVarId, sequenceChannel);
+						}
+					}
+					break;
+				case DataTarget.BroadcastExcludingSelf:
+					{
+						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						{
+							if (peer.Id == m_Identity.OwnerId)
+								continue;
+
+							NetVar(writer, dataDeliveryMode, peer.Id, netVarId, sequenceChannel);
+						}
+					}
+					break;
+				case DataTarget.Server:
+					throw new NotSupportedException("DataTarget.Server is not supported!");
+			}
+		}
+
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte rpcId, byte sequenceChannel = 0)
+		{
+			switch (dataTarget)
+			{
+				case DataTarget.Self:
+					Rpc(writer, dataDeliveryMode, m_Identity.OwnerId, rpcId, sequenceChannel);
+					break;
+				case DataTarget.Broadcast:
+					{
+						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						{
+							Rpc(writer, dataDeliveryMode, peer.Id, rpcId, sequenceChannel);
+						}
+					}
+					break;
+				case DataTarget.BroadcastExcludingSelf:
+					{
+						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						{
+							if (peer.Id == m_Identity.OwnerId)
+								continue;
+
+							Rpc(writer, dataDeliveryMode, peer.Id, rpcId, sequenceChannel);
+						}
+					}
+					break;
+				case DataTarget.Server:
+					Rpc(writer, dataDeliveryMode, rpcId, sequenceChannel);
+					break;
+			}
+		}
+
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, byte rpcId, byte sequenceChannel = 0)
 		{
 			if (!IsServer)
 			{
-				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, m_Identity.Id, m_Id, rpcId, channel);
+				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, m_Identity.Id, m_Id, rpcId, sequenceChannel);
 			}
 			else
 			{
@@ -188,11 +318,11 @@ namespace Omni.Core
 			}
 		}
 
-		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte rpcId, byte channel = 0)
+		public void Rpc(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte rpcId, byte sequenceChannel = 0)
 		{
 			if (IsServer)
 			{
-				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, rpcId, channel);
+				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, rpcId, sequenceChannel);
 			}
 			else
 			{

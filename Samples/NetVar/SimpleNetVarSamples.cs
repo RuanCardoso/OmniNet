@@ -18,6 +18,8 @@ namespace Omni.Internal.Samples
 		// private/public 'any other letter'_health -> Error
 		// private/public 'Health' -> Error
 
+		// There are no naming convention rules for delegates.
+
 		[SerializeField]
 		private bool IsServerAuthority = false;
 
@@ -36,6 +38,10 @@ namespace Omni.Internal.Samples
 		[NetVar]
 		[SerializeField]
 		private long m_Diamonds;
+
+		public override void OnNetworkStart()
+		{
+		}
 
 		[Button]
 		private void Test()

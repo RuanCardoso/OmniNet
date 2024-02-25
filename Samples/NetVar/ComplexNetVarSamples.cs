@@ -20,5 +20,9 @@ namespace Omni.Internal.Samples
 
 		[SerializeField]
 		private bool IsServerAuthority = false;
+
+		public override void OnNetworkStart()
+		{
+		}
 	}
 }

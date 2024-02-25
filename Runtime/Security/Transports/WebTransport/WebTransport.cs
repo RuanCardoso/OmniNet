@@ -340,7 +340,7 @@ namespace Omni.Internal.Transport
 			return true;
 		}
 
-		public void SendToClient(byte[] buffer, int size, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte channel)
+		public void SendToClient(byte[] buffer, int size, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte sequenceChannel)
 		{
 			if (IsServer)
 			{
@@ -363,7 +363,7 @@ namespace Omni.Internal.Transport
 			}
 		}
 
-		public void SendToServer(byte[] buffer, int size, DataDeliveryMode dataDeliveryMode, byte channel)
+		public void SendToServer(byte[] buffer, int size, DataDeliveryMode dataDeliveryMode, byte sequenceChannel)
 		{
 			if (!IsServer)
 			{
