@@ -13,6 +13,7 @@
     ===========================================================*/
 
 #if UNITY_EDITOR
+using Omni.Editor;
 using System;
 using System.Collections;
 using System.Reflection;
@@ -23,17 +24,18 @@ namespace Omni.Core.Inspector
 {
 	[CustomPropertyDrawer(typeof(NetVarAttribute), true)]
 	[CanEditMultipleObjects]
-	public class NetVarDrawer : PropertyDrawer
+	public class NetVarDrawer : PropertyDrawerBase
 	{
 		private Texture2D quadTexture;
 		private PropertyInfo propertyInfo;
-		public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+		protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
 		{
 			return EditorGUI.GetPropertyHeight(property, label);
 		}
 
-		public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+		protected override void OnGUI_Internal(Rect position, SerializedProperty property, GUIContent label)
 		{
+			EditorGUI.BeginProperty(position, label, property);
 			if (property.serializedObject.targetObject is NetworkBehaviour monoBehaviour)
 			{
 				// Validate naming convetion
@@ -83,6 +85,7 @@ namespace Omni.Core.Inspector
 					}
 				}
 			}
+			EditorGUI.EndProperty();
 		}
 
 		private int lastCount = 0;

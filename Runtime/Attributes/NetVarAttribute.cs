@@ -13,13 +13,12 @@
     ===========================================================*/
 
 using System;
-using UnityEngine;
 
 namespace Omni.Core
 {
 	// Roslyn Generated //  Roslyn Analyzer
 	[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-	public class NetVarAttribute : PropertyAttribute
+	public class NetVarAttribute : DrawerAttribute
 	{
 		public bool SerializeAsJson { get; set; }
 		public bool CustomSerializeAndDeserialize { get; set; }
