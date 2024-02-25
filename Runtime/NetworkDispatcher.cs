@@ -22,8 +22,14 @@ namespace Omni.Internal.Transport
 	// Thread-safe
 	public class NetworkDispatcher
 	{
+		private bool agressiveMode;
 		private readonly object _lock = new object();
 		private readonly Queue<Action> m_queue = new Queue<Action>();
+
+		public NetworkDispatcher(bool agressiveMode)
+		{
+			this.agressiveMode = agressiveMode;
+		}
 
 		public void Dispatch(Action action)
 		{
@@ -37,10 +43,21 @@ namespace Omni.Internal.Transport
 		{
 			lock (_lock)
 			{
-				if (m_queue.Count > 0)
+				if (!agressiveMode)
 				{
-					Action func = m_queue.Dequeue();
-					func(); // run in Unity main thread!
+					if (m_queue.Count > 0)
+					{
+						Action func = m_queue.Dequeue();
+						func(); // run in Unity main thread!
+					}
+				}
+				else
+				{
+					while (m_queue.Count > 0)
+					{
+						Action func = m_queue.Dequeue();
+						func(); // run in Unity main thread!
+					}
 				}
 			}
 		}

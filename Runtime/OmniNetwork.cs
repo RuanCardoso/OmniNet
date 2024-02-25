@@ -81,7 +81,7 @@ namespace Omni.Core
 			#endregion
 
 			#region Components
-			NetworkDispatcher = new NetworkDispatcher();
+			NetworkDispatcher = new NetworkDispatcher(false);
 			Communicator = GetComponent<NetworkCommunicator>();
 			Matchmaking = GetComponent<Matchmaking>();
 			Time = GetComponent<NetworkTime>();
