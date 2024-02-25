@@ -31,18 +31,46 @@ namespace Omni.Core
 		public static HttpServer Server { get; } = new HttpServer();
 		public static HttpClient Client { get; } = new HttpClient();
 
+		internal class HttpServerObject
+		{
+			internal HttpServerObject(Action<IDataReader, IDataWriter, NetworkPeer> exec, Func<IDataReader, IDataWriter, NetworkPeer, Task> execAsync, bool isAsync)
+			{
+				Exec = exec;
+				ExecAsync = execAsync;
+				IsAsync = isAsync;
+			}
+
+			internal bool IsAsync { get; }
+			internal Action<IDataReader, IDataWriter, NetworkPeer> Exec { get; }
+			internal Func<IDataReader, IDataWriter, NetworkPeer, Task> ExecAsync { get; }
+		}
+
 		public class HttpServer
 		{
-			internal Dictionary<string, Action<IDataReader, IDataWriter, NetworkPeer>> m_routes = new();
-			public void Post(string route, Action<IDataReader, IDataWriter, NetworkPeer> response)
+			internal Dictionary<string, HttpServerObject> m_routes = new();
+			public void Post(string route, Action<IDataReader, IDataWriter, NetworkPeer> res)
 			{
 #if UNITY_EDITOR
 				NetworkHelper.ThrowAnErrorIfConcurrent();
 #endif
-				if (response == null)
+				if (res == null)
 					throw new ArgumentNullException("request or response is null");
 
-				if (!m_routes.TryAdd(route, response))
+				if (!m_routes.TryAdd(route, new HttpServerObject(res, default, false)))
+				{
+					throw new NotSupportedException($"The route {route} is global and must be unique.");
+				}
+			}
+
+			public void PostAsync(string route, Func<IDataReader, IDataWriter, NetworkPeer, Task> resAsync)
+			{
+#if UNITY_EDITOR
+				NetworkHelper.ThrowAnErrorIfConcurrent();
+#endif
+				if (resAsync == null)
+					throw new ArgumentNullException("request or response is null");
+
+				if (!m_routes.TryAdd(route, new HttpServerObject(default, resAsync, true)))
 				{
 					throw new NotSupportedException($"The route {route} is global and must be unique.");
 				}
@@ -80,7 +108,7 @@ namespace Omni.Core
 				}
 			}
 
-			public Task<IDataReader> Post(string route, Action<IDataWriter> request, int timeout = 3000)
+			public Task<IDataReader> PostAsync(string route, Action<IDataWriter> request, int timeout = 3000, DataDeliveryMode dataDeliveryMode = DataDeliveryMode.ReliableEncryptedOrdered)
 			{
 				TaskCompletionSource<IDataReader> tcs = new();
 				CancellationTokenSource cts = new();
@@ -92,7 +120,7 @@ namespace Omni.Core
 						tcs.SetResult(res);
 						cts.Dispose();
 					}
-				});
+				}, dataDeliveryMode);
 
 				Task.Run(async () =>
 				{
@@ -113,7 +141,7 @@ namespace Omni.Core
 			NetworkCallbacks.Internal_OnCustomMessageReceived += OnRoute;
 		}
 
-		private static void OnRoute(bool isServer, IDataReader reader, NetworkPeer peer, DataDeliveryMode deliveryMode)
+		private static async void OnRoute(bool isServer, IDataReader reader, NetworkPeer peer, DataDeliveryMode deliveryMode)
 		{
 			HttpOption httpOption = reader.ReadCustomMessage<HttpOption>(out int lastPos);
 			if (isServer && httpOption == HttpOption.Fetch)
@@ -121,7 +149,7 @@ namespace Omni.Core
 				int requestId = reader.Read7BitEncodedInt();
 				string route = reader.ReadString();
 
-				if (Server.m_routes.TryGetValue(route, out var exec))
+				if (Server.m_routes.TryGetValue(route, out HttpServerObject httpServerObject))
 				{
 					#region Writers
 					IDataWriter httpHeader = NetworkCommunicator.DataWriterPool.Get();
@@ -131,7 +159,8 @@ namespace Omni.Core
 					#region Initialize
 					httpHeader.Write7BitEncodedInt(requestId);
 					httpHeader.Write(route);
-					exec(reader, httpResponse, peer);
+					if (httpServerObject.IsAsync) await httpServerObject.ExecAsync(reader, httpResponse, peer);
+					else httpServerObject.Exec(reader, httpResponse, peer);
 					httpHeader.Write(httpResponse.Buffer, 0, httpResponse.BytesWritten);
 					if (httpResponse.BytesWritten > 0)
 						OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Response, httpHeader, peer.Id, deliveryMode, 0);
