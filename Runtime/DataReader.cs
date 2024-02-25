@@ -141,6 +141,9 @@ namespace Omni.Core
 		public T ReadCustomMessage<T>(out int lastPos) where T : unmanaged, IComparable, IConvertible, IFormattable
 		{
 			lastPos = Position;
+			if ((BytesWritten - Position) <= 0)
+				return (-1).ReadCustomMessage<T>();
+
 			int tValue = Read7BitEncodedInt();
 			return tValue.ReadCustomMessage<T>();
 		}
