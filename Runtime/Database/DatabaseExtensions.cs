@@ -15,7 +15,7 @@ namespace Omni.Core
 {
 	public static class DatabaseExtensions
 	{
-		public static Task OpenAsync(this IDbConnection dbConnection)
+		internal static Task OpenAsync(this IDbConnection dbConnection)
 		{
 			return dbConnection switch
 			{
@@ -45,6 +45,21 @@ namespace Omni.Core
 		}
 
 		/// <summary>
+		/// Maps the first result of a query to the specified type.
+		/// </summary>
+		/// <typeparam name="T">The type to map the result to.</typeparam>
+		/// <param name="query">The query to execute.</param>
+		/// <param name="transaction">The database transaction (optional).</param>
+		/// <param name="timeout">The command timeout (optional).</param>
+		/// <returns>The mapped result of type T.</returns>
+		public static async Task<T> MapFirstResultToAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
+		{
+			var toJsonObject = await query.FirstAsync<object>(transaction, timeout);
+			var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
+			return JsonConvert.DeserializeObject<T>(fromJsonObject);
+		}
+
+		/// <summary>
 		/// Maps all the results of a database query to a collection of objects of type T.
 		/// </summary>
 		/// <typeparam name="T">The type of objects to map the results to.</typeparam>
@@ -55,6 +70,22 @@ namespace Omni.Core
 		public static IEnumerable<T> MapAllResultsTo<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
 		{
 			var toJsonObject = query.Get<object>(transaction, timeout);
+			var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
+			return JsonConvert.DeserializeObject<IEnumerable<T>>(fromJsonObject);
+		}
+
+
+		/// <summary>
+		/// Maps all the results of a database query to a collection of objects of type T.
+		/// </summary>
+		/// <typeparam name="T">The type of objects to map the results to.</typeparam>
+		/// <param name="query">The database query.</param>
+		/// <param name="transaction">The database transaction (optional).</param>
+		/// <param name="timeout">The timeout for the query (optional).</param>
+		/// <returns>A collection of objects of type T.</returns>
+		public static async Task<IEnumerable<T>> MapAllResultsToAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
+		{
+			var toJsonObject = await query.GetAsync<object>(transaction, timeout);
 			var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
 			return JsonConvert.DeserializeObject<IEnumerable<T>>(fromJsonObject);
 		}
@@ -77,6 +108,23 @@ namespace Omni.Core
 		}
 
 		/// <summary>
+		/// Maps the paginated results of a query to a specified type.
+		/// </summary>
+		/// <typeparam name="T">The type to map the results to.</typeparam>
+		/// <param name="query">The query to paginate.</param>
+		/// <param name="page">The page number to retrieve.</param>
+		/// <param name="perPage">The number of results per page.</param>
+		/// <param name="transaction">The database transaction to use.</param>
+		/// <param name="timeout">The timeout for the query.</param>
+		/// <returns>An enumerable collection of mapped results.</returns>
+		public static async Task<IEnumerable<T>> MapPageResultsToAsync<T>(this Query query, int page, int perPage = 25, IDbTransaction transaction = null, int? timeout = null)
+		{
+			var toJsonObject = await query.PaginateAsync<object>(page, perPage, transaction, timeout);
+			var fromJsonObject = JsonConvert.SerializeObject(toJsonObject.List);
+			return JsonConvert.DeserializeObject<IEnumerable<T>>(fromJsonObject);
+		}
+
+		/// <summary>
 		/// Processes a query in chunks, invoking a function for each chunk of elements.
 		/// </summary>
 		/// <typeparam name="T">The type of elements in the query.</typeparam>
@@ -88,6 +136,20 @@ namespace Omni.Core
 		public static void ProcessInChunks<T>(this Query query, int chunkSize, Func<IEnumerable<T>, int, bool> func, IDbTransaction transaction = null, int? timeout = null)
 		{
 			query.Chunk<T>(chunkSize, func, transaction, timeout);
+		}
+
+		/// <summary>
+		/// Processes a query in chunks, invoking a function for each chunk of elements.
+		/// </summary>
+		/// <typeparam name="T">The type of elements in the query.</typeparam>
+		/// <param name="query">The query to process.</param>
+		/// <param name="chunkSize">The size of each chunk.</param>
+		/// <param name="func">The function to invoke for each chunk of elements. The function should return true to continue processing, or false to stop processing.</param>
+		/// <param name="transaction">The database transaction to use.</param>
+		/// <param name="timeout">The timeout for the query.</param>
+		public static async Task ProcessInChunksAsync<T>(this Query query, int chunkSize, Func<IEnumerable<T>, int, bool> func, IDbTransaction transaction = null, int? timeout = null)
+		{
+			await query.ChunkAsync<T>(chunkSize, func, transaction, timeout);
 		}
 
 		/// <summary>
@@ -105,6 +167,20 @@ namespace Omni.Core
 		}
 
 		/// <summary>
+		/// Processes a query in chunks, invoking the specified action for each chunk of items.
+		/// </summary>
+		/// <typeparam name="T">The type of items in the query.</typeparam>
+		/// <param name="query">The query to process.</param>
+		/// <param name="chunkSize">The size of each chunk.</param>
+		/// <param name="action">The action to invoke for each chunk of items.</param>
+		/// <param name="transaction">The database transaction to use (optional).</param>
+		/// <param name="timeout">The timeout for the query (optional).</param>
+		public static async Task ProcessInChunksAsync<T>(this Query query, int chunkSize, Action<IEnumerable<T>, int> action, IDbTransaction transaction = null, int? timeout = null)
+		{
+			await query.ChunkAsync<T>(chunkSize, action, transaction, timeout);
+		}
+
+		/// <summary>
 		/// Maps a Query object to a Row object.
 		/// </summary>
 		/// <param name="query">The Query object to map.</param>
@@ -115,6 +191,16 @@ namespace Omni.Core
 		}
 
 		/// <summary>
+		/// Maps a Query object to a Row object.
+		/// </summary>
+		/// <param name="query">The Query object to map.</param>
+		/// <returns>The mapped Row object.</returns>
+		public static Task<Row> MapToRowAsync(this Query query, IDbTransaction transaction = null, int? timeout = null)
+		{
+			return MapFirstResultToAsync<Row>(query, transaction, timeout);
+		}
+
+		/// <summary>
 		/// Maps the query results to a collection of rows.
 		/// </summary>
 		/// <param name="query">The query to map.</param>
@@ -122,6 +208,16 @@ namespace Omni.Core
 		public static IEnumerable<Row> MapToRows(this Query query, IDbTransaction transaction = null, int? timeout = null)
 		{
 			return MapAllResultsTo<Row>(query, transaction, timeout);
+		}
+
+		/// <summary>
+		/// Maps the query results to a collection of rows.
+		/// </summary>
+		/// <param name="query">The query to map.</param>
+		/// <returns>A collection of rows.</returns>
+		public static Task<IEnumerable<Row>> MapToRowsAsync(this Query query, IDbTransaction transaction = null, int? timeout = null)
+		{
+			return MapAllResultsToAsync<Row>(query, transaction, timeout);
 		}
 	}
 }
