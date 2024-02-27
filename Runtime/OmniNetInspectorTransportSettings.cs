@@ -56,7 +56,7 @@ namespace Omni.Core
 		[SerializeField]/*[EnableIf("transportOption", TransportOption.TcpTransport)]*/[MinValue(1)] private int m_IOPS = 1;
 
 		[SerializeField]
-		private UnityEvent<TransportSettings, RuntimePlatform> OnTransportSettings;
+		private CustomTransportSettings m_OnTransportSettings;
 
 		#region LiteNetLib
 		[SerializeField]

@@ -17,6 +17,9 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Net;
 using Key = MessagePack.KeyAttribute;
+using static Omni.Core.OmniNetwork;
+using System;
+using System.Runtime.CompilerServices;
 
 namespace Omni.Core
 {
@@ -89,6 +92,54 @@ namespace Omni.Core
 
 		public NetworkPeer()
 		{
+		}
+
+		public T Get<T>(string key) => (T)Convert.ChangeType(Properties[key], typeof(T));
+		public T FastGet<T>(string key)
+		{
+			object value = Properties[key];
+			return Unsafe.As<object, T>(ref value);
+		}
+
+		public bool TryGet<T>(string key, out T prop)
+		{
+			prop = default;
+			try
+			{
+				if (Properties.TryGetValue(key, out object value))
+				{
+					prop = (T)Convert.ChangeType(value, typeof(T));
+					return true;
+				}
+				return false;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		public bool TryFastGet<T>(string key, out T prop)
+		{
+			prop = default;
+			try
+			{
+				if (Properties.TryGetValue(key, out object value))
+				{
+					prop = Unsafe.As<object, T>(ref value);
+					return true;
+				}
+				return false;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
+		public void Disconnect()
+		{
+			Communicator.DisconnectPeer(Id);
 		}
 
 		// Client Side -> WebSocket(WebGl)

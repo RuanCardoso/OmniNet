@@ -12,15 +12,13 @@
     License: Open Source (MIT)
     ===========================================================*/
 
-using System;
+using Omni.Internal.Transport;
+using UnityEngine;
 
 namespace Omni.Core
 {
-    public interface ISyncBase
+    public abstract class CustomTransportSettings : MonoBehaviour
     {
-        void OnValueChanged();
-        bool IsEnum();
-        Enum GetEnum();
-        void SetEnum(Enum enumValue);
+        public abstract void OnTransportSettings(TransportSettings transportSettings, RuntimePlatform runtimePlatform);
     }
 }
