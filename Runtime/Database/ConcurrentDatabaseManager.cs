@@ -48,7 +48,7 @@ namespace Omni.Core
 			}
 			catch (Exception ex)
 			{
-				OmniLogger.PrintError(ex.Message);
+				OmniLogger.PrintError($"The connection to the database could not be established, reason: {ex.Message}");
 				return false;
 			}
 		}
