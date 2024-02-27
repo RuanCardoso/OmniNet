@@ -304,6 +304,20 @@ namespace Omni.Core
 		}
 
 		/// <summary>
+		/// Executes a SQL query and returns the number of rows affected.
+		/// </summary>
+		/// <param name="query">The SQL query to execute.</param>
+		/// <param name="param">The parameters to use in the query.</param>
+		/// <param name="transaction">The transaction to use for the command.</param>
+		/// <param name="timeout">The command timeout (in seconds).</param>
+		/// <returns>The number of rows affected.</returns>
+		public Task<int> RunAsync(string query, object param = null, IDbTransaction transaction = null, int? timeout = null)
+		{
+			ThrowErrorIfNotInitialized();
+			return Factory.StatementAsync(query, param, transaction, timeout);
+		}
+
+		/// <summary>
 		/// Returns the raw SQL string of a given Query object.
 		/// </summary>
 		/// <param name="query">The Query object to compile.</param>
