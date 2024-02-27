@@ -78,6 +78,7 @@ namespace Omni.Core
 			Main = this;
 			_ = NetworkHelper.AddResolver(null);
 			AotHelper.EnsureDictionary<string, object>();
+			DontDestroyOnLoad(gameObject);
 			#endregion
 
 			#region Components
@@ -235,6 +236,14 @@ namespace Omni.Core
 					throw new NotImplementedException("Omni: Invalid transport!");
 			}
 
+			NetProtocol protocol = TransportOption switch
+			{
+				TransportOption.LiteNetTransport => NetProtocol.Udp,
+				TransportOption.TcpTransport => NetProtocol.Tcp,
+				TransportOption.WebSocketTransport => NetProtocol.WebSocket,
+				_ => throw new Exception("Invalid protocol!"),
+			};
+
 			if (Matchmaking != null)
 			{
 				Matchmaking.ProcessEvents();
@@ -245,33 +254,8 @@ namespace Omni.Core
 				Communicator.ProcessEvents();
 			}
 
-			if (OnTransportSettings != null)
-			{
-				if (OnTransportSettings.GetPersistentEventCount() == 0)
-				{
-					OmniLogger.Print("The platform-specific transport configuration is disabled.");
-				}
-				else
-				{
-					for (int i = 0; i < OnTransportSettings.GetPersistentEventCount(); i++)
-					{
-						if (OnTransportSettings.GetPersistentMethodName(i) == "")
-						{
-							OmniLogger.Print("Obs: The platform-specific transport configuration is disabled?");
-						}
-					}
-				}
-			}
-
-			NetProtocol protocol = TransportOption switch
-			{
-				TransportOption.LiteNetTransport => NetProtocol.Udp,
-				TransportOption.TcpTransport => NetProtocol.Tcp,
-				TransportOption.WebSocketTransport => NetProtocol.WebSocket,
-				_ => throw new Exception("Invalid protocol!"),
-			};
-
-			OnTransportSettings?.Invoke(TransportSettings, Application.platform);
+			if (m_OnTransportSettings != null) m_OnTransportSettings.OnTransportSettings(TransportSettings, Application.platform);
+			else OmniLogger.Print("The platform-specific transport configuration is disabled.");
 			// The Server does not start in WebGl as it is not supported in browsers, it must be run outside of a browser environment.
 #if !UNITY_WEBGL || UNITY_EDITOR
 			if (NetworkHelper.IsAvailablePort(TransportSettings.ServerPort, protocol))
