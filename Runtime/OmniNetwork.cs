@@ -57,10 +57,10 @@ namespace Omni.Core
 #else
 		public bool IsConnected => HasClient;
 #endif
+		public TransportSettings TransportSettings { get; private set; }
 		public Scene? EditorScene { get; private set; }
 
 		internal int ManagedThreadId { get; private set; }
-		internal TransportSettings TransportSettings { get; private set; }
 		internal ITransport ServerTransport { get; private set; }
 		internal ITransport ClientTransport { get; private set; }
 
