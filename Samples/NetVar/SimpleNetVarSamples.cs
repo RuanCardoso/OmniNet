@@ -39,7 +39,7 @@ namespace Omni.Internal.Samples
 		[SerializeField]
 		private long m_Diamonds;
 
-		public override void OnNetworkStart()
+		protected override void OnNetworkStart()
 		{
 		}
 

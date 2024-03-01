@@ -13,6 +13,7 @@
     ===========================================================*/
 
 using System;
+using System.Net.Sockets;
 
 namespace Omni.Core
 {
@@ -34,8 +35,8 @@ namespace Omni.Core
 		public static event Action<bool, NetworkPeer> OnClientConnected;
 		internal static void FireClientConnected(bool isServer, NetworkPeer player) => OnClientConnected?.Invoke(isServer, player);
 
-		public static event Action<bool, NetworkPeer> OnClientDisconnected;
-		internal static void FireClientDisconnected(bool isServer, NetworkPeer player) => OnClientDisconnected?.Invoke(isServer, player);
+    public static event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
+		internal static void FireClientDisconnected(bool isServer, NetworkPeer player, SocketError socketError, string reason) => OnClientDisconnected?.Invoke(isServer, player, socketError, reason);
 
 		public static event Action<bool, NetworkPeer, int> OnChannelPlayerJoined;
 		internal static void FireChannelPlayerJoined(bool isServer, NetworkPeer player, int channel) => OnChannelPlayerJoined?.Invoke(isServer, player, channel);

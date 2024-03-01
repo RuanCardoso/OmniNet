@@ -14,12 +14,12 @@
 
 using MessagePack;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Net;
-using Key = MessagePack.KeyAttribute;
-using static Omni.Core.OmniNetwork;
-using System;
 using System.Runtime.CompilerServices;
+using static Omni.Core.OmniNetwork;
+using Key = MessagePack.KeyAttribute;
 
 namespace Omni.Core
 {
@@ -136,6 +136,9 @@ namespace Omni.Core
 				return false;
 			}
 		}
+
+		public void Add(string key, object value) => Properties.Add(key, value);
+		public bool TryAdd(string key, object value) => Properties.TryAdd(key, value);
 
 		public void Disconnect()
 		{

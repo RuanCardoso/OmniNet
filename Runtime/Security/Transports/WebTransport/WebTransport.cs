@@ -141,17 +141,17 @@ namespace Omni.Internal.Transport
 			{
 				OmniNetwork.Main.NetworkDispatcher.Dispatch(() =>
 				{
-					Internal_OnError();
+					Internal_OnError(e.Message);
 				});
 			}
 
-			internal void Internal_OnError()
+			internal void Internal_OnError(string reason)
 			{
 				try
 				{
 					if (!IsDisconnected)
 					{
-						WebTransport.Disconnect(UserEndPoint);
+						WebTransport.Disconnect(UserEndPoint, SocketError.SocketError, reason);
 						IsDisconnected = true;
 					}
 				}
@@ -162,17 +162,17 @@ namespace Omni.Internal.Transport
 			{
 				OmniNetwork.Main.NetworkDispatcher.Dispatch(() =>
 				{
-					Internal_OnClose();
+					Internal_OnClose(e.Reason);
 				});
 			}
 
-			internal void Internal_OnClose()
+			internal void Internal_OnClose(string message)
 			{
 				try
 				{
 					if (!IsDisconnected)
 					{
-						WebTransport.Disconnect(UserEndPoint);
+						WebTransport.Disconnect(UserEndPoint, SocketError.Disconnecting, message);
 						IsDisconnected = true;
 					}
 				}
@@ -221,7 +221,7 @@ namespace Omni.Internal.Transport
 		public WebTransportClient<PeerBehaviour> WebClient => LocalTransportClient;
 
 		public event Action<bool, NetworkPeer> OnClientConnected;
-		public event Action<bool, NetworkPeer> OnClientDisconnected;
+		public event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
 		public event Action<bool, byte[], int, NetworkPeer> OnMessageReceived;
 
 		public void InitializeTransport(bool isServer, EndPoint endPoint, TransportSettings settings)
@@ -251,8 +251,8 @@ namespace Omni.Internal.Transport
 
 				// Callbacks from WebSocketClient
 				m_Client.OnOpen += () => LocalTransportClient.Peer.Internal_OnOpen();
-				m_Client.OnError += (e) => LocalTransportClient.Peer.Internal_OnError();
-				m_Client.OnClose += (e) => LocalTransportClient.Peer.Internal_OnClose();
+				m_Client.OnError += (error) => LocalTransportClient.Peer.Internal_OnError(error);
+				m_Client.OnClose += (reason) => LocalTransportClient.Peer.Internal_OnClose(reason.ToString());
 				m_Client.OnMessage += (data) => LocalTransportClient.Peer.Internal_OnMessage(new MessageEventArgs(Opcode.Binary, data));
 			}
 		}
@@ -275,13 +275,13 @@ namespace Omni.Internal.Transport
 			await m_Client.Connect();
 		}
 
-		public void Disconnect(EndPoint endPoint)
+		public void Disconnect(EndPoint endPoint, SocketError errorCode, string reason)
 		{
 			if (IsServer)
 			{
 				if (PeerList.Remove(endPoint, out WebTransportClient<PeerBehaviour> transportClient))
 				{
-					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
+					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer, errorCode, reason);
 					PeerBehaviour peer = transportClient.Peer;
 					peer.Disconnect();
 				}
@@ -291,7 +291,7 @@ namespace Omni.Internal.Transport
 				if (IsConnected)
 				{
 					IsConnected = false;
-					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
+					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer, errorCode, reason);
 					PeerBehaviour peer = LocalTransportClient.Peer;
 					peer.Disconnect();
 				}

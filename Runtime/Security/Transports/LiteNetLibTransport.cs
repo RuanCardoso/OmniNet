@@ -63,7 +63,7 @@ namespace Omni.Internal.Transport
 		public Stopwatch Stopwatch { get; } = new();
 
 		public event Action<bool, NetworkPeer> OnClientConnected;
-		public event Action<bool, NetworkPeer> OnClientDisconnected;
+		public event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
 		public event Action<bool, byte[], int, NetworkPeer> OnMessageReceived;
 
 		public void InitializeTransport(bool isServer, EndPoint endPoint, TransportSettings transportSettings)
@@ -134,7 +134,7 @@ namespace Omni.Internal.Transport
 
 			listener.PeerDisconnectedEvent += (peer, info) =>
 			{
-				Disconnect(peer);
+				Disconnect(peer, info.SocketErrorCode, info.Reason.ToString());
 			};
 
 			IsInitialized = true;
@@ -200,14 +200,14 @@ namespace Omni.Internal.Transport
 			}
 		}
 
-		public void Disconnect(EndPoint endPoint)
+		public void Disconnect(EndPoint endPoint, SocketError errorCode, string reason)
 		{
 			if (IsServer)
 			{
 				if (PeerList.Remove(endPoint, out LiteTransportClient<NetPeer> transportClient))
 				{
 					NetPeer peer = transportClient.Peer;
-					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
+					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer, errorCode, reason);
 					peer.Disconnect();
 				}
 			}
@@ -217,7 +217,7 @@ namespace Omni.Internal.Transport
 				if (peer.ConnectionState == ConnectionState.Connected && IsConnected)
 				{
 					IsConnected = false;
-					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
+					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer, errorCode, reason);
 					peer.Disconnect();
 				}
 			}

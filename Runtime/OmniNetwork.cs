@@ -138,6 +138,14 @@ namespace Omni.Core
 		// Simulate the scene on FixedUpdate.
 		private void FixedUpdate()
 		{
+			if (EditorScene.HasValue)
+			{
+				if (!EditorScene.Value.IsValid())
+				{
+					return;
+				}
+			}
+
 			if (physicsMode == LocalPhysicsMode.Physics3D)
 			{
 				PhysicsScene? physicsScene = EditorScene?.GetPhysicsScene();

@@ -21,6 +21,7 @@ namespace Omni.Core
 		public virtual void Start()
 		{
 			OmniNetwork.Time.UpdateClock.AddHandler(this);
+			OmniNetwork.Time.FixedUpdateClock.AddHandler(this);
 		}
 
 		public virtual void OnFixedUpdateTick(ITickData tick) { }
