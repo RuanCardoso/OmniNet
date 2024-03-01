@@ -4,6 +4,7 @@ namespace Omni
 {
     public enum EInfoBoxType
     {
+        None,
         Normal,
         Warning,
         Error

@@ -30,6 +30,8 @@ namespace Omni.Core.IMatchmaking
 			LeaveChannel = 55,
 		}
 
+		private void Start() { }
+
 		internal void ProcessEvents()
 		{
 			NetworkCallbacks.Internal_OnCustomMessageReceived += Internal_OnCustomMessageReceived;

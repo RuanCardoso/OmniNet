@@ -39,7 +39,7 @@ namespace Omni.Core
 		/// <returns>The mapped result of type T.</returns>
 		public static T MapFirstResultTo<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
 		{
-			var toJsonObject = query.First<object>(transaction, timeout);
+			var toJsonObject = query.FirstOrDefault<object>(transaction, timeout);
 			var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
 			return JsonConvert.DeserializeObject<T>(fromJsonObject);
 		}
@@ -54,7 +54,7 @@ namespace Omni.Core
 		/// <returns>The mapped result of type T.</returns>
 		public static async Task<T> MapFirstResultToAsync<T>(this Query query, IDbTransaction transaction = null, int? timeout = null)
 		{
-			var toJsonObject = await query.FirstAsync<object>(transaction, timeout);
+			var toJsonObject = await query.FirstOrDefaultAsync<object>(transaction, timeout);
 			var fromJsonObject = JsonConvert.SerializeObject(toJsonObject);
 			return JsonConvert.DeserializeObject<T>(fromJsonObject);
 		}

@@ -32,10 +32,10 @@ namespace Omni.Core
 		public static event Action<bool, NetworkIdentity, NetworkPeer> OnGameObjectDestroyed;
 		internal static void FireGameObjectDestroyed(bool isServer, NetworkIdentity identity, NetworkPeer player) => OnGameObjectDestroyed?.Invoke(isServer, identity, player);
 
-		public static event Action<bool, NetworkPeer> OnServerClientConnected;
-		internal static void FireClientConnected(bool isServer, NetworkPeer player) => OnServerClientConnected?.Invoke(isServer, player);
+		public static event Action<bool, NetworkPeer> OnClientConnected;
+		internal static void FireClientConnected(bool isServer, NetworkPeer player) => OnClientConnected?.Invoke(isServer, player);
 
-		public static event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
+    public static event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
 		internal static void FireClientDisconnected(bool isServer, NetworkPeer player, SocketError socketError, string reason) => OnClientDisconnected?.Invoke(isServer, player, socketError, reason);
 
 		public static event Action<bool, NetworkPeer, int> OnChannelPlayerJoined;

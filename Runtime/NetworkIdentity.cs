@@ -31,7 +31,7 @@ namespace Omni.Core
 		internal Dictionary<int, NetworkBehaviour> NetworkBehaviours { get; } = new Dictionary<int, NetworkBehaviour>(); // Network Behaviour Id, Network Behaviour Instance
 
 		[SerializeField]
-		[InfoBox("Static: This object has no interaction with the network, but a copy of it will be generated on the server side(Debug Mode)")]
+		[InfoBox("Static: This object has no interaction with the network, but a copy of it will be generated on the server side(Debug Mode)\n")]
 		private bool m_IsStatic;
 		[SerializeField]
 		[DisableIf("m_IsStatic")] private SpawnMode m_SpawnMode;
