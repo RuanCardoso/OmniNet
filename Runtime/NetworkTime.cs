@@ -165,9 +165,9 @@ namespace Omni.Core
 			}
 			else
 			{
-				for (int i = 0; i < UpdateClock.Handlers.Count; i++)
+				for (int i = 0; i < FixedUpdateClock.Handlers.Count; i++)
 				{
-					IRealtimeTickBasedSystem handler = UpdateClock.Handlers[i];
+					IRealtimeTickBasedSystem handler = FixedUpdateClock.Handlers[i];
 					handler.OnFixedUpdate();
 				}
 			}
