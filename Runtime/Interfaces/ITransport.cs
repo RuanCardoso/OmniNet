@@ -28,7 +28,7 @@ namespace Omni.Internal.Interfaces
 	internal interface ITransport
 	{
 		event Action<bool, NetworkPeer> OnClientConnected; // IsServer? // Player
-		event Action<bool, NetworkPeer> OnClientDisconnected; // IsServer? // Player
+		event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected; // IsServer? // Player // reason
 		event Action<bool, byte[], int, NetworkPeer> OnMessageReceived; // IsServer? // Data // Size Data // Player
 
 		Stopwatch Stopwatch { get; }
@@ -43,7 +43,7 @@ namespace Omni.Internal.Interfaces
 		void InitializeTransport(bool isServer, EndPoint endPoint, TransportSettings settings);
 		void Connect(EndPoint endPoint);
 		void ConnectAsync(EndPoint endPoint);
-		void Disconnect(EndPoint endPoint);
+		void Disconnect(EndPoint endPoint, SocketError errorCode, string reason);
 		void Receive();
 		void Receive(Socket socket);
 		void SendToClient(byte[] buffer, int size, EndPoint endPoint, DataDeliveryMode dataDeliveryMode, byte sequenceChannel);

@@ -34,7 +34,7 @@ namespace Omni.Internal.Transport
 		private const int ExpectedSize = 2;
 
 		public event Action<bool, NetworkPeer> OnClientConnected;
-		public event Action<bool, NetworkPeer> OnClientDisconnected;
+		public event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
 		public event Action<bool, byte[], int, NetworkPeer> OnMessageReceived;
 
 		public Dictionary<EndPoint, TcpTransportClient<Socket>> PeerList { get; } = new();
@@ -211,7 +211,7 @@ namespace Omni.Internal.Transport
 						{
 							m_queues.Enqueue(() =>
 							{
-								Disconnect(peer);
+								Disconnect(peer, SocketError.MessageSize, "Max message size reached!");
 							});
 							return;
 						}
@@ -232,7 +232,7 @@ namespace Omni.Internal.Transport
 							{
 								m_queues.Enqueue(() =>
 								{
-									Disconnect(peer);
+									Disconnect(peer, SocketError.NoData, "No data available!");
 								});
 							}
 						}
@@ -241,7 +241,7 @@ namespace Omni.Internal.Transport
 					{
 						m_queues.Enqueue(() =>
 						{
-							Disconnect(peer);
+							Disconnect(peer, SocketError.NoData, "No data available!");
 						});
 					}
 				}
@@ -268,7 +268,7 @@ namespace Omni.Internal.Transport
 								{
 									m_queues.Enqueue(() =>
 									{
-										Disconnect(peer);
+										Disconnect(peer, SocketError.MessageSize, "Max message size reached!");
 									});
 									return;
 								}
@@ -277,7 +277,7 @@ namespace Omni.Internal.Transport
 							{
 								m_queues.Enqueue(() =>
 								{
-									Disconnect(peer);
+									Disconnect(peer, SocketError.NoData, "No data available!");
 								});
 							}
 						}
@@ -286,7 +286,7 @@ namespace Omni.Internal.Transport
 					{
 						m_queues.Enqueue(() =>
 						{
-							Disconnect(peer);
+							Disconnect(peer, SocketError.NoData, "No data available!");
 						});
 					}
 				}
@@ -294,11 +294,11 @@ namespace Omni.Internal.Transport
 			else
 			{
 				TimeSpan poll = DateTime.UtcNow - transportClient.LastReceivedTime;
-				if (poll.TotalSeconds > 3.5f)
+				if (poll.TotalSeconds > 5f)
 				{
 					m_queues.Enqueue(() =>
 					{
-						Disconnect(peer);
+						Disconnect(peer, SocketError.TimedOut, "The Player was disconnected due to a timeout exceeded.");
 					});
 				}
 			}
@@ -446,13 +446,13 @@ namespace Omni.Internal.Transport
 			}
 		}
 
-		public void Disconnect(EndPoint endPoint)
+		public void Disconnect(EndPoint endPoint, SocketError errorCode, string reason)
 		{
 			if (IsServer)
 			{
 				if (PeerList.Remove(endPoint, out TcpTransportClient<Socket> transportClient))
 				{
-					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer);
+					OnClientDisconnected?.Invoke(IsServer, transportClient.NetworkPeer, errorCode, reason);
 					DisconnectRemotePeer(transportClient);
 				}
 			}
@@ -461,7 +461,7 @@ namespace Omni.Internal.Transport
 				if (IsConnected)
 				{
 					IsConnected = false;
-					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer);
+					OnClientDisconnected?.Invoke(IsServer, LocalTransportClient.NetworkPeer, errorCode, reason);
 					DisconnectLocalPeer();
 				}
 			}
