@@ -62,6 +62,8 @@ namespace Omni.Core
 				}
 			}
 
+			public void Get(string route, Action<IDataReader, IDataWriter, NetworkPeer> res) => Post(route, res);
+
 			public void PostAsync(string route, Func<IDataReader, IDataWriter, NetworkPeer, Task> resAsync)
 			{
 #if UNITY_EDITOR
@@ -75,6 +77,8 @@ namespace Omni.Core
 					throw new NotSupportedException($"The route {route} is global and must be unique.");
 				}
 			}
+
+			public void GetAsync(string route, Func<IDataReader, IDataWriter, NetworkPeer, Task> resAsync) => PostAsync(route, resAsync);
 		}
 
 		public class HttpClient
@@ -108,6 +112,8 @@ namespace Omni.Core
 				}
 			}
 
+			public void Get(string route, Action<IDataReader> response, DataDeliveryMode dataDeliveryMode = DataDeliveryMode.ReliableEncryptedOrdered) => Post(route, (_) => { }, response, dataDeliveryMode);
+
 			public Task<IDataReader> PostAsync(string route, Action<IDataWriter> request, int timeout = 3000, DataDeliveryMode dataDeliveryMode = DataDeliveryMode.ReliableEncryptedOrdered)
 			{
 				TaskCompletionSource<IDataReader> tcs = new();
@@ -134,6 +140,8 @@ namespace Omni.Core
 				}, cts.Token);
 				return tcs.Task;
 			}
+
+			public Task<IDataReader> GetAsync(string route, int timeout = 3000, DataDeliveryMode dataDeliveryMode = DataDeliveryMode.ReliableEncryptedOrdered) => PostAsync(route, (_) => { }, timeout, dataDeliveryMode);
 		}
 
 		internal static void AddEventListener()
@@ -164,7 +172,7 @@ namespace Omni.Core
 					httpHeader.Write(httpResponse.Buffer, 0, httpResponse.BytesWritten);
 					if (httpResponse.BytesWritten > 0)
 						OmniNetwork.Communicator.Internal_SendCustomMessage(HttpOption.Response, httpHeader, peer.Id, deliveryMode, 0);
-					else OmniLogger.PrintError("Error: The requested route does not have a response from the server.");
+					else OmniLogger.PrintError("The requested route was received successfully, however, it is not responding.");
 					#endregion
 
 					#region Recycle

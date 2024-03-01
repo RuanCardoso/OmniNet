@@ -19,6 +19,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using static Omni.Core.OmniNetwork;
@@ -273,12 +274,12 @@ namespace Omni.Core
 			DataWriterPool.Release(internalWriter);
 		}
 
-		internal void SyncVariable(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int identityId, byte networkBehaviourId, byte netVarId, byte sequenceChannel = 0)
+		public void SyncVariable(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int identityId, byte networkBehaviourId, byte netVarId, byte sequenceChannel = 0)
 		{
 			InternalSyncVariable(writer, dataDeliveryMode, 0, identityId, networkBehaviourId, netVarId, sequenceChannel);
 		}
 
-		internal void SyncVariable(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte netVarId, byte sequenceChannel = 0)
+		public void SyncVariable(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte netVarId, byte sequenceChannel = 0)
 		{
 			InternalSyncVariable(writer, dataDeliveryMode, peerId, identityId, networkBehaviourId, netVarId, sequenceChannel);
 		}
@@ -290,6 +291,28 @@ namespace Omni.Core
 			internalWriter.Write7BitEncodedInt(identityId);
 			internalWriter.Write(networkBehaviourId);
 			internalWriter.Write(netVarId);
+			internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
+			if (peerId != 0) SendToClient(internalWriter, peerId, dataDeliveryMode, sequenceChannel);
+			else SendToServer(internalWriter, dataDeliveryMode, sequenceChannel);
+			DataWriterPool.Release(internalWriter);
+		}
+
+		public void SerializeView(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int identityId, byte networkBehaviourId, byte sequenceChannel = 0)
+		{
+			InternalSerializeView(writer, dataDeliveryMode, 0, identityId, networkBehaviourId, sequenceChannel);
+		}
+
+		public void SerializeView(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte sequenceChannel = 0)
+		{
+			InternalSerializeView(writer, dataDeliveryMode, peerId, identityId, networkBehaviourId, sequenceChannel);
+		}
+
+		private void InternalSerializeView(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, int identityId, byte networkBehaviourId, byte sequenceChannel = 0)
+		{
+			IDataWriter internalWriter = DataWriterPool.Get();
+			internalWriter.Write((byte)NetMessage.SerializeView);
+			internalWriter.Write7BitEncodedInt(identityId);
+			internalWriter.Write(networkBehaviourId);
 			internalWriter.Write(writer.Buffer, 0, writer.BytesWritten);
 			if (peerId != 0) SendToClient(internalWriter, peerId, dataDeliveryMode, sequenceChannel);
 			else SendToServer(internalWriter, dataDeliveryMode, sequenceChannel);
@@ -607,7 +630,7 @@ namespace Omni.Core
 						int identityId = header.Read7BitEncodedInt();
 						byte networkBehaviourId = header.ReadByte();
 						byte netVarId = header.ReadByte();
-						// We will execute the delegate responsible for the RPC received.
+						// We will execute the delegate responsible for the NetVar received.
 						if (NetworkIdentities.TryGetValue(ValueTuple.Create(identityId, isServer), out NetworkIdentity identity))
 						{
 							if (identity.NetworkBehaviours.TryGetValue(networkBehaviourId, out NetworkBehaviour networkBehaviour))
@@ -628,6 +651,31 @@ namespace Omni.Core
 						}
 					}
 					break;
+				case NetMessage.SerializeView:
+					{
+						int identityId = header.Read7BitEncodedInt();
+						byte networkBehaviourId = header.ReadByte();
+						// We will execute the delegate responsible for the OnSerializeView received.
+						if (NetworkIdentities.TryGetValue(ValueTuple.Create(identityId, isServer), out NetworkIdentity identity))
+						{
+							if (identity.NetworkBehaviours.TryGetValue(networkBehaviourId, out NetworkBehaviour networkBehaviour))
+							{
+								IDataReader reader = DataReaderPool.Get();
+								reader.Write(header.Buffer, header.Position, header.BytesWritten);
+								networkBehaviour.OnDeserializeView(reader, peer);
+								DataReaderPool.Release(reader);
+							}
+							else
+							{
+								OmniLogger.PrintError($"Error: NetworkBehaviour with ID '{networkBehaviourId}' not found in NetworkIdentity.");
+							}
+						}
+						else
+						{
+							OmniLogger.PrintError($"Error: NetworkIdentity with ID '{identityId}' and IsServer '{isServer}' not found.");
+						}
+					}
+					break;
 				default:
 					OmniLogger.PrintError("Not implemented message!");
 					break;
@@ -635,7 +683,7 @@ namespace Omni.Core
 			DataReaderPool.Release(header);
 		}
 
-		private void OnClientDisconnected(bool isServer, NetworkPeer peer)
+		private void OnClientDisconnected(bool isServer, NetworkPeer peer, SocketError socketError, string reason)
 		{
 #if UNITY_EDITOR
 			NetworkHelper.ThrowAnErrorIfConcurrent();
@@ -644,10 +692,10 @@ namespace Omni.Core
 			{
 				if (PeersById.Remove(peer.Id))
 				{
-					OmniLogger.Print($"The server disconnected the player: {peer.EndPoint} -> Id: {peer.Id}");
+					OmniLogger.Print($"The server disconnected the player: {peer.EndPoint} -> Id: {peer.Id} | code: {socketError} reason: {reason}");
 					if (peer.Channel != 0)
 						Matchmaking.LeaveChannel(isServer, peer, peer.Channel);
-					NetworkCallbacks.FireClientDisconnected(isServer, peer);
+					NetworkCallbacks.FireClientDisconnected(isServer, peer, socketError, reason);
 				}
 				else
 				{
@@ -656,14 +704,14 @@ namespace Omni.Core
 			}
 			else
 			{
-				NetworkCallbacks.FireClientDisconnected(isServer, peer);
+				NetworkCallbacks.FireClientDisconnected(isServer, peer, socketError, reason);
 				if (Main.TransportOption == TransportOption.WebSocketTransport)
 				{
-					OmniLogger.Print($"Client disconnected. Endpoint: {Main.TransportSettings.Host}:{Main.TransportSettings.ServerPort}");
+					OmniLogger.Print($"Client disconnected. Endpoint: {Main.TransportSettings.Host}:{Main.TransportSettings.ServerPort} | code: {socketError} reason: {reason}");
 					return;
 				}
 
-				OmniLogger.Print($"Client disconnected. Endpoint: {peer.EndPoint}");
+				OmniLogger.Print($"Client disconnected. Endpoint: {peer.EndPoint} | code: {socketError} reason: {reason}");
 			}
 		}
 
@@ -713,7 +761,7 @@ namespace Omni.Core
 		{
 			if (IsClientInitialized())
 			{
-				ClientTransport.Disconnect(LocalPeer.EndPoint);
+				ClientTransport.Disconnect(LocalPeer.EndPoint, SocketError.Shutdown, "The client has closed the connection.");
 			}
 			else
 			{
@@ -725,7 +773,7 @@ namespace Omni.Core
 		{
 			if (IsServerInitialized())
 			{
-				ServerTransport.Disconnect(endPoint);
+				ServerTransport.Disconnect(endPoint, SocketError.Shutdown, "The server closed the peer connection.");
 			}
 			else
 			{

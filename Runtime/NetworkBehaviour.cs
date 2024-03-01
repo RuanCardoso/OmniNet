@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using static Omni.Core.OmniNetwork;
 
 namespace Omni.Core
 {
@@ -32,7 +33,7 @@ namespace Omni.Core
 
 		public byte Id => m_Id;
 		public NetworkIdentity Identity => m_Identity;
-		public bool IsMine => OmniNetwork.Communicator.IsMine(m_Identity.OwnerId);
+		public bool IsMine => Communicator.IsMine(m_Identity.OwnerId);
 		public bool IsServer => m_Identity.IsServer;
 		public bool IsClient => m_Identity.IsClient;
 
@@ -68,12 +69,39 @@ namespace Omni.Core
 			StartCoroutine(Internal_OnNetworkStart());
 		}
 
-		public virtual void OnNetworkEventsRegister()
+		private void GetRemoteAtributes()
 		{
-
+			Type type = GetType();
+			MethodInfo[] methodInfos = type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+			for (int i = 0; i < methodInfos.Length; i++)
+			{
+				MethodInfo method = methodInfos[i];
+				IEnumerable<RemoteAttribute> attributes = method.GetCustomAttributes<RemoteAttribute>();
+				foreach (RemoteAttribute attr in attributes)
+				{
+					if (attr != null)
+					{
+						Action<IDataReader, NetworkPeer> func = (_, _) => { };
+						try
+						{
+							func = (Action<IDataReader, NetworkPeer>)method.CreateDelegate(typeof(Action<IDataReader, NetworkPeer>), this);
+							if (!RemoteFuncs.TryAdd(attr.Id, func))
+							{
+								OmniLogger.PrintError($"Error: Duplicated remote ID '{attr.Id}'. Ensure unique IDs for each method with the Remote attribute.");
+							}
+						}
+						catch (TargetParameterCountException ex)
+						{
+							var expectedArguments = string.Join(", ", func.Method.GetParameters().Select(param => param.ParameterType.Name));
+							OmniLogger.PrintError($"Error: Failed to create delegate for method with Remote attribute. {ex.Message} -> Id: {attr.Id} | expected arguments: {expectedArguments}");
+						}
+					}
+				}
+			}
 		}
 
-		public abstract void OnNetworkStart();
+		protected virtual void OnNetworkEventsRegister() { }
+		protected abstract void OnNetworkStart();
 		private IEnumerator Internal_OnNetworkStart()
 		{
 			yield return new WaitUntil(() => m_Identity.IsServerSimulation ? IsServer : IsClient);
@@ -140,14 +168,14 @@ namespace Omni.Core
 		}
 #endif
 
-		protected NetworkPeer GetPeerByid(int peerId)
+		protected NetworkPeer GetPeerById(int peerId)
 		{
-			return OmniNetwork.Communicator.GetPeerById(peerId);
+			return Communicator.GetPeerById(peerId);
 		}
 
 		protected Dictionary<int, NetworkPeer> GetPeers()
 		{
-			return OmniNetwork.Communicator.GetPeers();
+			return Communicator.GetPeers();
 		}
 
 		protected IDataWriter GetWriter() => NetworkCommunicator.DataWriterPool.Get();
@@ -156,6 +184,70 @@ namespace Omni.Core
 		protected void Release(IDataWriter writer) => NetworkCommunicator.DataWriterPool.Release(writer);
 		protected void Release(IDataReader reader) => NetworkCommunicator.DataReaderPool.Release(reader);
 
+		public void SerializeView(DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte sequenceChannel = 0)
+		{
+			switch (dataTarget)
+			{
+				case DataTarget.Self:
+					SerializeView(m_Identity.OwnerId, dataDeliveryMode, sequenceChannel);
+					break;
+				case DataTarget.Broadcast:
+					{
+						foreach ((int _, NetworkPeer peer) in Communicator.GetPeers())
+						{
+							SerializeView(peer.Id, dataDeliveryMode, sequenceChannel);
+						}
+					}
+					break;
+				case DataTarget.BroadcastExcludingSelf:
+					{
+						foreach ((int _, NetworkPeer peer) in Communicator.GetPeers())
+						{
+							if (peer.Id == m_Identity.OwnerId)
+								continue;
+
+							SerializeView(peer.Id, dataDeliveryMode, sequenceChannel);
+						}
+					}
+					break;
+				case DataTarget.Server:
+					SerializeView(dataDeliveryMode, sequenceChannel);
+					break;
+			}
+		}
+
+		public void SerializeView(int peerId, DataDeliveryMode deliveryMode, byte sequenceChannel = 0)
+		{
+			if (IsServer)
+			{
+				IDataWriter writer = GetWriter();
+				OnSerializeView(writer);
+				Communicator.SerializeView(writer, deliveryMode, peerId, m_Identity.Id, m_Id, sequenceChannel);
+				Release(writer);
+			}
+			else
+			{
+				OmniLogger.PrintError("Error: Client cannot use server-side OnSerializeView invocation. Use client-side OnSerializeView methods instead.");
+			}
+		}
+
+		public void SerializeView(DataDeliveryMode deliveryMode, byte sequenceChannel = 0)
+		{
+			if (!IsServer)
+			{
+				IDataWriter writer = GetWriter();
+				OnSerializeView(writer);
+				Communicator.SerializeView(writer, deliveryMode, m_Identity.Id, m_Id, sequenceChannel);
+				Release(writer);
+			}
+			else
+			{
+				OmniLogger.PrintError("Error: Server cannot use client-side OnSerializeView invocation. Use server-side OnSerializeView methods instead.");
+			}
+		}
+
+		protected virtual void OnSerializeView(IDataWriter writer) { }
+		protected internal virtual void OnDeserializeView(IDataReader reader, NetworkPeer peer) { throw new NotImplementedException("OnDeserializeView must be overridden in a derived class."); }
 		// Sync NetVar with Roslyn Generators (:
 		// Roslyn methods!
 		protected virtual void OnCustomSerialize(byte id, IDataWriter writer, int argIndex = 0)
@@ -198,7 +290,7 @@ namespace Omni.Core
 			{
 				OnPropertyChanged(id);
 				OnClientDefaultSettings(id, out DataDeliveryMode deliveryMode, out byte sequenceChannel);
-				OmniNetwork.Communicator.SyncVariable(writer, deliveryMode, m_Identity.Id, m_Id, id, sequenceChannel);
+				Communicator.SyncVariable(writer, deliveryMode, m_Identity.Id, m_Id, id, sequenceChannel);
 			}
 			else
 			{
@@ -207,43 +299,12 @@ namespace Omni.Core
 			}
 		}
 
-		private void GetRemoteAtributes()
+		public void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte netVarId, byte sequenceChannel = 0)
 		{
-			Type type = GetType();
-			MethodInfo[] methodInfos = type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-			for (int i = 0; i < methodInfos.Length; i++)
-			{
-				MethodInfo method = methodInfos[i];
-				IEnumerable<RemoteAttribute> attributes = method.GetCustomAttributes<RemoteAttribute>();
-				foreach (RemoteAttribute attr in attributes)
-				{
-					if (attr != null)
-					{
-						Action<IDataReader, NetworkPeer> func = (_, _) => { };
-						try
-						{
-							func = (Action<IDataReader, NetworkPeer>)method.CreateDelegate(typeof(Action<IDataReader, NetworkPeer>), this);
-							if (!RemoteFuncs.TryAdd(attr.Id, func))
-							{
-								OmniLogger.PrintError($"Error: Duplicated remote ID '{attr.Id}'. Ensure unique IDs for each method with the Remote attribute.");
-							}
-						}
-						catch (TargetParameterCountException ex)
-						{
-							var expectedArguments = string.Join(", ", func.Method.GetParameters().Select(param => param.ParameterType.Name));
-							OmniLogger.PrintError($"Error: Failed to create delegate for method with Remote attribute. {ex.Message} -> Id: {attr.Id} | expected arguments: {expectedArguments}");
-						}
-					}
-				}
-			}
+			Communicator.SyncVariable(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, netVarId, sequenceChannel);
 		}
 
-		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, int peerId, byte netVarId, byte sequenceChannel = 0)
-		{
-			OmniNetwork.Communicator.SyncVariable(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, netVarId, sequenceChannel);
-		}
-
-		protected void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte netVarId, byte sequenceChannel = 0)
+		public void NetVar(IDataWriter writer, DataDeliveryMode dataDeliveryMode, DataTarget dataTarget, byte netVarId, byte sequenceChannel = 0)
 		{
 			switch (dataTarget)
 			{
@@ -252,7 +313,7 @@ namespace Omni.Core
 					break;
 				case DataTarget.Broadcast:
 					{
-						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						foreach ((int _, NetworkPeer peer) in Communicator.GetPeers())
 						{
 							NetVar(writer, dataDeliveryMode, peer.Id, netVarId, sequenceChannel);
 						}
@@ -260,7 +321,7 @@ namespace Omni.Core
 					break;
 				case DataTarget.BroadcastExcludingSelf:
 					{
-						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						foreach ((int _, NetworkPeer peer) in Communicator.GetPeers())
 						{
 							if (peer.Id == m_Identity.OwnerId)
 								continue;
@@ -283,7 +344,7 @@ namespace Omni.Core
 					break;
 				case DataTarget.Broadcast:
 					{
-						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						foreach ((int _, NetworkPeer peer) in Communicator.GetPeers())
 						{
 							Rpc(writer, dataDeliveryMode, peer.Id, rpcId, sequenceChannel);
 						}
@@ -291,7 +352,7 @@ namespace Omni.Core
 					break;
 				case DataTarget.BroadcastExcludingSelf:
 					{
-						foreach ((int _, NetworkPeer peer) in OmniNetwork.Communicator.GetPeers())
+						foreach ((int _, NetworkPeer peer) in Communicator.GetPeers())
 						{
 							if (peer.Id == m_Identity.OwnerId)
 								continue;
@@ -310,7 +371,7 @@ namespace Omni.Core
 		{
 			if (!IsServer)
 			{
-				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, m_Identity.Id, m_Id, rpcId, sequenceChannel);
+				Communicator.Rpc(writer, dataDeliveryMode, m_Identity.Id, m_Id, rpcId, sequenceChannel);
 			}
 			else
 			{
@@ -322,7 +383,7 @@ namespace Omni.Core
 		{
 			if (IsServer)
 			{
-				OmniNetwork.Communicator.Rpc(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, rpcId, sequenceChannel);
+				Communicator.Rpc(writer, dataDeliveryMode, peerId, m_Identity.Id, m_Id, rpcId, sequenceChannel);
 			}
 			else
 			{

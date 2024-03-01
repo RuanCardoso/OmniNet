@@ -22,6 +22,7 @@ namespace Omni.Internal
 		InternalMessage, // internal use
 		RequestId,
 		Rpc,
+		SerializeView,
 		LargeBlockOfBytes,
 		InternalLargeBlockOfBytes,
         NetVar,
