@@ -1,30 +1,19 @@
+using System;
 using Omni.Core;
+using UnityEngine;
 
 namespace Omni.Internal.Samples
 {
-	public partial class RpcWithSourceGeneratos : NetworkBehaviour
+	public partial class RpcWithSourceGeneratos : MonoBehaviour
 	{
-		protected override void OnNetworkStart()
+		private void Awake()
 		{
-			
+			NetworkCallbacks.OnClientConnected += OnClientConnected;
 		}
 
-		private void Update()
+		private void OnClientConnected(bool isServer, NetworkPeer peer)
 		{
-			if (IsServer)
-			{
-				SerializeView(1, DataDeliveryMode.Unreliable);
-			}
-		}
-
-		protected override void OnSerializeView(IDataWriter writer)
-		{
-			writer.Write(100);
-		}
-
-		protected override void OnDeserializeView(IDataReader reader, NetworkPeer peer)
-		{
-			OmniLogger.PrintError(reader.ReadInt());
+			OmniLogger.PrintError(isServer);
 		}
 	}
 }
