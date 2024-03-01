@@ -262,17 +262,7 @@ namespace Omni.Internal.Transport
 			{
 				if (ValidateSend(buffer, size))
 				{
-					DeliveryMethod deliveryMethod = dataDeliveryMode switch
-					{
-						DataDeliveryMode.Unreliable => DeliveryMethod.Unreliable,
-						DataDeliveryMode.ReliableOrdered => DeliveryMethod.ReliableOrdered,
-						DataDeliveryMode.ReliableUnordered => DeliveryMethod.ReliableUnordered,
-						DataDeliveryMode.ReliableSequenced => DeliveryMethod.ReliableSequenced,
-						DataDeliveryMode.ReliableEncryptedOrdered => DeliveryMethod.ReliableOrdered, // Cryptography is at a higher layer.
-						DataDeliveryMode.ReliableEncryptedUnordered => DeliveryMethod.ReliableUnordered, // Cryptography is at a higher layer.
-						DataDeliveryMode.ReliableEncryptedSequenced => DeliveryMethod.ReliableSequenced, // Cryptography is at a higher layer.
-					};
-
+					DeliveryMethod deliveryMethod = GetDeliveryMethod(dataDeliveryMode);
 					if (PeerList.TryGetValue(endPoint, out LiteTransportClient<NetPeer> transportClient))
 					{
 						NetPeer peer = transportClient.Peer;
@@ -296,13 +286,7 @@ namespace Omni.Internal.Transport
 			{
 				if (ValidateSend(buffer, size))
 				{
-					DeliveryMethod deliveryMethod = dataDeliveryMode switch
-					{
-						DataDeliveryMode.Unreliable => DeliveryMethod.Unreliable,
-						DataDeliveryMode.ReliableOrdered => DeliveryMethod.ReliableOrdered,
-						DataDeliveryMode.ReliableEncryptedOrdered => DeliveryMethod.ReliableOrdered
-					};
-
+					DeliveryMethod deliveryMethod = GetDeliveryMethod(dataDeliveryMode);
 					if (IsConnected)
 					{
 						NetPeer peer = LocalTransportClient.Peer;
@@ -325,6 +309,21 @@ namespace Omni.Internal.Transport
 			{
 				OmniLogger.PrintError($"This transport is not valid for this operation! Use {nameof(SendToClient)}");
 			}
+		}
+
+		private DeliveryMethod GetDeliveryMethod(DataDeliveryMode dataDeliveryMode)
+		{
+			return dataDeliveryMode switch
+			{
+				DataDeliveryMode.Unreliable => DeliveryMethod.Unreliable,
+				DataDeliveryMode.ReliableOrdered => DeliveryMethod.ReliableOrdered,
+				DataDeliveryMode.ReliableUnordered => DeliveryMethod.ReliableUnordered,
+				DataDeliveryMode.ReliableSequenced => DeliveryMethod.ReliableSequenced,
+				// Cryptography is at a higher layer.
+				DataDeliveryMode.ReliableEncryptedOrdered => DeliveryMethod.ReliableOrdered,
+				DataDeliveryMode.ReliableEncryptedUnordered => DeliveryMethod.ReliableUnordered,
+				DataDeliveryMode.ReliableEncryptedSequenced => DeliveryMethod.ReliableSequenced,
+			};
 		}
 
 		public void Close()
