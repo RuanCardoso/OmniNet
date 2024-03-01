@@ -35,7 +35,7 @@ namespace Omni.Core
 		public static event Action<bool, NetworkPeer> OnClientConnected;
 		internal static void FireClientConnected(bool isServer, NetworkPeer player) => OnClientConnected?.Invoke(isServer, player);
 
-    public static event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
+		public static event Action<bool, NetworkPeer, SocketError, string> OnClientDisconnected;
 		internal static void FireClientDisconnected(bool isServer, NetworkPeer player, SocketError socketError, string reason) => OnClientDisconnected?.Invoke(isServer, player, socketError, reason);
 
 		public static event Action<bool, NetworkPeer, int> OnChannelPlayerJoined;
