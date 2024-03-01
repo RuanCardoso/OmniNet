@@ -29,11 +29,12 @@ namespace Omni.Core
 	[DefaultExecutionOrder(-1000)]
 	public class NetworkCommunicator : RealtimeTickBasedSystem
 	{
-		enum LargeDataOption
+		enum InternalOptions
 		{
 			PublicKeyExchange = 4,
 			AesKeyExchange = 6,
-			NetworkPeerSync = 8
+			NetworkPeerSync = 8,
+			OnClientConnected = 1,
 		}
 
 		private Dictionary<int, NetworkPeer> PeersById { get; } = new();
@@ -86,17 +87,38 @@ namespace Omni.Core
 			DataWriterPool = new DataWriterPool(428);
 			DataReaderPool = new DataReaderPool(428);
 			NetworkCallbacks.Internal_OnLargeDataReceived += OnLargeDataReceived;
+			NetworkCallbacks.Internal_OnCustomMessageReceived += OnCustomMessageReceived;
+		}
+
+		private void OnCustomMessageReceived(bool isServer, IDataReader reader, NetworkPeer peer, DataDeliveryMode mode)
+		{
+			InternalOptions largeDataOption = reader.ReadCustomMessage<InternalOptions>(out int lastPos);
+			switch (largeDataOption)
+			{
+				case InternalOptions.OnClientConnected:
+					{
+						if (!isServer)
+						{
+							// Authenticated
+							NetworkCallbacks.FireClientConnected(isServer, peer);
+						}
+					}
+					break;
+				default:
+					reader.Position = lastPos;
+					break;
+			}
 		}
 
 		private void OnLargeDataReceived(bool isServer, int option, IDataReader reader, NetworkPeer peer, DataDeliveryMode deliveryMode)
 		{
-			LargeDataOption largeDataOption = option.ReadCustomMessage<LargeDataOption>();
+			InternalOptions largeDataOption = option.ReadCustomMessage<InternalOptions>();
 			if (!isServer)
 			{
 				switch (largeDataOption)
 				{
 					// authentication
-					case LargeDataOption.PublicKeyExchange:
+					case InternalOptions.PublicKeyExchange:
 						{
 							try
 							{
@@ -107,10 +129,8 @@ namespace Omni.Core
 								byte[] key = RsaCryptography.Encrypt(Main.AesKey, publicKey);
 								aesWriter.Write7BitEncodedInt(key.Length);
 								aesWriter.Write(key);
-								Internal_SendLargeBlocksOfData(LargeDataOption.AesKeyExchange, aesWriter, DataDeliveryMode.ReliableOrdered, 0, 64, 0); // 64 // Min data size can be sended
+								Internal_SendLargeBlocksOfData(InternalOptions.AesKeyExchange, aesWriter, DataDeliveryMode.ReliableOrdered, 0, 64, 0); // 64 // Min data size can be sended
 								DataWriterPool.Release(aesWriter);
-								// Authenticated
-								NetworkCallbacks.FireClientConnected(isServer, peer);
 							}
 							catch (Exception ex)
 							{
@@ -120,7 +140,7 @@ namespace Omni.Core
 							}
 						}
 						break;
-					case LargeDataOption.NetworkPeerSync:
+					case InternalOptions.NetworkPeerSync:
 						break;
 					default:
 						throw new NotImplementedException("LargeDataOption not implemented!");
@@ -128,7 +148,8 @@ namespace Omni.Core
 			}
 			else
 			{
-				if (largeDataOption == LargeDataOption.AesKeyExchange)
+				// Server-side
+				if (largeDataOption == InternalOptions.AesKeyExchange)
 				{
 					try
 					{
@@ -136,8 +157,10 @@ namespace Omni.Core
 						byte[] encryptedKey = new byte[length];
 						reader.Read(encryptedKey, 0, length); // 128 bits -> 16 Bytes
 						peer.AesKey = RsaCryptography.Decrypt(encryptedKey, Main.PrivateKey);
-						// Authenticated
+
+						// Client Authenticated
 						NetworkCallbacks.FireClientConnected(isServer, peer);
+						Internal_SendCustomMessage(InternalOptions.OnClientConnected, DataWriter.Empty, peer.Id, DataDeliveryMode.ReliableOrdered);
 					}
 					catch (Exception ex)
 					{
@@ -482,7 +505,7 @@ namespace Omni.Core
 					// Exchange Rsa Keys, the server will send its public key to the client.
 					IDataWriter rsaWriter = DataWriterPool.Get();
 					rsaWriter.Write(Main.PublicKey);
-					Internal_SendLargeBlocksOfData(LargeDataOption.PublicKeyExchange, rsaWriter, DataDeliveryMode.ReliableOrdered, peer.Id, 64, 0); // 64 // Min data size can be sended
+					Internal_SendLargeBlocksOfData(InternalOptions.PublicKeyExchange, rsaWriter, DataDeliveryMode.ReliableOrdered, peer.Id, 64, 0); // 64 // Min data size can be sended
 					DataWriterPool.Release(rsaWriter);
 
 					OmniLogger.Print($"Player successfully connected to the server. Endpoint: {peer.EndPoint} -> Id: {peer.Id}");
