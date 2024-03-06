@@ -15,6 +15,7 @@
 using Newtonsoft.Json.Utilities;
 using Omni.Core.Cryptography;
 using Omni.Core.IMatchmaking;
+using Omni.Core.Web;
 using Omni.Internal;
 using Omni.Internal.Interfaces;
 using Omni.Internal.Transport;
@@ -117,7 +118,7 @@ namespace Omni.Core
 		public override void Start()
 		{
 			base.Start();
-			// Server build has no client!
+			// The server build has no client!
 #if !UNITY_SERVER || UNITY_EDITOR
 			InitializeConnection();
 #endif
@@ -288,6 +289,12 @@ namespace Omni.Core
 				TransportSettings.ClientPort = (ushort)new System.Random().Next(TransportSettings.ClientPort, ushort.MaxValue);
 				ClientTransport.InitializeTransport(false, new IPEndPoint(IPAddress.Any, TransportSettings.ClientPort), TransportSettings);
 			}
+
+			if (enableWebServer)
+			{
+				NetworkHttpServer.WebServer = new NetworkHttpCommunicator();
+				NetworkHttpServer.WebServer.Initialize();
+			}
 		}
 
 		private void CreateServerSimulation()
@@ -330,6 +337,11 @@ namespace Omni.Core
 			if (ClientTransport != null && ClientTransport.IsInitialized)
 			{
 				ClientTransport.Close();
+			}
+
+			if (enableWebServer)
+			{
+				NetworkHttpServer.WebServer.Close();
 			}
 		}
 	}

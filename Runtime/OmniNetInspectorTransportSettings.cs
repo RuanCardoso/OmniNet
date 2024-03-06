@@ -19,7 +19,6 @@ using System;
 using UnityEditor;
 #endif
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace Omni.Core
 {
@@ -58,7 +57,7 @@ namespace Omni.Core
 		[SerializeField]
 		private CustomTransportSettings m_OnTransportSettings;
 
-		#region LiteNetLib
+		#region Lite Net
 		[BoxGroup("Transport")]
 		[SerializeField]
 		[ShowIf(nameof(TransportOption), TransportOption.LiteNetTransport)]
@@ -244,12 +243,22 @@ namespace Omni.Core
 		}
 		#endregion
 
-		#region WebSocket
+		#region Web Socket
 		private void OnWebSocketSettingsChanged()
 		{
 			TransportSettings = new();
 			SetAll(TransportSettings);
 		}
 		#endregion
+
+		#region Web Server
+		[BoxGroup("Web Server")]
+		[SerializeField]
+		private bool enableWebServer = true;
+		[BoxGroup("Web Server")]
+		[SerializeField]
+		private ushort webServerPort = 8080;
+		#endregion
+
 	}
 }

@@ -7,6 +7,25 @@ namespace Omni.Core
 	public class Row : Dictionary<string, object>
 	{
 		public new object this[string key] => base[key];
+		public object Get(string key) => base[key];
+		public bool TryGet(string key, out object @object)
+		{
+			@object = default;
+			try
+			{
+				if (TryGetValue(key, out object value))
+				{
+					@object = value;
+					return true;
+				}
+				return false;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
 		public T Get<T>(string key) => (T)Convert.ChangeType(base[key], typeof(T));
 		public T FastGet<T>(string key)
 		{

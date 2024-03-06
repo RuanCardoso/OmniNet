@@ -1,11 +1,8 @@
 {
-    "name": "Omni.Core",
+    "name": "Omni.WebServer",
     "rootNamespace": "",
     "references": [
-        "GUID:bc167c2acca570c49a384a59ad5962b7",
-        "GUID:5760abac7c528a847a5e9a18c11ca83c",
-        "GUID:7aa63cdbf8dbc9d4a884da84a461b489",
-        "GUID:cc7f614e490fe80469ce93f7345a3de2"
+        "GUID:7aa63cdbf8dbc9d4a884da84a461b489"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
