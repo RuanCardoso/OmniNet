@@ -2,7 +2,7 @@
 
 OmniNet - Networking at the Subatomic Level in Unity.
 
-<img src="omniman.png" alt="omniman" width="400" height="300">
+<img src="omniman.png" alt="omniman" width="400" height="400">
 _______________________________________________________________________________
 
 # OmniNet - A Unity Framework for Multiplayer Game Development
