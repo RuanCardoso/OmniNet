@@ -9,9 +9,7 @@ _______________________________________________________________________________
 
 OmniNet is a Unity framework created with a strong focus on achieving high-performance in the development of multiplayer games.
 
-**Requirements**: OmniNet is limited to Unity version 2021.2 or newer. This is because Unity introduced Support for .Net Standard 2.1 starting from version 2021.2, which brings improvements to the Network Socket and introduces new features like Span, Memory, ArrayPool, and more.
-
-I decided to leverage these new features to create a high-performance networking framework.
+**Requirements**: OmniNet requires Unity version 2021.2 or later. This dependency arises from Unity's integration of .NET Standard 2.1, which enhances Network Socket capabilities and introduces valuable features such as Span, Memory, ArrayPool, and more. I decided to leverage these new features to create a high-performance networking framework.
 
 ## Prerequisites
 
@@ -26,7 +24,7 @@ You can install it through the Unity Package Manager by following these steps:
 1. Open the Unity Editor.
 2. Go to Window > Package Manager.
 3. Click on the + button in the top-left corner of the Package Manager window.
-4. Select **Add package by name....**
+4. Select **"Add package by name"**
 5. Enter `com.unity.nuget.newtonsoft-json` as the package name.
 6. Click **Add**.
 
