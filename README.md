@@ -1,7 +1,9 @@
 [![pt-br](https://img.shields.io/badge/lang-pt--br-green.svg)](https://github.com/RuanCardoso/OmniNet/blob/main/README.pt-br.md)
 
 OmniNet - Networking at the Subatomic Level in Unity.
-![Descrição da imagem](omniman.png)
+
+![omniman](omniman.png)
+<img src="imagem.png" alt="omniman" width="400" height="300">
 _______________________________________________________________________________
 
 # OmniNet - A Unity Framework for Multiplayer Game Development
